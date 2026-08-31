@@ -8,3 +8,9 @@ The restaurant chatbot should answer only from the explicitly provided knowledge
 **Why:** The prototype is intentionally controlled before a real AI model is connected, so confident guesses would be more harmful than a clear handoff.
 
 **How to apply:** When expanding the knowledge base or its matcher, add facts to the source data first, keep specific unknown-topic handlers ahead of broad menu/keyword handlers, and preserve budget-aware recommendations using only priced items.
+
+The direct OpenAI integration can be correctly configured while requests still fail with a provider-side `429 credit_balance_exhausted`; keep that distinct from missing-secret or application errors.
+
+**Why:** A live request reached OpenAI and was rejected for account credits, so treating every upstream failure as a code defect would lead to unnecessary changes.
+
+**How to apply:** Log only safe provider metadata such as status, code, and type; return a generic retry message to customers and report account-credit failures accurately during verification.
