@@ -8,6 +8,7 @@ import NotFound from '@/pages/not-found';
 import { Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
 import heroImage from '../attached_assets/generated_images/hero-jollof-fire.jpg';
 import familyImage from '../attached_assets/generated_images/family-kitchen.jpg';
+import { getChatbotReply } from './script.js';
 
 const queryClient = new QueryClient();
 
@@ -32,14 +33,6 @@ const menu: Record<string, MenuItem[]> = {
     { name: "Chin chin", description: "Buttery, crisp, spiced bites for the table.", price: "$6" },
     { name: "Pepper soup broth", description: "A small cup of fragrant broth and fresh herbs.", price: "$7" },
   ],
-};
-
-const scriptedReplies: Record<string, string> = {
-  menu: "The smoky jollof is our signature: tomato, pepper, charcoal, and the last spoonful always starts an argument. The egusi is a close second.",
-  vegetarian: "Absolutely. Try the black-eyed bean bowl, dundun plantain, and our plant-forward pepper relish. We can make the jollof without the chicken stock too.",
-  hours: "We are open Tuesday–Thursday 5–10pm, Friday–Saturday 5–11pm, and Sunday 11am–4pm for lunch. Closed Monday for prep and family.",
-  location: "Find us at 1842 San Pablo Avenue in West Oakland, right by the corner bookstore. Street parking is usually easiest on 19th.",
-  default: "I can help with the menu, vegetarian plates, hours, or where to find us. Or ask me what I would order tonight.",
 };
 
 function scrollToId(id: string) {
@@ -95,11 +88,9 @@ function ChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState([{ from: "assistant", text: "Hello from the kitchen. What can I help you find?" }]);
-  const suggestions = [{ label: "What should I order?", key: "menu" }, { label: "Vegetarian options", key: "vegetarian" }, { label: "When are you open?", key: "hours" }];
-  function reply(keyOrText: string) {
-    const normalized = keyOrText.toLowerCase();
-    const key = normalized.includes("veget") ? "vegetarian" : normalized.includes("hour") || normalized.includes("open") ? "hours" : normalized.includes("where") || normalized.includes("find") || normalized.includes("location") ? "location" : normalized.includes("order") || normalized.includes("menu") ? "menu" : "default";
-    setMessages((current) => [...current, { from: "user", text: keyOrText }, { from: "assistant", text: scriptedReplies[key] }]);
+  const suggestions = [{ label: "Menu & prices", key: "menu" }, { label: "When are you open?", key: "hours" }, { label: "Where are you located?", key: "location" }];
+  function reply(question: string) {
+    setMessages((current) => [...current, { from: "user", text: question }, { from: "assistant", text: getChatbotReply(question) }]);
   }
   function send(event: FormEvent) { event.preventDefault(); if (!input.trim()) return; reply(input.trim()); setInput(""); }
   return <div className="fixed bottom-5 right-5 z-40 md:bottom-8 md:right-8">

@@ -1,0 +1,1 @@
+export function getChatbotReply(input: string): string;
