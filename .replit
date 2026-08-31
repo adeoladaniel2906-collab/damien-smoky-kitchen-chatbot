@@ -18,3 +18,16 @@ expertMode = true
 [postMerge]
 path = "scripts/post-merge.sh"
 timeoutMs = 20000
+
+[userenv]
+
+[userenv.shared]
+
+[userenv.development]
+sk-proj-nSDsagM-o5Qw8j7Pp9YvRTZnvW9XKItvtsN0fnUb_qb9hv9D9D1pYKAP6wGgP-CmsivZl9zFEoT3BlbkFJUTYeYYd8sbETs8H6GH4cqLQJzLHEg3GXemDj27 = "OPENAI_API_KEY"
+
+[userenv.production]
+sk-proj-nSDsagM-o5Qw8j7Pp9YvRTZnvW9XKItvtsN0fnUb_qb9hv9D9D1pYKAP6wGgP-CmsivZl9zFEoT3BlbkFJUTYeYYd8sbETs8H6GH4cqLQJzLHEg3GXemDj27 = "OPENAI_API_KEY"
+
+[nix]
+channel = "stable-25_05"
