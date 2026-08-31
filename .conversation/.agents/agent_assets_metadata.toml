@@ -1,0 +1,16 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "FR0DaHR60AbhVfT4PzGmP"
+uri = "file://index.html"
+type = "text"
+title = "Damien's Smoky Kitchen index.html"
+description = "The supplied HTML chat layout for Damien's Smoky Kitchen."
+logical_id = "4afe558b-a04f-4ecb-ab6a-3b5471a49696"
+content_hash = "sha256:b4c4087d69a4cfaf613bd743a4ce1b748e17c1d978a2fef1a02fa8d7d254c68b"
+size = 1181
+mtime_ms = 1788207517111
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/conversation:54c73aff-d255-433a-96ae-4412f54a2502/4afe558b-a04f-4ecb-ab6a-3b5471a49696/06bf0537-4ae8-409f-9279-665956f832c4"
+storage_version_token = "1788207520200555"
+content_type = "text/html"

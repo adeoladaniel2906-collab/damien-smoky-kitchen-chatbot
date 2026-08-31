@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Damien's Smoky Kitchen"
+description = "A warm, modern Nigerian restaurant website with an editorial menu, restaurant information, and a functional local AI assistant chat experience."
+version = "1.0.0"
+id = "artifacts/damiens-smoky-kitchen"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 19060
+
+[services.development]
+run = "pnpm --filter @workspace/damiens-smoky-kitchen run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/damiens-smoky-kitchen", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/damiens-smoky-kitchen/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19060"
+BASE_PATH = "/"
