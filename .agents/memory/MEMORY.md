@@ -1,0 +1,1 @@
+- [Chatbot knowledge boundary](chatbot-knowledge-boundaries.md) — Keep restaurant answers bounded to verified facts; route missing operational details to the provided phone number.
