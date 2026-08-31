@@ -17,20 +17,3 @@ export const HealthCheckResponse = zod.object({
 })
 
 
-/**
- * Sends a customer message to the server-side OpenAI chatbot.
- * @summary Send a message to Damien's Smoky Kitchen chatbot
- */
-export const chatWithDamienBodyMessageMax = 2000;
-
-
-
-export const ChatWithDamienBody = zod.object({
-  "message": zod.string().min(1).max(chatWithDamienBodyMessageMax)
-})
-
-export const ChatWithDamienResponse = zod.object({
-  "reply": zod.string()
-})
-
-

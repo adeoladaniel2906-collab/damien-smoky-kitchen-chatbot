@@ -10,8 +10,6 @@ servers:
 tags:
   - name: health
     description: Health operations
-  - name: chat
-    description: Damien's Smoky Kitchen chatbot operations
 paths:
   /healthz:
     get:
@@ -26,29 +24,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
-  /chat:
-    post:
-      operationId: chatWithDamien
-      tags: [chat]
-      summary: Send a message to Damien's Smoky Kitchen chatbot
-      description: Sends a customer message to the server-side OpenAI chatbot.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/ChatRequest"
-      responses:
-        "200":
-          description: Chatbot response
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ChatResponse"
-        "400":
-          description: Invalid chat message
-        "500":
-          description: Chatbot service failure
 components:
   schemas:
     HealthStatus:
@@ -58,20 +33,4 @@ components:
           type: string
       required:
         - status
-    ChatRequest:
-      type: object
-      properties:
-        message:
-          type: string
-          minLength: 1
-          maxLength: 2000
-      required:
-        - message
-    ChatResponse:
-      type: object
-      properties:
-        reply:
-          type: string
-      required:
-        - reply
 

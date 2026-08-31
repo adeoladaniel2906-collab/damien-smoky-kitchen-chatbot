@@ -9,15 +9,3 @@ export interface HealthStatus {
   status: string;
 }
 
-export interface ChatRequest {
-  /**
-     * @minLength 1
-     * @maxLength 2000
-     */
-  message: string;
-}
-
-export interface ChatResponse {
-  reply: string;
-}
-

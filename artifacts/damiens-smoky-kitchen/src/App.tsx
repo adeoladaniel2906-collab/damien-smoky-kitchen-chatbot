@@ -6,9 +6,9 @@ import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
 import { Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
-import { chatWithDamien } from '@workspace/api-client-react';
 import heroImage from '../attached_assets/generated_images/hero-jollof-fire.jpg';
 import familyImage from '../attached_assets/generated_images/family-kitchen.jpg';
+import { getChatbotReply } from './chatbot/reply';
 
 const queryClient = new QueryClient();
 
@@ -87,29 +87,18 @@ function ReservationModal({ onClose }: { onClose: () => void }) {
 function ChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState("");
-  const [isSending, setIsSending] = useState(false);
   const [messages, setMessages] = useState([{ from: "assistant", text: "Hello from the kitchen. What can I help you find?" }]);
   const suggestions = [{ label: "Menu & prices", key: "menu" }, { label: "When are you open?", key: "hours" }, { label: "Where are you located?", key: "location" }];
-  async function reply(question: string): Promise<void> {
-    if (isSending) return;
-    setIsSending(true);
-    setMessages((current) => [...current, { from: "user", text: question }]);
-    try {
-      const result = await chatWithDamien({ message: question });
-      setMessages((current) => [...current, { from: "assistant", text: result.reply }]);
-    } catch {
-      setMessages((current) => [...current, { from: "assistant", text: "The kitchen assistant is temporarily unavailable. Please try again, or call Damien's Smoky Kitchen on 080 3220 1672." }]);
-    } finally {
-      setIsSending(false);
-    }
+  function reply(question: string) {
+    setMessages((current) => [...current, { from: "user", text: question }, { from: "assistant", text: getChatbotReply(question) }]);
   }
-  function send(event: FormEvent) { event.preventDefault(); if (!input.trim() || isSending) return; void reply(input.trim()); setInput(""); }
+  function send(event: FormEvent) { event.preventDefault(); if (!input.trim()) return; reply(input.trim()); setInput(""); }
   return <div className="fixed bottom-5 right-5 z-40 md:bottom-8 md:right-8">
     {isOpen && <div className="mb-3 w-[min(360px,calc(100vw-40px))] border border-[#f6f0e5]/20 bg-[#36241d] text-[#f6f0e5] shadow-2xl">
-      <div className="flex items-center justify-between border-b border-[#f6f0e5]/15 px-5 py-4"><div><p className="mono text-[9px] uppercase tracking-[.18em] text-[#e5c99a]">Kitchen assistant</p><p className="mt-1 text-sm">Verified answers, no fuss.</p></div><span className={`pulse-soft h-2 w-2 bg-[#e5603e] ${isSending ? "animate-pulse" : ""}`} /></div>
-      <div className="max-h-72 space-y-3 overflow-y-auto p-4">{messages.map((message, index) => <div key={`${message.from}-${index}`} className={`flex ${message.from === "user" ? "justify-end" : "justify-start"}`}><p className={`max-w-[88%] px-3 py-2 text-xs leading-5 ${message.from === "user" ? "bg-[#e5603e] text-[#f6f0e5]" : "bg-[#4a3328] text-[#f6f0e5]/85"}`} data-testid={`text-chat-message-${index}`}>{message.text}</p></div>)}</div>
-      {messages.length === 1 && <div className="flex flex-wrap gap-2 px-4 pb-3">{suggestions.map((suggestion) => <button key={suggestion.key} disabled={isSending} onClick={() => void reply(suggestion.label)} className="border border-[#f6f0e5]/25 px-2 py-2 text-[10px] text-[#f6f0e5]/80 hover:border-[#e5c99a] hover:text-[#e5c99a] disabled:cursor-wait disabled:opacity-50" data-testid={`button-chat-${suggestion.key}`}>{suggestion.label}</button>)}</div>}
-      <form onSubmit={send} className="flex border-t border-[#f6f0e5]/15"><input value={input} onChange={(event) => setInput(event.target.value)} disabled={isSending} placeholder={isSending ? "Waiting for the kitchen..." : "Ask the kitchen..."} className="min-w-0 flex-1 bg-transparent px-4 py-3 text-xs outline-none placeholder:text-[#f6f0e5]/40 disabled:opacity-60" data-testid="input-chat" /><button disabled={isSending} className="px-4 text-[#e5c99a] hover:text-[#e5603e] disabled:cursor-wait disabled:opacity-50" data-testid="button-send-chat" aria-label="Send message"><Send size={16} /></button></form>
+      <div className="flex items-center justify-between border-b border-[#f6f0e5]/15 px-5 py-4"><div><p className="mono text-[9px] uppercase tracking-[.18em] text-[#e5c99a]">Kitchen assistant</p><p className="mt-1 text-sm">Local answers, no fuss.</p></div><span className="pulse-soft h-2 w-2 bg-[#e5603e]" /></div>
+      <div className="max-h-[min(18rem,45vh)] space-y-3 overflow-y-auto p-4">{messages.map((message, index) => <div key={`${message.from}-${index}`} className={`flex ${message.from === "user" ? "justify-end" : "justify-start"}`}><p className={`max-w-[88%] px-3 py-2 text-xs leading-5 ${message.from === "user" ? "bg-[#e5603e] text-[#f6f0e5]" : "bg-[#4a3328] text-[#f6f0e5]/85"}`} data-testid={`text-chat-message-${index}`}>{message.text}</p></div>)}</div>
+      {messages.length === 1 && <div className="flex flex-wrap gap-2 px-4 pb-3">{suggestions.map((suggestion) => <button key={suggestion.key} onClick={() => reply(suggestion.label)} className="border border-[#f6f0e5]/25 px-2 py-2 text-[10px] text-[#f6f0e5]/80 hover:border-[#e5c99a] hover:text-[#e5c99a]" data-testid={`button-chat-${suggestion.key}`}>{suggestion.label}</button>)}</div>}
+      <form onSubmit={send} className="flex border-t border-[#f6f0e5]/15"><input value={input} onChange={(event) => setInput(event.target.value)} placeholder="Ask the kitchen..." className="min-w-0 flex-1 bg-transparent px-4 py-3 text-xs outline-none placeholder:text-[#f6f0e5]/40" data-testid="input-chat" /><button className="px-4 text-[#e5c99a] hover:text-[#e5603e]" data-testid="button-send-chat" aria-label="Send message"><Send size={16} /></button></form>
     </div>}
     <button onClick={() => setIsOpen(!isOpen)} className="ml-auto flex items-center gap-3 bg-[#e5603e] px-4 py-3 text-[#f6f0e5] shadow-lg transition-transform hover:-translate-y-1" data-testid="button-open-chat"><MessageCircle size={18} /><span className="mono text-[10px] uppercase">{isOpen ? "Close chat" : "Ask Damien"}</span></button>
   </div>;

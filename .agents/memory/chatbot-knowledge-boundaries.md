@@ -14,3 +14,9 @@ The direct OpenAI integration can be correctly configured while requests still f
 **Why:** A live request reached OpenAI and was rejected for account credits, so treating every upstream failure as a code defect would lead to unnecessary changes.
 
 **How to apply:** Log only safe provider metadata such as status, code, and type; return a generic retry message to customers and report account-credit failures accurately during verification.
+
+For replaceable chatbot prototypes, keep the knowledge records as data and the natural-language dispatcher as a separate module; test the dispatcher with realistic multi-turn conversation fixtures.
+
+**Why:** This makes it possible to replace the deterministic reply engine later without changing the chat UI or rewriting the restaurant facts.
+
+**How to apply:** Keep business facts, aliases, and proposed catalog entries in one data module, keep matching/recommendation logic elsewhere, and expand the conversation fixtures whenever a new question variation is supported.

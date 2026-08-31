@@ -6,27 +6,21 @@
  * OpenAPI spec version: 0.1.0
  */
 import {
-  useMutation,
   useQuery
 } from '@tanstack/react-query';
 import type {
-  MutationFunction,
   QueryFunction,
   QueryKey,
-  UseMutationOptions,
-  UseMutationResult,
   UseQueryOptions,
   UseQueryResult
 } from '@tanstack/react-query';
 
 import type {
-  ChatRequest,
-  ChatResponse,
   HealthStatus
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
-import type { ErrorType , BodyType } from '../custom-fetch';
+import type { ErrorType } from '../custom-fetch';
 
 type AwaitedInput<T> = PromiseLike<T> | T;
 
@@ -129,76 +123,4 @@ export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, 
 
 
 
-
-export const getChatWithDamienUrl = () => {
-
-
-
-
-  return `/api/chat`
-}
-
-/**
- * Sends a customer message to the server-side OpenAI chatbot.
- * @summary Send a message to Damien's Smoky Kitchen chatbot
- */
-export const chatWithDamien = async (chatRequest: ChatRequest, options?: Parameters<typeof customFetch>[1]): Promise<ChatResponse> => {
-
-  return customFetch<ChatResponse>(getChatWithDamienUrl(),
-  {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(chatRequest)
-  }
-);}
-
-
-
-
-
-export const getChatWithDamienMutationOptions = <TError = ErrorType<void>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof chatWithDamien>>, TError,{data: BodyType<ChatRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof chatWithDamien>>, TError,{data: BodyType<ChatRequest>}, TContext> => {
-
-const mutationKey = ['chatWithDamien'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof chatWithDamien>>, {data: BodyType<ChatRequest>}> = (props) => {
-          const {data} = props ?? {};
-
-          return  chatWithDamien(data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type ChatWithDamienMutationResult = NonNullable<Awaited<ReturnType<typeof chatWithDamien>>>
-    export type ChatWithDamienMutationBody = BodyType<ChatRequest>
-    export type ChatWithDamienMutationError = ErrorType<void>
-
-    /**
- * @summary Send a message to Damien's Smoky Kitchen chatbot
- */
-export const useChatWithDamien = <TError = ErrorType<void>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof chatWithDamien>>, TError,{data: BodyType<ChatRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
-        Awaited<ReturnType<typeof chatWithDamien>>,
-        TError,
-        {data: BodyType<ChatRequest>},
-        TContext
-      > => {
-      return useMutation(getChatWithDamienMutationOptions(options));
-    }
 
