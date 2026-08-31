@@ -1,32 +1,16 @@
 /**
- * Local chatbot knowledge for Damien's Smoky Kitchen.
+ * Controlled local chatbot prototype for Damien's Smoky Kitchen.
  *
- * This module deliberately contains no API calls. Every answer is derived
- * from the restaurant information shown on the site.
+ * This module deliberately contains no AI API calls. It only answers from
+ * the restaurant details provided for this prototype.
  */
-const menuItems = [
-  { name: "Smoky jollof", price: 18 },
-  { name: "Suya skewers", price: 16 },
-  { name: "Pepper prawns", price: 24 },
-  { name: "Charcoal chicken", price: 22 },
-  { name: "Egusi & pounded yam", price: 21 },
-  { name: "Efo riro", price: 19 },
-  { name: "Black-eyed bean bowl", price: 17 },
-  { name: "Oxtail pepper soup", price: 23 },
-  { name: "Dundun plantain", price: 9 },
-  { name: "Puff puff", price: 8 },
-  { name: "Chin chin", price: 6 },
-  { name: "Pepper soup broth", price: 7 },
-];
+const menuItems = [{ name: "Amala & Gbegiri", price: 3000 }];
 
-const openingHours =
-  "We are open Tuesday–Thursday 5–10pm, Friday–Saturday 5–11pm, and Sunday 11am–4pm for lunch. We are closed Monday for prep and family.";
-
-const address =
-  "Find us at 1842 San Pablo Avenue, West Oakland, CA 94612, right by the corner bookstore. Street parking is usually easiest on 19th.";
-
+const openingHours = "Our opening hours are 9 AM–9 PM.";
+const location =
+  "The Motorcycle Drive, Papa Olonrisa, Ibafo, Ogun State.";
 const unavailable =
-  "That information isn't available yet. I can share the menu, prices, opening hours, or location.";
+  "That information isn't available. I can answer questions about the known dish, opening hours, location, delivery, and prices.";
 
 function normalize(text) {
   return text
@@ -35,30 +19,36 @@ function normalize(text) {
     .replace(/&/g, " and ")
     .replace(/[^a-z0-9\s-]/g, " ")
     .replace(/\s+/g, " ")
+    .replace(/(\d)\s+(?=\d)/g, "$1")
     .trim();
 }
 
 function formatPrice(price) {
-  return `$${price}`;
+  return `₦${price.toLocaleString("en-NG")}`;
 }
 
 function menuSummary() {
-  return `Our menu includes ${menuItems
-    .map((item) => `${item.name} (${formatPrice(item.price)})`)
-    .join(", ")}.`;
+  return `The menu price I have available is Amala & Gbegiri at ${formatPrice(3000)}.`;
 }
 
 function itemPrice(question) {
-  const match = menuItems.find((item) => {
-    const itemWords = normalize(item.name).split(" ");
-    return itemWords.every((word) => question.includes(word));
-  });
+  const match = menuItems.find((item) =>
+    normalize(item.name)
+      .split(" ")
+      .every((word) => question.includes(word)),
+  );
 
-  if (!match) {
-    return null;
+  return match ? `${match.name} is ${formatPrice(match.price)}.` : null;
+}
+
+function budgetFrom(question) {
+  const thousandBudget = question.match(/(\d+(?:\.\d+)?)\s*k\b/);
+  if (thousandBudget) {
+    return Number(thousandBudget[1]) * 1000;
   }
 
-  return `${match.name} is ${formatPrice(match.price)}.`;
+  const nairaBudget = question.match(/(?:under|below|within|budget of)\s*([\d]+)/);
+  return nairaBudget ? Number(nairaBudget[1]) : null;
 }
 
 /**
@@ -84,14 +74,25 @@ export function getChatbotReply(input) {
   }
 
   if (
+    question.includes("recommend") ||
+    question.includes("suggest") ||
+    question.includes("what can i eat") ||
+    question.includes("under 5000") ||
+    question.includes("below 5000")
+  ) {
+    const budget = budgetFrom(question);
+    if (budget === null || budget >= menuItems[0].price) {
+      return `I recommend Amala & Gbegiri at ${formatPrice(3000)}.`;
+    }
+    return "The only priced meal I have available is Amala & Gbegiri at ₦3,000, which is above that budget.";
+  }
+
+  if (
     question.includes("cheapest") ||
     question.includes("least expensive") ||
     question.includes("lowest price")
   ) {
-    const cheapest = menuItems.reduce((item, current) =>
-      current.price < item.price ? current : item,
-    );
-    return `The cheapest item is ${cheapest.name} at ${formatPrice(cheapest.price)}.`;
+    return "Amala & Gbegiri — ₦3,000.";
   }
 
   if (
@@ -99,10 +100,7 @@ export function getChatbotReply(input) {
     question.includes("highest price") ||
     question.includes("priciest")
   ) {
-    const mostExpensive = menuItems.reduce((item, current) =>
-      current.price > item.price ? current : item,
-    );
-    return `The most expensive item is ${mostExpensive.name} at ${formatPrice(mostExpensive.price)}.`;
+    return "The most expensive priced dish I have available is Amala & Gbegiri at ₦3,000.";
   }
 
   if (
@@ -129,10 +127,9 @@ export function getChatbotReply(input) {
     question.includes("where") ||
     question.includes("location") ||
     question.includes("address") ||
-    question.includes("find") ||
-    question.includes("parking")
+    question.includes("find")
   ) {
-    return address;
+    return location;
   }
 
   if (
@@ -141,16 +138,15 @@ export function getChatbotReply(input) {
     question.includes("doordash") ||
     question.includes("uber eats")
   ) {
-    return "Delivery information isn't available yet. The restaurant says takeout travels well; ask about tonight's family packs.";
+    return "Yes, we deliver within Lagos State.";
   }
 
   if (
     question.includes("order") ||
     question.includes("takeout") ||
-    question.includes("take out") ||
-    question.includes("family pack")
+    question.includes("take out")
   ) {
-    return "Ordering details aren't available yet. The restaurant says takeout travels well and suggests asking about tonight's family packs.";
+    return "Ordering details aren't available.";
   }
 
   if (
@@ -160,7 +156,7 @@ export function getChatbotReply(input) {
     question.includes("wine") ||
     question.includes("beer")
   ) {
-    return "Drink information isn't available yet.";
+    return "Drink information isn't available.";
   }
 
   return unavailable;
