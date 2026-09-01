@@ -4,6 +4,29 @@ export type MenuItem = {
   aliases: string[];
 };
 
+export type KnowledgeCatalogItem = MenuItem & {
+  description?: string;
+};
+
+export type CustomerFaq = {
+  id: string;
+  question: string;
+  answer: string;
+  aliases: string[];
+};
+
+export type ChatbotBehaviorRules = {
+  responseStyle: "natural, polite, brief";
+  useExternalAi: false;
+  officialSourceOnly: true;
+  replaceMenuPricesWhenOfficialDataArrives: true;
+  neverInvent: string[];
+  unavailableInformationResponse: string;
+  recommendationPolicy: string;
+  dietarySafetyPolicy: string;
+  orderingPolicy: string;
+};
+
 export const restaurantKnowledge = {
   businessName: "Damien's Smoky Kitchen",
   openingHours: "9:00 AM–9:00 PM daily",
@@ -111,4 +134,51 @@ export const restaurantKnowledge = {
     { name: "Shawarma", price: 4000, aliases: ["shawarma"] },
     { name: "Grilled Chicken", price: null, aliases: ["grilled chicken"] },
   ] satisfies MenuItem[],
+};
+
+export type ChatbotKnowledgeBase = {
+  restaurant: typeof restaurantKnowledge;
+  regularFoodMenu: MenuItem[];
+  drinksMenu: KnowledgeCatalogItem[];
+  veganMenu: KnowledgeCatalogItem[];
+  faqs: CustomerFaq[];
+  behaviorRules: ChatbotBehaviorRules;
+};
+
+/**
+ * Structured staging area for the official information that will arrive in
+ * subsequent parts. The existing runtime view above remains intact until
+ * official replacement menu data is supplied.
+ */
+export const chatbotKnowledgeBase: ChatbotKnowledgeBase = {
+  restaurant: restaurantKnowledge,
+  regularFoodMenu: restaurantKnowledge.menu,
+  drinksMenu: [],
+  veganMenu: [],
+  faqs: [],
+  behaviorRules: {
+    responseStyle: "natural, polite, brief",
+    useExternalAi: false,
+    officialSourceOnly: true,
+    replaceMenuPricesWhenOfficialDataArrives: true,
+    neverInvent: [
+      "menu items",
+      "prices",
+      "delivery fees",
+      "delivery times",
+      "nutritional values",
+      "allergy information",
+      "halal certification",
+      "promotions",
+      "business policies",
+    ],
+    unavailableInformationResponse:
+      "Say that the information is not currently available and direct the customer to WhatsApp.",
+    recommendationPolicy:
+      "Recommend food only from confirmed menu items using the customer's preferences and budget.",
+    dietarySafetyPolicy:
+      "Avoid health claims and advise customers to confirm ingredients and dietary suitability with the restaurant.",
+    orderingPolicy:
+      "Direct customers to the website or WhatsApp and never claim that an order has been placed.",
+  },
 };

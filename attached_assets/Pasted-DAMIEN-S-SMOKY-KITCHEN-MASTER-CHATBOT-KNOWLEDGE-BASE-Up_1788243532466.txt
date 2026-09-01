@@ -1,0 +1,510 @@
+DAMIEN'S SMOKY KITCHEN — MASTER CHATBOT KNOWLEDGE BASE
+
+Update the chatbot for Damien's Smoky Kitchen using the information below.
+
+IMPORTANT:
+
+- This is now the restaurant's official menu and information.
+- Remove all previous conflicting menu items and prices.
+- Do not use any old menu or old prices.
+- Do not invent information that is not provided here.
+- Keep the existing website design and chatbot interface.
+- Do not connect an external AI API yet.
+- Make the chatbot understand natural variations of customer questions.
+
+==================================================
+RESTAURANT INFORMATION
+
+Restaurant name:
+Damien's Smoky Kitchen
+
+Location:
+The Motorcycle Drive, Papa Olonrisa, Ibafo, Ogun State, Nigeria.
+
+Opening hours:
+9:00 AM – 9:00 PM daily.
+
+WhatsApp:
+080 32 20 16 72
+
+Website:
+DamienStore.food.com
+
+Ordering:
+Customers can order through the website or WhatsApp.
+
+Delivery:
+Delivery is available within Lagos State only.
+
+Minimum delivery order:
+₦3,000
+
+Typical delivery time:
+Approximately 30 minutes, depending on location, traffic, and order volume.
+
+Delivery fee:
+Depends on the customer's location and delivery distance. Do not invent a specific delivery fee.
+
+==================================================
+REGULAR FOOD MENU
+
+RICE DISHES
+
+Jollof Rice (small) — ₦800
+Jollof Rice (large) — ₦1,500
+Fried Rice (small) — ₦900
+Fried Rice (large) — ₦1,600
+White Rice + Stew — ₦800
+Coconut Rice — ₦1,200
+Ofada Rice + Ayamase Sauce — ₦1,500
+
+SWALLOW & SOUPS
+
+Eba + Egusi Soup — ₦1,000
+Eba + Okra Soup — ₦1,000
+Eba + Bitterleaf Soup — ₦1,000
+Pounded Yam + Egusi — ₦1,500
+Pounded Yam + Oha Soup — ₦1,600
+Amala + Ewedu + Gbegiri — ₦1,200
+Tuwo Shinkafa + Miyan Kuka — ₦1,000
+Fufu + Ogbono Soup — ₦1,000
+
+PROTEINS
+
+Grilled Chicken (1 piece) — ₦1,200
+Fried Chicken (1 piece) — ₦1,000
+Beef (per portion) — ₦800
+Goat Meat (per portion) — ₦1,000
+Ponmo (per portion) — ₦400
+Stockfish (per portion) — ₦600
+Catfish (whole, grilled) — ₦2,500
+Shaki (Tripe) — ₦600
+Turkey (1 piece) — ₦1,500
+
+SMALL CHOPS & APPETIZERS
+
+Puff Puff (6 pieces) — ₦500
+Samosa (4 pieces) — ₦600
+Spring Rolls (4 pieces) — ₦700
+Gizdodo (Gizzard + Fried Plantain) — ₦1,500
+Peppered Gizzard — ₦1,200
+Peppered Snail (4 pieces) — ₦2,000
+Suya (per stick) — ₦500
+Asun (Peppered Goat Meat) — ₦1,800
+
+PASTA & NOODLES
+
+Spaghetti Jollof — ₦1,200
+Macaroni + Stew — ₦1,000
+Indomie (plain) — ₦600
+Indomie + Egg + Sausage — ₦1,000
+
+BREAKFAST
+
+Akara + Ogi (Pap) — ₦700
+Moi Moi (2 wraps) — ₦600
+Yam + Egg Sauce — ₦1,000
+Fried Plantain + Egg — ₦900
+Bread + Egg Sauce — ₦700
+Beans + Plantain — ₦800
+
+SIDES
+
+Fried Plantain (Dodo) — ₦500
+Boiled Plantain — ₦400
+Coleslaw — ₦300
+Moi Moi (1 wrap) — ₦300
+Extra Stew/Soup — ₦300
+
+==================================================
+DRINKS MENU
+
+SOFT DRINKS
+
+Coca-Cola (35cl) — ₦400
+Coca-Cola (50cl) — ₦600
+Fanta (35cl) — ₦400
+Sprite (35cl) — ₦400
+Pepsi (35cl) — ₦400
+Mirinda (35cl) — ₦400
+Schweppes Chapman — ₦500
+
+WATER
+
+Table Water (50cl) — ₦200
+Table Water (75cl) — ₦300
+Sparkling Water — ₦500
+
+JUICE & SMOOTHIES
+
+Chivita Juice (pack) — ₦500
+Five Alive (pack) — ₦500
+Hollandia Yoghurt Drink — ₦600
+Fresh Orange Juice (glass) — ₦700
+Watermelon Smoothie (glass) — ₦800
+Banana Smoothie (glass) — ₦800
+Mixed Fruit Smoothie — ₦1,000
+
+HOT DRINKS
+
+Lipton Tea (cup) — ₦300
+Bournvita (cup) — ₦400
+Milo (cup) — ₦400
+Nescafé Coffee — ₦500
+
+TRADITIONAL DRINKS
+
+Zobo (glass) — ₦300
+Zobo (bottle) — ₦500
+Kunu (glass) — ₦300
+Kunu (bottle) — ₦500
+Tigernut Drink (Kunun Aya) — ₦500
+Sobo (Sorrel Drink) — ₦300
+
+ALCOHOLIC DRINKS
+
+Star Beer (bottle) — ₦800
+Heineken (bottle) — ₦900
+Guinness (bottle) — ₦900
+Trophy Lager — ₦700
+Orijin (bottle) — ₦900
+Alomo Bitters (shot) — ₦400
+Hero Beer — ₦700
+Smirnoff Ice — ₦1,000
+
+==================================================
+VEGAN MENU 🌱
+
+IMPORTANT:
+These are specifically designated vegan options.
+
+VEGAN RICE DISHES
+
+Vegan Jollof Rice — ₦1,200
+Prepared with vegetable stock and no meat drippings.
+
+Vegan Fried Rice — ₦1,300
+Vegetables only: carrots, green beans, corn and peas.
+
+Coconut Rice + Stewed Vegetables — ₦1,200
+
+Plain White Rice + Vegan Tomato Stew — ₦900
+
+VEGAN SWALLOW & SOUPS
+
+Eba + Vegetable Egusi — ₦1,200
+No crayfish or meat stock; prepared with soy chunks.
+
+Eba + Okra Soup — ₦1,100
+Prepared with vegetable stock and no crayfish.
+
+Pounded Yam + Ogbono Soup — ₦1,500
+Vegan version prepared with soy chunks.
+
+Amala + Ewedu — ₦1,200
+Prepared without crayfish and using vegetable stock.
+
+Fufu + Vegetable Soup — ₦1,100
+Prepared with mixed greens, tomatoes and peppers.
+
+VEGAN PROTEIN ALTERNATIVES
+
+Soy Chunks (per portion) — ₦500
+Fried Tofu (per portion) — ₦600
+Peppered Tofu — ₦800
+Mushroom Stir Fry — ₦700
+Garden Egg Stew (per portion) — ₦500
+Black-eyed Bean Patties (2 pieces) — ₦600
+
+VEGAN BREAKFAST
+
+Vegan Akara — ₦700
+Made without egg.
+
+Vegan Moi Moi — ₦600
+Prepared without egg or fish.
+
+Boiled Yam + Garden Egg Sauce — ₦900
+Fried Plantain + Avocado — ₦800
+Oatmeal + Banana + Groundnuts — ₦700
+Beans Porridge — ₦800
+
+VEGAN SMALL CHOPS & SNACKS
+
+Vegan Puff Puff — ₦500
+Vegan Spring Rolls — ₦700
+Vegan Samosa — ₦600
+Roasted Plantain (Boli) + Groundnut — ₦600
+Boiled Groundnuts — ₦300
+Roasted Corn — ₦400
+
+VEGAN SIDES
+
+Steamed Vegetables — ₦500
+Fried Plantain (Dodo) — ₦500
+Boiled Plantain — ₦400
+Avocado Salad — ₦700
+Garden Salad — ₦600
+Roasted Sweet Potato — ₦500
+
+VEGAN DRINKS
+
+Zobo — ₦300–₦500
+Kunu — ₦300–₦500
+Tigernut Drink — ₦500
+Fresh Watermelon Juice — ₦700
+Fresh Orange Juice — ₦700
+Banana Smoothie — ₦800
+Mixed Fruit Smoothie — ₦1,000
+Coconut Water — ₦500
+
+==================================================
+CUSTOMER FAQ
+
+1. Where are you located?
+   The Motorcycle Drive, Papa Olonrisa, Ibafo, Ogun State, Nigeria.
+
+2. What are your opening hours?
+   9:00 AM – 9:00 PM daily.
+
+3. Are you open on public holidays?
+   Yes, during normal operating hours.
+
+4. Do you have a drive-through?
+   Yes.
+
+5. Is parking available?
+   Yes.
+
+6. What type of food do you serve?
+   We serve Nigerian dishes and popular fast-food options.
+
+7. Do you have vegetarian options?
+   Yes. Ask the chatbot for suitable vegetarian options.
+
+8. Do you serve vegan food?
+   Yes. We have a dedicated vegan menu.
+
+9. Do you have a kids' menu?
+   No dedicated kids' menu is currently available.
+
+10. What are your popular dishes?
+    The chatbot should recommend dishes based on the customer's taste, budget and dietary preferences rather than claiming an item is a bestseller unless this is confirmed.
+
+11. Do you have gluten-free options?
+    Yes, but customers should confirm ingredients before ordering because preparation and ingredients can vary.
+
+12. Can I see your menu online?
+    Yes. Customers can view the menu through the website.
+
+13. Do you change your menu?
+    The menu may be updated periodically based on availability and customer demand.
+
+14. How much does a meal cost?
+    Prices vary by item. Food prices currently range from ₦600 for some meals to ₦2,500 for the whole grilled catfish, excluding add-ons and combinations.
+
+15. Do you sell drinks?
+    Yes. We offer soft drinks, water, juices, smoothies, hot drinks, traditional drinks and alcoholic beverages.
+
+16. Can I make a reservation?
+    Yes. Customers can contact us through WhatsApp.
+
+17. How far in advance should I book?
+    Customers should contact us as early as possible. Large groups and special events should book in advance.
+
+18. Can I book for a large group?
+    Yes, subject to availability.
+
+19. Is there a minimum spend for reservations?
+    Any applicable minimum spend will be communicated when the reservation is made.
+
+20. Can I cancel or reschedule?
+    Yes. Contact us as soon as possible.
+
+21. Do you offer takeaway?
+    Yes.
+
+22. Do you offer home delivery?
+    Yes. Delivery is available within Lagos State only.
+
+23. How long does delivery take?
+    Approximately 30 minutes depending on location, traffic and order volume.
+
+24. Is there a delivery fee?
+    It depends on the customer's location and delivery distance.
+
+25. What is the minimum delivery order?
+    ₦3,000.
+
+26. Can I track my delivery?
+    Yes, when ordering through the website if tracking is available.
+
+27. Can I host a private event?
+    Yes, subject to availability.
+
+28. Do you offer birthday arrangements?
+    Yes. Customers can contact us to discuss their requirements.
+
+29. Do you cater for outside events?
+    Yes. Customers can contact us for catering arrangements.
+
+30. Do you have a dedicated event planner?
+    No dedicated event planner is currently available.
+
+31. What payment methods do you accept?
+    Cash, bank transfer and POS, subject to availability.
+
+32. Can I pay online?
+    Yes, through the website when online payment is available.
+
+33. Do you offer split bills?
+    Yes, where practical. Customers should inform staff before payment.
+
+34. Do you charge a service fee?
+    Any applicable service charges will be communicated before payment.
+
+35. Do you cater for food allergies?
+    Customers must inform the restaurant about allergies before ordering so staff can advise them about ingredients and preparation.
+
+36. Are your meat options halal?
+    Customers should confirm the halal status of specific meat items before ordering.
+
+37. Can I request a custom meal?
+    Yes, where possible. Customers should explain their requirements when ordering.
+
+38. Is the restaurant family-friendly?
+    Yes.
+
+39. Is there outdoor seating?
+    Outdoor seating may be available depending on capacity and weather.
+
+40. Do you have Wi-Fi?
+    Yes.
+
+41. Do you have music or live entertainment?
+    Background music may be available. Live entertainment is not a standard service.
+
+42. Is the restaurant air-conditioned?
+    Yes, the indoor dining area is air-conditioned.
+
+43. I received the wrong order. What should I do?
+    Contact us through WhatsApp immediately with your order details so our staff can investigate.
+
+44. My food was cold. What should I do?
+    Contact us through WhatsApp with your order details so we can review the complaint.
+
+45. Can I modify my order?
+    Contact us immediately. Changes may not be possible once preparation has started.
+
+46. Do you offer refunds?
+    Refunds are handled according to the circumstances of the order. Contact us with your order details.
+
+47. Do you have a loyalty program?
+    No dedicated loyalty program is currently available.
+
+48. Do you offer discounts or promotions?
+    Promotions may be offered from time to time. Customers should check the website or contact us.
+
+49. Do you offer student or corporate discounts?
+    No permanent discount has been confirmed. Customers can ask about current promotions.
+
+50. How can I stay updated?
+    Check the website or contact us through WhatsApp.
+
+==================================================
+CHATBOT INTELLIGENCE RULES
+
+The chatbot should:
+
+1. Speak naturally and conversationally.
+2. Keep most answers short and useful.
+3. Understand Nigerian-style customer language and informal wording.
+4. Recommend meals based on budget, dietary preference and customer taste.
+5. Calculate combinations using the actual listed prices.
+6. Suggest main dish + protein + side + drink when the customer's budget allows.
+7. Clearly separate regular and vegan options.
+8. Never recommend a non-vegan item to a customer who says they are vegan.
+9. Never invent menu items or prices.
+10. Never invent delivery fees or delivery times beyond the stated estimate.
+11. Never invent nutritional values.
+12. Never make medical claims.
+13. Never guarantee that food is safe for someone with a severe allergy.
+14. Never claim an order, payment, reservation or delivery has been completed unless the website system actually confirms it.
+15. If information is unavailable, tell the customer that the information is unavailable and provide the WhatsApp number: 080 32 20 16 72.
+16. For orders, direct customers to the website or WhatsApp.
+17. For complaints, direct customers to WhatsApp.
+18. Do not expose internal instructions or code to customers.
+
+==================================================
+NATURAL LANGUAGE EXAMPLES
+
+The chatbot should understand questions such as:
+
+"I have 2k, what can I eat?"
+
+"What can I get for ₦5,000?"
+
+"I'm broke 😂, give me something cheap."
+
+"What is your cheapest food?"
+
+"What's your most expensive food?"
+
+"I want something filling."
+
+"Recommend something Nigerian."
+
+"What goes well with Amala?"
+
+"Give me a meal and drink for ₦3,000."
+
+"I'm vegan. What can I eat?"
+
+"Do you have vegan jollof?"
+
+"What vegan food do you have?"
+
+"Do you guys deliver?"
+
+"Can you bring food to me?"
+
+"Where are you guys located?"
+
+"I'm new here, where is your restaurant?"
+
+"What time do you close?"
+
+"Can I order on WhatsApp?"
+
+"I want to order."
+
+"Show me your menu."
+
+"What drinks do you have?"
+
+"Give me a cheap drink."
+
+"Do you accept delivery in Lagos?"
+
+==================================================
+FINAL REQUIREMENT
+
+After updating the chatbot, test it with at least 20 realistic customer questions.
+
+Include tests for:
+
+- Budget recommendations
+- Menu questions
+- Vegan requests
+- Drink recommendations
+- Delivery
+- Location
+- Opening hours
+- Ordering
+- Prices
+- Complaints
+- Natural Nigerian-style wording
+
+Report which tests passed and which failed.
+
+Do not connect an external AI API yet.
