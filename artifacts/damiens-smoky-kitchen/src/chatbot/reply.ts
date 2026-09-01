@@ -40,6 +40,14 @@ function drinksSummary(): string {
 }
 
 function itemPrice(question: string): string | null {
+  const asksForUnspecifiedJollof =
+    question.includes("jollof") &&
+    !question.includes("basic") &&
+    !question.includes("full");
+  if (asksForUnspecifiedJollof) {
+    return "Our priced jollof options are Jollof Rice Combo Basic at ₦7,000 and Jollof Rice Combo Full Dish at ₦15,000.";
+  }
+
   const item = restaurantKnowledge.menu.find((menuItem) =>
     menuItem.aliases.some((alias) => question.includes(normalize(alias))),
   );
@@ -49,9 +57,38 @@ function itemPrice(question: string): string | null {
   return `${item.name} is ${formatPrice(item.price)}.`;
 }
 
+function mentionsMenuItem(question: string): boolean {
+  if (question.includes("jollof")) return true;
+  return restaurantKnowledge.menu.some((item) =>
+    item.aliases.some((alias) => question.includes(normalize(alias))),
+  );
+}
+
 function budgetFrom(question: string): number | null {
   const thousandBudget = question.match(/(\d+(?:\.\d+)?)\s*k\b/);
   if (thousandBudget) return Number(thousandBudget[1]) * 1000;
+
+  const wordThousands: Record<string, number> = {
+    one: 1,
+    two: 2,
+    three: 3,
+    four: 4,
+    five: 5,
+    six: 6,
+    seven: 7,
+    eight: 8,
+    nine: 9,
+    ten: 10,
+    eleven: 11,
+    twelve: 12,
+    thirteen: 13,
+    fourteen: 14,
+    fifteen: 15,
+  };
+  const wordBudget = question.match(
+    /\b(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen)\s+thousand\b/,
+  );
+  if (wordBudget) return wordThousands[wordBudget[1]] * 1000;
 
   const amount = question.match(
     /(?:₦|naira\s*)\s*([\d,]+)|(?:under|below|within|budget of|have)\s*(?:₦|naira\s*)?([\d,]+)/,
@@ -136,16 +173,33 @@ export function getChatbotReply(input: string): string {
   }
 
   if (
+    question.includes("vegan") ||
+    question.includes("vegetarian") ||
+    question.includes("halal") ||
+    question.includes("ingredient") ||
+    question.includes("allerg") ||
+    question.includes("nutrition") ||
+    question.includes("calorie") ||
+    question.includes("gluten") ||
+    question.includes("payment") ||
+    question.includes("catering")
+  ) {
+    return phoneFallback("That dietary or service information");
+  }
+
+  if (
     question.includes("recommend") ||
     question.includes("suggest") ||
     question.includes("what can i eat") ||
     question.includes("what should i eat") ||
+    question.includes("what can i get") ||
     question.includes("broke") ||
     question.includes("budget") ||
     question.includes("afford") ||
     question.includes("spend") ||
     question.includes("have ₦") ||
-    question.includes("have naira")
+    question.includes("have naira") ||
+    budgetFrom(question) !== null
   ) {
     if (
       question.includes("drink") ||
@@ -171,21 +225,11 @@ export function getChatbotReply(input: string): string {
   }
 
   if (
-    question.includes("vegan") ||
-    question.includes("vegetarian") ||
-    question.includes("halal") ||
-    question.includes("ingredient") ||
-    question.includes("allerg") ||
-    question.includes("nutrition") ||
-    question.includes("calorie") ||
-    question.includes("gluten") ||
-    question.includes("payment") ||
-    question.includes("catering")
+    question.includes("delivery") ||
+    question.includes("deliver") ||
+    question.includes("bring food") ||
+    question.includes("bring my food")
   ) {
-    return phoneFallback("That dietary or service information");
-  }
-
-  if (question.includes("delivery") || question.includes("deliver")) {
     if (
       question.includes("outside") ||
       question.includes("ogun") ||
@@ -199,7 +243,9 @@ export function getChatbotReply(input: string): string {
       question.includes("cost") ||
       question.includes("how much") ||
       question.includes("time") ||
-      question.includes("when")
+      question.includes("when") ||
+      question.includes("how long") ||
+      question.includes("how soon")
     ) {
       return phoneFallback("Delivery fee and delivery time information");
     }
@@ -211,7 +257,8 @@ export function getChatbotReply(input: string): string {
     question.includes("buy") ||
     question.includes("purchase") ||
     question.includes("whatsapp") ||
-    question.includes("website")
+    question.includes("website") ||
+    (question.includes("want") && mentionsMenuItem(question))
   ) {
     return `${restaurantKnowledge.ordering} Use ${restaurantKnowledge.phone} for WhatsApp orders.`;
   }
@@ -277,6 +324,9 @@ export function getChatbotReply(input: string): string {
     question.includes("food") ||
     question.includes("dish") ||
     question.includes("meal") ||
+    question.includes("what do you have") ||
+    question.includes("what have you got") ||
+    question.includes("available") ||
     question.includes("price") ||
     question.includes("cost")
   ) {
