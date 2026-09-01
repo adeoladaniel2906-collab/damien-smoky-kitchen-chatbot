@@ -19,4 +19,4 @@ For replaceable chatbot prototypes, keep the knowledge records as data and the n
 
 **Why:** This makes it possible to replace the deterministic reply engine later without changing the chat UI or rewriting the restaurant facts.
 
-**How to apply:** Keep business facts, aliases, and proposed catalog entries in one data module, keep matching/recommendation logic elsewhere, and expand the conversation fixtures whenever a new question variation is supported.
+**How to apply:** Keep business facts, aliases, and catalog entries in one data module, keep matching/recommendation logic elsewhere, and expand conversation fixtures whenever a new question variation is supported.
