@@ -2,6 +2,7 @@ export type MenuItem = {
   name: string;
   price: number | null;
   aliases: string[];
+  category: string;
 };
 
 export type KnowledgeCatalogItem = MenuItem & {
@@ -42,7 +43,7 @@ export const restaurantKnowledge = {
   foodDescription:
     "We serve Nigerian dishes and popular fast-food options.",
   recommendedDishes:
-    "Jollof Rice Combo, Amala & Gbegiri, and Pounded Yam with Grilled Chicken.",
+    "Jollof Rice, Amala + Ewedu + Gbegiri, and Pounded Yam with a protein.",
   vegetarianOptions:
     "Yes. Ask about available vegetarian-friendly dishes when ordering.",
   veganOptions: "No dedicated vegan menu is currently available.",
@@ -54,7 +55,7 @@ export const restaurantKnowledge = {
   menuOnline:
     "Customers can view the menu and place orders through the website.",
   mealPricing:
-    "Basic dishes start from ₦7,000, while full dishes can cost up to ₦15,000.",
+    "Menu prices vary by item and portion. Ask about a specific menu item for its current price.",
   drinksAndDesserts:
     "Drinks are available. Ask for current drink options and prices.",
   reservations:
@@ -112,27 +113,53 @@ export const restaurantKnowledge = {
   updates:
     "Check the website or WhatsApp for the latest news and offers.",
   menu: [
-    {
-      name: "Jollof Rice Combo Basic",
-      price: 7000,
-      aliases: ["jollof rice combo basic", "basic jollof"],
-    },
-    {
-      name: "Jollof Rice Combo Full Dish",
-      price: 15000,
-      aliases: ["jollof rice combo full dish", "full jollof", "jollof full dish"],
-    },
-    { name: "Amala & Gbegiri", price: 3000, aliases: ["amala", "gbegiri"] },
-    { name: "Pounded Yam", price: 4000, aliases: ["pounded yam"] },
-    { name: "Okra", price: null, aliases: ["okra", "okra soup"] },
-    { name: "Ewedu", price: null, aliases: ["ewedu"] },
-    {
-      name: "Chicken & Chips",
-      price: 4000,
-      aliases: ["chicken and chips", "chicken chips"],
-    },
-    { name: "Shawarma", price: 4000, aliases: ["shawarma"] },
-    { name: "Grilled Chicken", price: null, aliases: ["grilled chicken"] },
+    { name: "Jollof Rice (small)", price: 800, aliases: ["jollof rice small", "small jollof"], category: "Rice Dishes" },
+    { name: "Jollof Rice (large)", price: 1500, aliases: ["jollof rice large", "large jollof"], category: "Rice Dishes" },
+    { name: "Fried Rice (small)", price: 900, aliases: ["fried rice small", "small fried rice"], category: "Rice Dishes" },
+    { name: "Fried Rice (large)", price: 1600, aliases: ["fried rice large", "large fried rice"], category: "Rice Dishes" },
+    { name: "White Rice + Stew", price: 800, aliases: ["white rice stew", "white rice and stew"], category: "Rice Dishes" },
+    { name: "Coconut Rice", price: 1200, aliases: ["coconut rice"], category: "Rice Dishes" },
+    { name: "Ofada Rice + Ayamase Sauce", price: 1500, aliases: ["ofada rice", "ayamase sauce"], category: "Rice Dishes" },
+    { name: "Eba + Egusi Soup", price: 1000, aliases: ["eba egusi", "eba and egusi"], category: "Swallow & Soups" },
+    { name: "Eba + Okra Soup", price: 1000, aliases: ["eba okra", "eba and okra"], category: "Swallow & Soups" },
+    { name: "Eba + Bitterleaf Soup", price: 1000, aliases: ["eba bitterleaf", "eba and bitterleaf"], category: "Swallow & Soups" },
+    { name: "Pounded Yam + Egusi", price: 1500, aliases: ["pounded yam egusi", "pounded yam and egusi"], category: "Swallow & Soups" },
+    { name: "Pounded Yam + Oha Soup", price: 1600, aliases: ["pounded yam oha", "pounded yam and oha"], category: "Swallow & Soups" },
+    { name: "Amala + Ewedu + Gbegiri", price: 1200, aliases: ["amala ewedu gbegiri", "amala and ewedu and gbegiri", "amala"], category: "Swallow & Soups" },
+    { name: "Tuwo Shinkafa + Miyan Kuka", price: 1000, aliases: ["tuwo shinkafa", "miyan kuka"], category: "Swallow & Soups" },
+    { name: "Fufu + Ogbono Soup", price: 1000, aliases: ["fufu ogbono", "fufu and ogbono"], category: "Swallow & Soups" },
+    { name: "Grilled Chicken (1 piece)", price: 1200, aliases: ["grilled chicken", "grilled chicken one piece"], category: "Proteins" },
+    { name: "Fried Chicken (1 piece)", price: 1000, aliases: ["fried chicken", "fried chicken one piece"], category: "Proteins" },
+    { name: "Beef (per portion)", price: 800, aliases: ["beef", "beef portion"], category: "Proteins" },
+    { name: "Goat Meat (per portion)", price: 1000, aliases: ["goat meat", "goat meat portion"], category: "Proteins" },
+    { name: "Ponmo (per portion)", price: 400, aliases: ["ponmo"], category: "Proteins" },
+    { name: "Stockfish (per portion)", price: 600, aliases: ["stockfish"], category: "Proteins" },
+    { name: "Catfish (whole, grilled)", price: 2500, aliases: ["catfish", "whole grilled catfish"], category: "Proteins" },
+    { name: "Shaki (Tripe)", price: 600, aliases: ["shaki", "tripe"], category: "Proteins" },
+    { name: "Turkey (1 piece)", price: 1500, aliases: ["turkey", "turkey one piece"], category: "Proteins" },
+    { name: "Puff Puff (6 pieces)", price: 500, aliases: ["puff puff", "puff puff six pieces"], category: "Small Chops & Appetizers" },
+    { name: "Samosa (4 pieces)", price: 600, aliases: ["samosa", "samosa four pieces"], category: "Small Chops & Appetizers" },
+    { name: "Spring Rolls (4 pieces)", price: 700, aliases: ["spring rolls", "spring rolls four pieces"], category: "Small Chops & Appetizers" },
+    { name: "Gizdodo (Gizzard + Fried Plantain)", price: 1500, aliases: ["gizdodo", "gizzard fried plantain"], category: "Small Chops & Appetizers" },
+    { name: "Peppered Gizzard", price: 1200, aliases: ["peppered gizzard"], category: "Small Chops & Appetizers" },
+    { name: "Peppered Snail (4 pieces)", price: 2000, aliases: ["peppered snail", "snail"], category: "Small Chops & Appetizers" },
+    { name: "Suya (per stick)", price: 500, aliases: ["suya", "suya stick"], category: "Small Chops & Appetizers" },
+    { name: "Asun (Peppered Goat Meat)", price: 1800, aliases: ["asun", "peppered goat meat"], category: "Small Chops & Appetizers" },
+    { name: "Spaghetti Jollof", price: 1200, aliases: ["spaghetti jollof", "jollof spaghetti"], category: "Pasta & Noodles" },
+    { name: "Macaroni + Stew", price: 1000, aliases: ["macaroni stew", "macaroni and stew"], category: "Pasta & Noodles" },
+    { name: "Indomie (plain)", price: 600, aliases: ["indomie plain", "plain indomie"], category: "Pasta & Noodles" },
+    { name: "Indomie + Egg + Sausage", price: 1000, aliases: ["indomie egg sausage", "indomie with egg and sausage"], category: "Pasta & Noodles" },
+    { name: "Akara + Ogi (Pap)", price: 700, aliases: ["akara ogi", "akara and ogi", "pap"], category: "Breakfast" },
+    { name: "Moi Moi (2 wraps)", price: 600, aliases: ["moi moi two wraps", "moi moi 2 wraps"], category: "Breakfast" },
+    { name: "Yam + Egg Sauce", price: 1000, aliases: ["yam egg sauce", "yam and egg sauce"], category: "Breakfast" },
+    { name: "Fried Plantain + Egg", price: 900, aliases: ["fried plantain egg", "plantain and egg"], category: "Breakfast" },
+    { name: "Bread + Egg Sauce", price: 700, aliases: ["bread egg sauce", "bread and egg sauce"], category: "Breakfast" },
+    { name: "Beans + Plantain", price: 800, aliases: ["beans plantain", "beans and plantain"], category: "Breakfast" },
+    { name: "Fried Plantain (Dodo)", price: 500, aliases: ["fried plantain", "dodo"], category: "Sides" },
+    { name: "Boiled Plantain", price: 400, aliases: ["boiled plantain"], category: "Sides" },
+    { name: "Coleslaw", price: 300, aliases: ["coleslaw"], category: "Sides" },
+    { name: "Moi Moi (1 wrap)", price: 300, aliases: ["moi moi one wrap", "moi moi 1 wrap"], category: "Sides" },
+    { name: "Extra Stew/Soup", price: 300, aliases: ["extra stew", "extra soup"], category: "Sides" },
   ] satisfies MenuItem[],
 };
 

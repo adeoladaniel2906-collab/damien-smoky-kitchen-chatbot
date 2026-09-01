@@ -20,3 +20,9 @@ For replaceable chatbot prototypes, keep the knowledge records as data and the n
 **Why:** This makes it possible to replace the deterministic reply engine later without changing the chat UI or rewriting the restaurant facts.
 
 **How to apply:** Keep business facts, aliases, and catalog entries in one data module, keep matching/recommendation logic elsewhere, and expand conversation fixtures whenever a new question variation is supported.
+
+When an official catalog replaces an earlier one, update both the source entries and every generated response path that can mention prices or item names; stale hard-coded replies are a second source of conflicting truth.
+
+**Why:** Replacing only the data records left old prices reachable through recommendation, cheapest, and ambiguous-item branches.
+
+**How to apply:** Search runtime code and fixtures for superseded names and amounts after each catalog import, then test direct prices, recommendations, extremes, and unknown former items.

@@ -4,6 +4,7 @@ type PricedMenuItem = {
   name: string;
   price: number;
   aliases: string[];
+  category: string;
 };
 
 function normalize(text: string): string {
@@ -34,6 +35,12 @@ function menuSummary(): string {
   return `The available menu information is: ${items.join("; ")}.`;
 }
 
+function pricedMenuItems(): PricedMenuItem[] {
+  return restaurantKnowledge.menu.filter(
+    (item): item is PricedMenuItem => item.price !== null,
+  );
+}
+
 function drinksSummary(): string {
   return `${restaurantKnowledge.drinksAndDesserts} Current drink options and prices aren't currently available. Please contact ${restaurantKnowledge.businessName} on WhatsApp at ${restaurantKnowledge.phone} for drink pricing.`;
 }
@@ -41,10 +48,11 @@ function drinksSummary(): string {
 function itemPrice(question: string): string | null {
   const asksForUnspecifiedJollof =
     question.includes("jollof") &&
-    !question.includes("basic") &&
-    !question.includes("full");
+    !question.includes("spaghetti") &&
+    !question.includes("small") &&
+    !question.includes("large");
   if (asksForUnspecifiedJollof) {
-    return "Our priced jollof options are Jollof Rice Combo Basic at ₦7,000 and Jollof Rice Combo Full Dish at ₦15,000.";
+    return "Jollof Rice (small) is ₦800 and Jollof Rice (large) is ₦1,500.";
   }
 
   const item = restaurantKnowledge.menu.find((menuItem) =>
@@ -90,7 +98,7 @@ function budgetFrom(question: string): number | null {
   if (wordBudget) return wordThousands[wordBudget[1]] * 1000;
 
   const amount = question.match(
-    /(?:₦|naira\s*)\s*([\d,]+)|(?:under|below|within|budget of|have)\s*(?:₦|naira\s*)?([\d,]+)/,
+    /(?:₦|naira\s*)\s*([\d,]+)|(?:under|below|within|budget of|have|for)\s*(?:₦|naira\s*)?([\d,]+)/,
   );
   const rawAmount = amount?.[1] ?? amount?.[2];
   return rawAmount ? Number(rawAmount.replace(/,/g, "")) : null;
@@ -100,39 +108,78 @@ function recommendation(question: string): string {
   const budget = budgetFrom(question);
   const prefersChicken = question.includes("chicken");
   const prefersJollof = question.includes("jollof");
-  const prefersShawarma = question.includes("shawarma");
   const prefersPoundedYam =
     question.includes("pounded") || question.includes("yam");
   const prefersAmala =
     question.includes("amala") || question.includes("gbegiri");
 
-  if (prefersAmala && (budget === null || budget >= 3000)) {
-    return "I recommend Amala & Gbegiri at ₦3,000.";
+  if (
+    question.includes("shawarma") ||
+    question.includes("chicken and chips") ||
+    question.includes("chicken chips")
+  ) {
+    return phoneFallback("That menu item");
   }
-  if (prefersPoundedYam && (budget === null || budget >= 4000)) {
-    return "I recommend Pounded Yam at ₦4,000.";
+
+  const recommendedItem = (aliases: string[]) =>
+    restaurantKnowledge.menu.find((item) =>
+      aliases.some((alias) => item.aliases.includes(alias)),
+    );
+
+  const amala = recommendedItem(["amala ewedu gbegiri"]);
+  if (prefersAmala && amala?.price !== null && amala?.price !== undefined) {
+    if (budget === null || budget >= amala.price) {
+      return `I recommend ${amala.name} at ${formatPrice(amala.price)}.`;
+    }
+    return `${amala.name} costs ${formatPrice(amala.price)}, which is above that budget.`;
   }
+
+  const poundedYam = recommendedItem(["pounded yam egusi"]);
+  if (
+    prefersPoundedYam &&
+    poundedYam?.price !== null &&
+    poundedYam?.price !== undefined
+  ) {
+    if (budget === null || budget >= poundedYam.price) {
+      return `I recommend ${poundedYam.name} at ${formatPrice(poundedYam.price)}.`;
+    }
+    return `${poundedYam.name} costs ${formatPrice(poundedYam.price)}, which is above that budget.`;
+  }
+
+  const chicken = question.includes("fried chicken")
+    ? recommendedItem(["fried chicken"])
+    : recommendedItem(["grilled chicken"]);
   if (
     prefersChicken &&
-    !question.includes("grilled") &&
-    (budget === null || budget >= 4000)
+    chicken?.price !== null &&
+    chicken?.price !== undefined
   ) {
-    return "I recommend Chicken & Chips at ₦4,000.";
+    if (budget === null || budget >= chicken.price) {
+      return `I recommend ${chicken.name} at ${formatPrice(chicken.price)}.`;
+    }
+    return `${chicken.name} costs ${formatPrice(chicken.price)}, which is above that budget.`;
   }
-  if (prefersShawarma && (budget === null || budget >= 4000)) {
-    return "I recommend Shawarma at ₦4,000.";
-  }
-  if (prefersJollof && budget !== null && budget < 7000) {
-    return "The priced jollof options are above that budget. Amala & Gbegiri is available at ₦3,000.";
-  }
-  if (prefersJollof && (budget === null || budget >= 7000)) {
-    return "I recommend Jollof Rice Combo Basic at ₦7,000.";
+
+  const jollof = recommendedItem(["jollof rice small"]);
+  if (
+    prefersJollof &&
+    jollof?.price !== null &&
+    jollof?.price !== undefined
+  ) {
+    if (budget === null || budget >= jollof.price) {
+      return `I recommend ${jollof.name} at ${formatPrice(jollof.price)}.`;
+    }
+    return `${jollof.name} costs ${formatPrice(jollof.price)}, which is above that budget.`;
   }
 
   if (budget !== null) {
     const affordable = restaurantKnowledge.menu.filter(
       (item): item is PricedMenuItem =>
-        item.price !== null && item.price <= budget,
+        item.price !== null &&
+        item.price <= budget &&
+        item.category !== "Sides" &&
+        item.category !== "Proteins" &&
+        item.category !== "Small Chops & Appetizers",
     );
     if (affordable.length > 0) {
       const lowest = affordable.reduce((current, item) =>
@@ -143,7 +190,7 @@ function recommendation(question: string): string {
     return phoneFallback("A priced meal within that budget");
   }
 
-  return "I recommend Amala & Gbegiri at ₦3,000.";
+  return "I recommend Jollof Rice (small) at ₦800.";
 }
 
 export function getChatbotReply(input: string): string {
@@ -279,7 +326,8 @@ export function getChatbotReply(input: string): string {
     question.includes("kind of food") ||
     question.includes("what food do you serve")
   ) {
-    return `${restaurantKnowledge.foodDescription} Our menu includes Jollof Rice Combo, Amala & Gbegiri, Okra, Ewedu, Pounded Yam, Grilled Chicken, Chicken & Chips, and Shawarma.`;
+    const menuNames = restaurantKnowledge.menu.map((item) => item.name).join(", ");
+    return `${restaurantKnowledge.foodDescription} Our regular menu includes ${menuNames}.`;
   }
 
   if (question.includes("dessert")) {
@@ -609,6 +657,14 @@ export function getChatbotReply(input: string): string {
   }
 
   if (
+    question.includes("shawarma") ||
+    question.includes("chicken and chips") ||
+    question.includes("chicken chips")
+  ) {
+    return phoneFallback("That menu item");
+  }
+
+  if (
     question.includes("how much does a meal") ||
     question.includes("meal cost") ||
     question.includes("cost of a meal")
@@ -632,7 +688,12 @@ export function getChatbotReply(input: string): string {
     question.includes("least expensive") ||
     question.includes("lowest price")
   ) {
-    return "Amala & Gbegiri — ₦3,000.";
+    const priced = pricedMenuItems();
+    const lowestPrice = Math.min(...priced.map((item) => item.price));
+    const lowest = priced.filter((item) => item.price === lowestPrice);
+    return `The cheapest listed menu items are ${lowest
+      .map((item) => `${item.name} — ${formatPrice(item.price)}`)
+      .join(" and ")}.`;
   }
 
   if (
@@ -640,7 +701,12 @@ export function getChatbotReply(input: string): string {
     question.includes("highest price") ||
     question.includes("priciest")
   ) {
-    return "Jollof Rice Combo Full Dish — ₦15,000.";
+    const priced = pricedMenuItems();
+    const highestPrice = Math.max(...priced.map((item) => item.price));
+    const highest = priced.filter((item) => item.price === highestPrice);
+    return `The most expensive listed menu item is ${highest
+      .map((item) => `${item.name} — ${formatPrice(item.price)}`)
+      .join(" and ")}.`;
   }
 
   if (
