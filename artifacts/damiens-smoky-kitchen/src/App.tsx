@@ -4,11 +4,12 @@ import { ArrowDownRight, ArrowUpRight, CalendarDays, Check, ChevronDown, Clock3,
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { officialMenuContext } from '@/chatbot/knowledge';
+import { getManualReply } from '@/chatbot/reply';
 import NotFound from '@/pages/not-found';
 import { Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
 import heroImage from '../attached_assets/generated_images/hero-jollof-fire.jpg';
 import familyImage from '../attached_assets/generated_images/family-kitchen.jpg';
-import { getChatbotReply } from './chatbot/reply';
 
 const queryClient = new QueryClient();
 
@@ -87,18 +88,76 @@ function ReservationModal({ onClose }: { onClose: () => void }) {
 function ChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState("");
-  const [messages, setMessages] = useState([{ from: "assistant", text: "Hello from the kitchen. What can I help you find?" }]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [messages, setMessages] = useState<{ from: "user" | "assistant"; text: string }[]>([{ from: "assistant", text: "Hello from the kitchen. What can I help you find?" }]);
   const suggestions = [{ label: "Menu & prices", key: "menu" }, { label: "When are you open?", key: "hours" }, { label: "Where are you located?", key: "location" }];
-  function reply(question: string) {
-    setMessages((current) => [...current, { from: "user", text: question }, { from: "assistant", text: getChatbotReply(question) }]);
+  async function sendMessage(question: string) {
+    const trimmedQuestion = question.trim();
+    if (!trimmedQuestion || isLoading) return;
+
+    const conversation = [...messages, { from: "user" as const, text: trimmedQuestion }];
+    const assistantIndex = conversation.length;
+    setMessages([...conversation, { from: "assistant", text: "" }]);
+    setInput("");
+    setIsLoading(true);
+
+    try {
+      const manualReply = getManualReply(trimmedQuestion);
+      if (manualReply !== null) {
+        const reply = manualReply;
+        setMessages((current) => current.map((message, index) => index === assistantIndex ? { ...message, text: reply } : message));
+        return;
+      }
+
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: [
+            {
+              role: "system",
+              content: `You are the helpful kitchen assistant for Damien's Smoky Kitchen. Use only the official menu data below for menu items, categories, dietary options, and prices. Do not invent or substitute items or prices. For "full menu" requests, include every menu category and every item with its correct price, including drinks and vegan options. For other questions, answer accurately and concisely using the same data. If information is unavailable, say so and direct the customer to WhatsApp.\n\nOFFICIAL MENU DATA:\n${officialMenuContext}`,
+            },
+            ...conversation.map((message) => ({
+              role: message.from,
+              content: message.text,
+            })),
+          ],
+        }),
+      });
+
+      if (!response.ok) {
+        const body = await response.json().catch(() => null) as { error?: string } | null;
+        throw new Error(body?.error ?? "The kitchen assistant is unavailable right now.");
+      }
+
+      if (!response.body) throw new Error("The kitchen assistant returned no response.");
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let finished = false;
+
+      while (!finished) {
+        const result = await reader.read();
+        finished = result.done;
+        if (result.value) {
+          const text = decoder.decode(result.value, { stream: !finished });
+          setMessages((current) => current.map((message, index) => index === assistantIndex ? { ...message, text: message.text + text } : message));
+        }
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "The kitchen assistant is unavailable right now.";
+      setMessages((current) => current.map((item, index) => index === assistantIndex ? { ...item, text: message } : item));
+    } finally {
+      setIsLoading(false);
+    }
   }
-  function send(event: FormEvent) { event.preventDefault(); if (!input.trim()) return; reply(input.trim()); setInput(""); }
+  function send(event: FormEvent) { event.preventDefault(); void sendMessage(input); }
   return <div className="fixed bottom-5 right-5 z-40 md:bottom-8 md:right-8">
     {isOpen && <div className="mb-3 w-[min(360px,calc(100vw-40px))] border border-[#f6f0e5]/20 bg-[#36241d] text-[#f6f0e5] shadow-2xl">
       <div className="flex items-center justify-between border-b border-[#f6f0e5]/15 px-5 py-4"><div><p className="mono text-[9px] uppercase tracking-[.18em] text-[#e5c99a]">Kitchen assistant</p><p className="mt-1 text-sm">Local answers, no fuss.</p></div><span className="pulse-soft h-2 w-2 bg-[#e5603e]" /></div>
-      <div className="max-h-[min(18rem,45vh)] space-y-3 overflow-y-auto p-4">{messages.map((message, index) => <div key={`${message.from}-${index}`} className={`flex ${message.from === "user" ? "justify-end" : "justify-start"}`}><p className={`max-w-[88%] px-3 py-2 text-xs leading-5 ${message.from === "user" ? "bg-[#e5603e] text-[#f6f0e5]" : "bg-[#4a3328] text-[#f6f0e5]/85"}`} data-testid={`text-chat-message-${index}`}>{message.text}</p></div>)}</div>
-      {messages.length === 1 && <div className="flex flex-wrap gap-2 px-4 pb-3">{suggestions.map((suggestion) => <button key={suggestion.key} onClick={() => reply(suggestion.label)} className="border border-[#f6f0e5]/25 px-2 py-2 text-[10px] text-[#f6f0e5]/80 hover:border-[#e5c99a] hover:text-[#e5c99a]" data-testid={`button-chat-${suggestion.key}`}>{suggestion.label}</button>)}</div>}
-      <form onSubmit={send} className="flex border-t border-[#f6f0e5]/15"><input value={input} onChange={(event) => setInput(event.target.value)} placeholder="Ask the kitchen..." className="min-w-0 flex-1 bg-transparent px-4 py-3 text-xs outline-none placeholder:text-[#f6f0e5]/40" data-testid="input-chat" /><button className="px-4 text-[#e5c99a] hover:text-[#e5603e]" data-testid="button-send-chat" aria-label="Send message"><Send size={16} /></button></form>
+      <div className="max-h-[min(18rem,45vh)] space-y-3 overflow-y-auto p-4">{messages.map((message, index) => <div key={`${message.from}-${index}`} className={`flex ${message.from === "user" ? "justify-end" : "justify-start"}`}><p className={`max-w-[88%] px-3 py-2 text-xs leading-5 ${message.from === "user" ? "bg-[#e5603e] text-[#f6f0e5]" : "bg-[#4a3328] text-[#f6f0e5]/85"}`} data-testid={`text-chat-message-${index}`}>{message.text || (isLoading && index === messages.length - 1 ? "Thinking..." : "")}</p></div>)}</div>
+      {messages.length === 1 && <div className="flex flex-wrap gap-2 px-4 pb-3">{suggestions.map((suggestion) => <button key={suggestion.key} onClick={() => void sendMessage(suggestion.label)} disabled={isLoading} className="border border-[#f6f0e5]/25 px-2 py-2 text-[10px] text-[#f6f0e5]/80 hover:border-[#e5c99a] hover:text-[#e5c99a] disabled:cursor-not-allowed disabled:opacity-40" data-testid={`button-chat-${suggestion.key}`}>{suggestion.label}</button>)}</div>}
+      <form onSubmit={send} className="flex border-t border-[#f6f0e5]/15"><input value={input} onChange={(event) => setInput(event.target.value)} disabled={isLoading} placeholder="Ask the kitchen..." className="min-w-0 flex-1 bg-transparent px-4 py-3 text-xs outline-none placeholder:text-[#f6f0e5]/40 disabled:opacity-50" data-testid="input-chat" /><button disabled={isLoading} className="px-4 text-[#e5c99a] hover:text-[#e5603e] disabled:cursor-not-allowed disabled:opacity-40" data-testid="button-send-chat" aria-label="Send message"><Send size={16} /></button></form>
     </div>}
     <button onClick={() => setIsOpen(!isOpen)} className="ml-auto flex items-center gap-3 bg-[#e5603e] px-4 py-3 text-[#f6f0e5] shadow-lg transition-transform hover:-translate-y-1" data-testid="button-open-chat"><MessageCircle size={18} /><span className="mono text-[10px] uppercase">{isOpen ? "Close chat" : "Ask Damien"}</span></button>
   </div>;

@@ -1,4 +1,4 @@
-import { restaurantKnowledge } from "./knowledge.ts";
+import { restaurantKnowledge, type MenuItem } from "./knowledge.ts";
 
 type PricedMenuItem = {
   name: string;
@@ -27,22 +27,79 @@ function phoneFallback(topic = "That information"): string {
 }
 
 function menuSummary(): string {
-  const items = restaurantKnowledge.menu.map((item) =>
-    item.price === null
-      ? `${item.name} — price isn't currently available`
-      : `${item.name} — ${formatPrice(item.price)}`,
-  );
-  return `The available menu information is: ${items.join("; ")}.`;
+  const formatSection = (title: string, items: MenuItem[]) => {
+    const grouped = new Map<string, string[]>();
+    for (const item of items) {
+      const entries = grouped.get(item.category) ?? [];
+      entries.push(
+        item.price === null
+          ? `${item.name} — price isn't currently available`
+          : `${item.name} — ${formatPrice(item.price)}`,
+      );
+      grouped.set(item.category, entries);
+    }
+
+    return `${title}: ${Array.from(grouped, ([category, entries]) => `${category}: ${entries.join(", ")}`).join("; ")}`;
+  };
+
+  return `All prices are in Nigerian Naira. ${formatSection("Regular menu", restaurantKnowledge.menu)} ${formatSection("Vegan menu", restaurantKnowledge.veganMenu)}.`;
 }
 
 function pricedMenuItems(): PricedMenuItem[] {
   return restaurantKnowledge.menu.filter(
-    (item): item is PricedMenuItem => item.price !== null,
+    (item): item is PricedMenuItem =>
+      item.price !== null &&
+      !["Drinks", "Alcoholic Drinks", "Vegan Drinks"].includes(item.category),
   );
 }
 
+function menuItemMatchesQuestion(
+  item: { name: string; aliases: string[] },
+  question: string,
+): boolean {
+  const q = normalize(question);
+  const variants = [item.name, ...item.aliases].map(normalize);
+
+  return variants.some((variant) => {
+    if (!variant) return false;
+    if (variant === q || q.includes(variant) || variant.includes(q)) return true;
+
+    const includesBaseName =
+      q.includes("pounded yam") && variant.includes("pounded yam") ||
+      q.includes("fried rice") && variant.includes("fried rice") ||
+      q.includes("jollof rice") && variant.includes("jollof") ||
+      q.includes("amala") && variant.includes("amala") ||
+      q.includes("fufu") && variant.includes("fufu") ||
+      q.includes("eba") && variant.includes("eba");
+
+    return includesBaseName;
+  });
+}
+
 function drinksSummary(): string {
-  return `${restaurantKnowledge.drinksAndDesserts} Current drink options and prices aren't currently available. Please contact ${restaurantKnowledge.businessName} on WhatsApp at ${restaurantKnowledge.phone} for drink pricing.`;
+  const drinks = restaurantKnowledge.menu.filter(
+    (item) => item.category === "Drinks" || item.category === "Alcoholic Drinks",
+  );
+  const veganDrinks = restaurantKnowledge.veganMenu.filter(
+    (item) => item.category === "Vegan Drinks",
+  );
+  const formatItems = (items: MenuItem[]) =>
+    items
+      .map((item) => `${item.name} — ${item.price === null ? "price isn't currently available" : formatPrice(item.price)}`)
+      .join(", ");
+
+  return `Regular drinks: ${formatItems(drinks)}. Vegan drinks: ${formatItems(veganDrinks)}.`;
+}
+
+function veganMenuSummary(): string {
+  const grouped = new Map<string, string[]>();
+  for (const item of restaurantKnowledge.veganMenu) {
+    const entries = grouped.get(item.category) ?? [];
+    entries.push(`${item.name} — ${item.price === null ? "price isn't currently available" : formatPrice(item.price)}`);
+    grouped.set(item.category, entries);
+  }
+
+  return `Vegan options (prices in Nigerian Naira): ${Array.from(grouped, ([category, entries]) => `${category}: ${entries.join(", ")}`).join("; ")}.`;
 }
 
 function itemPrice(question: string): string | null {
@@ -55,19 +112,28 @@ function itemPrice(question: string): string | null {
     return "Jollof Rice (small) is ₦800 and Jollof Rice (large) is ₦1,500.";
   }
 
-  const item = restaurantKnowledge.menu.find((menuItem) =>
-    menuItem.aliases.some((alias) => question.includes(normalize(alias))),
+  const matches = restaurantKnowledge.menu.filter((menuItem) =>
+    menuItemMatchesQuestion(menuItem, question),
   );
 
-  if (!item) return null;
-  if (item.price === null) return phoneFallback(`The price of ${item.name}`);
+  if (matches.length === 0) return null;
+
+  const sizeKeyword = question.includes("large") ? "large" : question.includes("small") ? "small" : null;
+  const sizedMatch = sizeKeyword
+    ? matches.find((menuItem) =>
+        menuItem.aliases.some((alias) => normalize(alias).includes(sizeKeyword)),
+      )
+    : null;
+
+  const item = sizedMatch ?? matches[0];
+
+  if (!item || item.price === null) return phoneFallback(`The price of ${item?.name ?? "that item"}`);
   return `${item.name} is ${formatPrice(item.price)}.`;
 }
 
 function mentionsMenuItem(question: string): boolean {
-  if (question.includes("jollof")) return true;
   return restaurantKnowledge.menu.some((item) =>
-    item.aliases.some((alias) => question.includes(normalize(alias))),
+    menuItemMatchesQuestion(item, question),
   );
 }
 
@@ -179,7 +245,9 @@ function recommendation(question: string): string {
         item.price <= budget &&
         item.category !== "Sides" &&
         item.category !== "Proteins" &&
-        item.category !== "Small Chops & Appetizers",
+        item.category !== "Small Chops" &&
+        item.category !== "Drinks" &&
+        item.category !== "Alcoholic Drinks",
     );
     if (affordable.length > 0) {
       const lowest = affordable.reduce((current, item) =>
@@ -221,7 +289,7 @@ export function getChatbotReply(input: string): string {
   if (
     question.includes("vegan")
   ) {
-    return restaurantKnowledge.veganOptions;
+    return veganMenuSummary();
   }
 
   if (question.includes("vegetarian")) {
@@ -309,6 +377,21 @@ export function getChatbotReply(input: string): string {
     return restaurantKnowledge.kidsMenu;
   }
 
+  if ((question.includes("do you have") || question.includes("have you got") || question.includes("is there")) && mentionsMenuItem(question)) {
+    const matches = restaurantKnowledge.menu.filter((item) =>
+      menuItemMatchesQuestion(item, question),
+    );
+    const uniqueMatches = matches.filter(
+      (item, index, arr) => arr.findIndex((candidate) => candidate.name === item.name) === index,
+    );
+
+    const response = uniqueMatches
+      .map((item) => `${item.name} — ${formatPrice(item.price ?? 0)}`)
+      .join("; ");
+
+    return `Yes. We have ${response}.`;
+  }
+
   if (
     question.includes("full menu online") ||
     question.includes("menu online") ||
@@ -327,7 +410,7 @@ export function getChatbotReply(input: string): string {
     question.includes("what food do you serve")
   ) {
     const menuNames = restaurantKnowledge.menu.map((item) => item.name).join(", ");
-    return `${restaurantKnowledge.foodDescription} Our regular menu includes ${menuNames}.`;
+    return `Our regular menu includes ${menuNames}.`;
   }
 
   if (question.includes("dessert")) {
@@ -724,4 +807,28 @@ export function getChatbotReply(input: string): string {
   }
 
   return phoneFallback();
+}
+
+function needsAiReasoning(question: string): boolean {
+  return (
+    question.includes("recommend") ||
+    question.includes("suggest") ||
+    question.includes("what can i eat") ||
+    question.includes("what should i eat") ||
+    question.includes("what can i get") ||
+    question.includes("budget") ||
+    question.includes("afford") ||
+    question.includes("spend") ||
+    question.includes("for two") ||
+    question.includes("for three") ||
+    budgetFrom(question) !== null
+  );
+}
+
+export function getManualReply(input: string): string | null {
+  const question = normalize(input);
+  if (!question || needsAiReasoning(question)) return null;
+
+  const reply = getChatbotReply(input);
+  return reply === phoneFallback() ? null : reply;
 }
