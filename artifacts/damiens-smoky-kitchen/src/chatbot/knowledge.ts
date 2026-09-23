@@ -211,7 +211,7 @@ CHATBOT BEHAVIOUR:
 - Keep responses readable rather than producing one huge unstructured paragraph.`;
 
 export const regularMenuItems: MenuItem[] = [
-  { name: 'Jollof Rice', price: 800, aliases: ['jollof rice', 'small jollof'], category: 'Rice' },
+  { name: 'Jollof Rice', price: 800, aliases: ['jollof rice', 'jollof', 'small jollof'], category: 'Rice' },
   { name: 'Jollof Rice', price: 1500, aliases: ['large jollof rice', 'large jollof'], category: 'Rice' },
   { name: 'Fried Rice', price: 900, aliases: ['fried rice', 'small fried rice'], category: 'Rice' },
   { name: 'Fried Rice', price: 1600, aliases: ['large fried rice'], category: 'Rice' },
