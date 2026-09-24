@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "damien-smoky-kitchen-chatbot",
+  "name": "damien-smoky-kitchen-chatbot54",
   "main": "./src/worker.ts",
   "compatibility_date": "2026-09-24",
 
