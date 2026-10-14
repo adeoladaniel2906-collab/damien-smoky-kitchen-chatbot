@@ -7,6 +7,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { officialMenuContext } from '@/chatbot/knowledge';
 import { getManualReply } from '@/chatbot/reply';
 import NotFound from '@/pages/not-found';
+import SECURITY from '@/pages/SECURITY';
 import { Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
 import heroImage from '../attached_assets/generated_images/hero-jollof-fire.jpg';
 import familyImage from '../attached_assets/generated_images/family-kitchen.jpg';
@@ -204,9 +205,16 @@ function Home() {
     {reservationOpen && <ReservationModal onClose={() => setReservationOpen(false)} />}
   </main>;
 }
-
 function Router() {
-  return <RoutedErrorBoundary><Switch><Route path="/" component={Home} /><Route component={NotFound} /></Switch></RoutedErrorBoundary>;
+return (
+<RoutedErrorBoundary>
+<Switch>
+<Route path="/" component={Home} />
+<Route path="/security" component={SECURITY} />
+<Route component={NotFound} />
+</Switch>
+</RoutedErrorBoundary>
+);
 }
 
 function RoutedErrorBoundary({ children }: { children: ReactNode }) {
