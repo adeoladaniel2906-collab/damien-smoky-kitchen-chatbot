@@ -6,7 +6,7 @@ Use this section to tell people about which versions of your project are
 currently being supported with security updates.
 import React from "react";
 
-const SECURITY_EMAIL = "security@yourdomain.com";
+const SECURITY_EMAIL = "adeoladaniel2906@gmail.com";
 
 const SecurityPolicy = () => {
   const sections = [
