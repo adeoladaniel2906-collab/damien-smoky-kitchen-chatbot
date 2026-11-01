@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from 'react';
 import { Link, Route, Switch, useLocation } from 'wouter';
 import { ArrowRight, ChevronDown, Clock3, Flame, MapPin, MessageCircle, Minus, Plus, Search, ShoppingBag, Trash2, Truck, Utensils, X } from 'lucide-react';
 import { restaurantKnowledge, type MenuItem } from '@/chatbot/knowledge';
@@ -7,8 +7,8 @@ type CatalogItem = MenuItem & { id: string };
 type BasketLine = { item: CatalogItem; quantity: number };
 type ChatMessage = { role: 'user' | 'assistant'; content: string };
 
-const catalog: CatalogItem[] = [...restaurantKnowledge.menu, ...restaurantKnowledge.veganMenu]
-  .map((item) => ({ ...item, id: item.category + ':' + item.name }));
+const catalog: CatalogItem[] = [...restaurantKnowledge.menu, ...restaurantKnowledge.drinksMenu, ...restaurantKnowledge.veganMenu]
+  .map((item) => ({ ...item, id: `${item.category}:${item.name}:${item.price ?? 'ask'}` }));
 const categories = Array.from(new Set(catalog.map((item) => item.category)));
 const photoUrl = 'https://images.unsplash.com/photo-1638436684761-7e59f8a9072f?auto=format&fit=crop&fm=jpg&ixlib=rb-4.1.0&q=80&w=1600';
 
@@ -73,7 +73,7 @@ function App() {
     </header>
 
     <Switch>
-      <Route path="/"><Home onBrowse={openMenu} basketCount={count}/></Route>
+      <Route path="/"><Home onBrowse={openMenu} onAdd={add} basketCount={count}/></Route>
       <Route path="/menu"><MenuPage search={search} setSearch={setSearch} add={add} basket={basket}/></Route>
       <Route path="/delivery"><DeliveryPage/></Route>
       <Route path="/assistant"><AssistantPage/></Route>
@@ -85,15 +85,15 @@ function App() {
   </div>;
 }
 
-function Home({ onBrowse, basketCount }: { onBrowse: (query?: string) => void; basketCount: number }) {
+function Home({ onBrowse, onAdd, basketCount }: { onBrowse: (query?: string) => void; onAdd: (item: CatalogItem) => void; basketCount: number }) {
   const featured = catalog.filter((item) => item.price !== null).slice(0, 8);
   const quickCategories = categories.slice(0, 8);
   return <main>
     <section className="mx-auto grid max-w-7xl gap-6 px-4 pb-9 pt-7 sm:px-6 lg:grid-cols-[1.5fr_.8fr] lg:pt-10">
       <div className="relative min-h-[300px] overflow-hidden rounded-3xl bg-[#21382d] text-white sm:min-h-[370px]">
-        <img src={photoUrl} alt="Nigerian jollof rice with chicken and sauce, illustrative food photography" className="absolute inset-0 h-full w-full object-cover opacity-45"/>
+        <img src={photoUrl} alt="Nigerian jollof rice with chicken and sauce, illustrative food photography" className="absolute inset-0 h-full w-full object-cover opacity-45"/><video className="hero-video absolute inset-0 h-full w-full object-cover opacity-45" autoPlay muted loop playsInline preload="metadata" poster={photoUrl} aria-hidden="true"><source src="https://videos.pexels.com/video-files/27641728/12192259_1080_1920_30fps.mp4" type="video/mp4"/></video>
         <div className="absolute inset-0 bg-gradient-to-r from-[#172c21]/90 via-[#172c21]/55 to-transparent"/>
-        <div className="relative z-10 max-w-xl p-7 sm:p-10 lg:p-12"><span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1.5 text-xs"><Clock3 size={14}/> Open daily · 9 AM–9 PM</span><h1 className="mt-5 text-4xl font-extrabold leading-[1.05] tracking-tight sm:text-6xl">Hot from the kitchen.<br/><span className="text-[#ffbd79]">Ready for your table.</span></h1><p className="mt-4 max-w-md text-sm leading-6 text-white/80">Find Nigerian favourites, check the listed prices, and build your basket.</p><button onClick={() => onBrowse()} className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#e96d2c] px-5 py-3 text-sm font-bold hover:bg-[#d65b1d]">Browse the menu <ArrowRight size={17}/></button></div>
+        <div className="relative z-10 max-w-xl p-7 sm:p-10 lg:p-12"><span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1.5 text-xs"><Clock3 size={14}/> Open daily · 9 AM–9 PM</span><h1 className="mt-5 text-4xl font-extrabold leading-[1.05] tracking-tight sm:text-6xl">Hot from the kitchen.<br/><span className="text-[#ffbd79]">Ready for your table.</span></h1><p className="mt-4 max-w-md text-sm leading-6 text-white/80">Find Nigerian favourites, check the listed prices, and build your basket.</p><button onClick={() => onBrowse()} className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#e96d2c] px-5 py-3 text-sm font-bold hover:bg-[#d65b1d]">Browse the menu <ArrowRight size={17}/></button><a href="https://www.pexels.com/video/a-person-is-cooking-food-on-a-grill-27641728/" target="_blank" rel="noreferrer" className="mt-4 block text-[11px] text-white/70 underline underline-offset-2">Illustrative grill footage · Pexels</a></div>
       </div>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
         <div className="flex flex-col justify-between rounded-3xl bg-[#f2dfbf] p-6"><span className="grid h-11 w-11 place-items-center rounded-xl bg-white/75 text-[#e96d2c]"><Truck size={21}/></span><div><p className="text-xs font-bold uppercase tracking-wider text-[#6b604f]">Delivery</p><h2 className="mt-2 text-2xl font-bold">Lagos only</h2><p className="mt-2 text-sm text-[#625849]">₦3,000 minimum. Fee varies by distance.</p><Link href="/delivery" className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-[#b64a1a]">Delivery details <ArrowRight size={15}/></Link></div></div>
@@ -101,7 +101,7 @@ function Home({ onBrowse, basketCount }: { onBrowse: (query?: string) => void; b
       </div>
     </section>
     <section className="mx-auto max-w-7xl px-4 py-7 sm:px-6"><div className="flex items-end justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-widest text-[#e96d2c]">Find your favourite</p><h2 className="mt-2 text-2xl font-bold sm:text-3xl">Browse by category</h2></div><Link href="/menu" className="text-sm font-semibold text-[#b64a1a]">All menu <ArrowRight className="ml-1 inline" size={15}/></Link></div><div className="mt-5 flex gap-3 overflow-x-auto pb-2">{quickCategories.map((category, index) => <button key={category} onClick={() => onBrowse(category)} className="min-w-32 rounded-2xl border border-[#e8e2d6] bg-white px-4 py-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#e96d2c]"><span className="grid h-9 w-9 place-items-center rounded-xl bg-[#fff0e5] text-[#e96d2c]"><Utensils size={17}/></span><span className="mt-3 block text-sm font-semibold">{category}</span></button>)}</div></section>
-    <section className="mx-auto max-w-7xl px-4 py-7 sm:px-6"><div className="flex items-end justify-between"><div><p className="text-xs font-bold uppercase tracking-widest text-[#e96d2c]">Straight from the menu</p><h2 className="mt-2 text-2xl font-bold sm:text-3xl">Popular picks</h2></div><span className="text-xs text-[#69766e]">{basketCount} in your basket</span></div><div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{featured.map((item) => <ProductCard key={item.id} item={item} onAdd={() => onBrowse(item.name)}/>)}</div><Link href="/menu" className="mx-auto mt-7 flex w-fit items-center gap-2 rounded-xl border border-[#d9d4c9] px-5 py-3 text-sm font-semibold hover:border-[#e96d2c]">See the full menu <ArrowRight size={16}/></Link></section>
+    <section className="mx-auto max-w-7xl px-4 py-7 sm:px-6"><div className="flex items-end justify-between"><div><p className="text-xs font-bold uppercase tracking-widest text-[#e96d2c]">Straight from the menu</p><h2 className="mt-2 text-2xl font-bold sm:text-3xl">Popular picks</h2></div><span className="text-xs text-[#69766e]">{basketCount} in your basket</span></div><div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{featured.map((item) => <ProductCard key={item.id} item={item} onAdd={() => onAdd(item)}/>)}</div><Link href="/menu" className="mx-auto mt-7 flex w-fit items-center gap-2 rounded-xl border border-[#d9d4c9] px-5 py-3 text-sm font-semibold hover:border-[#e96d2c]">See the full menu <ArrowRight size={16}/></Link></section>
   </main>;
 }
 
@@ -125,7 +125,7 @@ function DeliveryPage() {
   return <main className="mx-auto max-w-4xl px-4 py-10 sm:px-6"><p className="text-xs font-bold uppercase tracking-widest text-[#e96d2c]">Good to know</p><h1 className="mt-2 text-3xl font-extrabold sm:text-4xl">Delivery information</h1><div className="mt-8 grid gap-4 sm:grid-cols-2"><InfoCard icon={<MapPin/>} title="Where we deliver">Delivery is available within Lagos State only.</InfoCard><InfoCard icon={<ShoppingBag/>} title="Minimum order">The minimum delivery order is ₦3,000.</InfoCard><InfoCard icon={<Truck/>} title="Delivery fee">The fee depends on the delivery distance. The exact fee is not calculated on this site.</InfoCard><InfoCard icon={<Clock3/>} title="Opening hours">Daily, 9:00 AM–9:00 PM.</InfoCard></div><section className="mt-8 rounded-3xl bg-[#21382d] p-6 text-white sm:p-8"><h2 className="text-xl font-bold">Restaurant location</h2><p className="mt-3 text-sm leading-6 text-white/75">The Motorcycle Drive, Papa Olonrisa, Ibafo, Ogun State.</p><p className="mt-5 text-sm text-white/75">Add your items to the basket to review them. Delivery availability and distance-based fees must be confirmed before an order is completed.</p><Link href="/menu" className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[#e96d2c] px-4 py-3 text-sm font-bold">Browse menu <ArrowRight size={16}/></Link></section></main>;
 }
 
-function InfoCard({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
+function InfoCard({ icon, title, children }: { icon: ReactNode; title: string; children: ReactNode }) {
   return <article className="rounded-2xl border border-[#e8e2d6] bg-white p-5"><span className="text-[#e96d2c]">{icon}</span><h2 className="mt-3 font-bold">{title}</h2><p className="mt-2 text-sm leading-6 text-[#69766e]">{children}</p></article>;
 }
 
