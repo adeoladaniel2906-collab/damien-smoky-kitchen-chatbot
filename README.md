@@ -1,76 +1,56 @@
-Damien's Smoky Kitchen Chatbot
+# Damien's Smoky Kitchen Chatbot
 
-An AI-powered customer service chatbot built for Damien's Smoky Kitchen.
+A React restaurant website and customer chatbot for Damien's Smoky Kitchen in Ibafo, Ogun State, Nigeria.
 
-The chatbot is designed to help restaurant customers get quick answers to common questions and interact with the business through a simple conversational interface.
+## Architecture
 
-🚀 Live Demo
+- **Frontend:** React and TypeScript, built with Vite.
+- **Backend:** Cloudflare Worker serves the React assets and owns `POST /api/chat`.
+- **Chat flow:** request validation → Cloudflare rate limiting → deterministic answers from the restaurant knowledge base → Workers AI fallback for questions that need language reasoning.
+- **Knowledge boundary:** replies must use the supplied restaurant facts. Unknown prices, delivery fees, delivery times, ingredients, and policies are not guessed; customers are directed to WhatsApp.
+- **AI credentials:** Workers AI uses the Cloudflare binding. No provider credential is shipped to the browser.
 
-"Try the chatbot" (https://damien-smoky-kitchen-chatbot54.adeoladaniel2906.workers.dev/)
+Restaurant facts in the app: Ibafo, Ogun State; Lagos State delivery only; 9 AM–9 PM; ₦3,000 minimum delivery order; delivery fees vary by distance. Confirm any additional operational claims against the official restaurant source before adding them.
 
-✨ Features
+## Development
 
-- AI-powered conversational responses
-- Restaurant-specific chatbot experience
-- Web-based chat interface
-- Server-side API integration
-- Deployed using Cloudflare Workers
-- Responsive interface for customer interaction
+Requires Node.js and pnpm.
 
-🛠️ Tech Stack
-
-- TypeScript
-- JavaScript
-- Cloudflare Workers
-- AI API integration
-- pnpm
-
-📁 Project Structure
-
-.
-├── api/          # API/backend functionality
-├── lib/          # Shared application logic
-├── scripts/      # Utility/development scripts
-├── artifacts/    # Application assets
-├── package.json  # Project configuration
-└── ...
-
-💡 Why I Built This
-
-I built this project to explore how AI can be integrated into a real-world business workflow.
-
-Instead of creating a generic chatbot, I designed the project around a restaurant use case where customers can interact with a business through an AI-powered interface.
-
-🔧 Running Locally
-
-Clone the repository:
-
-git clone https://github.com/adeoladaniel2906-collab/damien-smoky-kitchen-chatbot.git
-
-Install dependencies:
-
+```sh
 pnpm install
+pnpm --filter @workspace/damiens-smoky-kitchen dev
+```
 
-Start the development environment using the project's configured development command.
+Build and typecheck:
 
-«Make sure required environment variables and API credentials are configured locally. Never commit API keys or other secrets to the repository.»
+```sh
+pnpm --filter @workspace/damiens-smoky-kitchen typecheck
+pnpm --filter @workspace/damiens-smoky-kitchen build
+```
 
-🌐 Deployment
+## Cloudflare deployment
 
-The application is deployed on Cloudflare Workers.
+From `artifacts/damiens-smoky-kitchen`:
 
-📌 Future Improvements
+```sh
+pnpm exec wrangler dev
+pnpm exec wrangler deploy
+```
 
-Possible future improvements include:
+The Worker requires the Workers AI binding and a Cloudflare Rate Limiting binding configured in `wrangler.jsonc`. Configure that binding in the target Cloudflare account before deployment. The current rule allows 20 requests per key per minute. The key uses the client IP supplied by Cloudflare.
 
-- Menu and product information retrieval
-- Restaurant ordering integration
-- Reservation support
-- Conversation history
-- Analytics for common customer questions
-- Human-agent handoff
-- Better personalization for returning customers
+The frontend and Worker must be deployed together so `/api/chat` reaches the Worker. Do not put secrets in Vite variables or client-side code.
 
-👨‍💻 Developer
+## Chat API
 
-Built by Adeola Daniel as an AI/software development project.
+Send a JSON body with a bounded `messages` array containing only `user` and `assistant` roles. System instructions are owned by the Worker and client-supplied system messages are rejected. Successful responses are UTF-8 plain text; validation and rate-limit failures return JSON errors.
+
+## Project layout
+
+- `artifacts/damiens-smoky-kitchen/src` — React application, chatbot knowledge and Cloudflare Worker.
+- `artifacts/damiens-smoky-kitchen/wrangler.jsonc` — Worker, AI, assets and rate-limit bindings.
+- `artifacts/api-server` and root Vercel configuration — legacy deployment artifacts; Cloudflare is the canonical chatbot deployment described here.
+
+## Security
+
+Never commit API credentials, customer information, or local environment files. Keep rate limits enabled in production, review Cloudflare logs for safe metadata only, and do not log chat contents or provider secrets.
