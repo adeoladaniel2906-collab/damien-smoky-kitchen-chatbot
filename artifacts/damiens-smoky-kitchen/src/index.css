@@ -462,3 +462,6 @@ body { background: #eee9df; color: #36241d; }
     inset: -1px;
   }
 }
+
+
+@media (prefers-reduced-motion: reduce) { .hero-video { display: none; } }
