@@ -186,7 +186,6 @@ return (
 <RoutedErrorBoundary>
 <Switch>
 <Route path="/" component={Home} />
-<Route path="/security" component={SECURITY} />
 <Route component={NotFound} />
 </Switch>
 </RoutedErrorBoundary>
