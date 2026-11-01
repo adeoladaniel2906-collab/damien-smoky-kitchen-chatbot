@@ -5,4 +5,5 @@
 interface Env {
   AI: Ai;
   ASSETS: Fetcher;
+  CHAT_RATE_LIMIT: RateLimit;
 }
