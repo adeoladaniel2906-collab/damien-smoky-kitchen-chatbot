@@ -4,6 +4,7 @@ import { getChatbotReply, getManualReply } from "./chatbot/reply.ts";
 interface Env {
   AI: Ai;
   ASSETS: Fetcher;
+  CHAT_RATE_LIMIT: RateLimit;
 }
 
 type ChatMessage = {
@@ -17,9 +18,10 @@ type ChatRequest = {
 };
 
 const MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
-const MAX_MESSAGES = 50;
-const MAX_MESSAGE_LENGTH = 12_000;
-const MAX_TOTAL_LENGTH = 60_000;
+const MAX_MESSAGES = 12;
+const MAX_MESSAGE_LENGTH = 2_000;
+const MAX_TOTAL_LENGTH = 8_000;
+const MAX_BODY_BYTES = 16_384;
 
 const unavailableReply =
   "That information isn't currently available. Please contact Damien's Smoky Kitchen on WhatsApp for assistance.";
@@ -52,6 +54,20 @@ function fallbackReply(question: string): string {
 }
 
 async function handleChat(request: Request, env: Env): Promise<Response> {
+  const contentLength = Number(request.headers.get("content-length") ?? "0");
+  if (contentLength > MAX_BODY_BYTES) {
+    return Response.json({ error: "Request body is too large." }, { status: 413 });
+  }
+
+  const clientKey = request.headers.get("CF-Connecting-IP") ?? "unknown";
+  const rate = await env.CHAT_RATE_LIMIT.limit({ key: clientKey });
+  if (!rate.success) {
+    return Response.json({ error: "Too many messages. Please try again shortly." }, {
+      status: 429,
+      headers: { "Retry-After": "60", "Cache-Control": "no-store" },
+    });
+  }
+
   let body: ChatRequest;
   try {
     body = (await request.json()) as ChatRequest;
@@ -60,6 +76,10 @@ async function handleChat(request: Request, env: Env): Promise<Response> {
       { error: "Request body must be valid JSON." },
       { status: 400 },
     );
+  }
+
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return Response.json({ error: "Request body must be a JSON object." }, { status: 400 });
   }
 
   let messages: ChatMessage[];
@@ -84,6 +104,10 @@ async function handleChat(request: Request, env: Env): Promise<Response> {
     );
   }
 
+  if (messages.some((message) => message.role === "system")) {
+    return Response.json({ error: "System messages are not accepted." }, { status: 400 });
+  }
+
   if (
     messages.reduce((total, message) => total + message.content.length, 0) >
     MAX_TOTAL_LENGTH
@@ -92,6 +116,10 @@ async function handleChat(request: Request, env: Env): Promise<Response> {
       { error: "The conversation is too long." },
       { status: 400 },
     );
+  }
+
+  if (messages[messages.length - 1]?.role !== "user") {
+    return Response.json({ error: "The latest message must be from the user." }, { status: 400 });
   }
 
   const question = [...messages]
@@ -133,13 +161,23 @@ async function handleChat(request: Request, env: Env): Promise<Response> {
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
+    const securityHeaders = {
+      "X-Content-Type-Options": "nosniff",
+      "Referrer-Policy": "strict-origin-when-cross-origin",
+      "X-Frame-Options": "DENY",
+    };
     const url = new URL(request.url);
 
     if (url.pathname === "/api/chat") {
       if (request.method === "OPTIONS") {
-        return new Response(null, { status: 204 });
+        return new Response(null, { status: 204, headers: securityHeaders });
       }
-      if (request.method === "POST") return handleChat(request, env);
+      if (request.method === "POST") {
+        const response = await handleChat(request, env);
+        const headers = new Headers(response.headers);
+        for (const [name, value] of Object.entries(securityHeaders)) headers.set(name, value);
+        return new Response(response.body, { status: response.status, headers });
+      }
       return Response.json({ error: "Method not allowed." }, { status: 405 });
     }
 
