@@ -7,8 +7,6 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
 import SECURITY from '@/pages/SECURITY';
 import { Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
-import heroImage from '../attached_assets/generated_images/hero-jollof-fire.jpg';
-import familyImage from '../attached_assets/generated_images/family-kitchen.jpg';
 
 const queryClient = new QueryClient();
 
@@ -158,7 +156,7 @@ function Home() {
           <p className="reveal-delay-2 mt-8 max-w-md text-base font-light leading-7 text-[#f6f0e5]/70 md:text-lg">Stay for the stories, the second helping, and the pepper that sneaks up on you.</p>
           <div className="reveal-delay-2 mt-10 flex flex-wrap items-center gap-4"><button onClick={() => scrollToId("menu")} className="bg-[#e5603e] px-6 py-4 mono text-[10px] uppercase tracking-[.15em] transition-colors hover:bg-[#bd452d]" data-testid="button-hero-menu">See what's cooking <ArrowDownRight className="ml-2 inline" size={15} /></button><button onClick={() => setReservationOpen(true)} className="border border-[#f6f0e5]/40 px-6 py-4 mono text-[10px] uppercase tracking-[.15em] transition-colors hover:border-[#e5c99a] hover:text-[#e5c99a]" data-testid="button-hero-reserve">Chat on WhatsApp</button></div>
         </div>
-        <div className="relative mt-5 md:mt-0"><div className="absolute -left-4 -top-4 z-10 h-20 w-20 border-l border-t border-[#e5c99a]/60" /><img src={heroImage} alt="Smoky jollof rice and grilled suya on a ceramic platter" className="h-[380px] w-full object-cover md:h-[520px]" /><div className="absolute bottom-5 left-5 bg-[#36241d]/90 px-4 py-3 backdrop-blur-sm"><p className="mono text-[9px] uppercase tracking-[.18em] text-[#e5c99a]">Tonight's mood</p><p className="mt-1 text-sm">Low lights. Full plates.</p></div></div>
+        <div className="relative mt-5 md:mt-0"><div className="absolute -left-4 -top-4 z-10 h-20 w-20 border-l border-t border-[#e5c99a]/60" /><div role="img" aria-label="Damien’s Smoky Kitchen menu" className="flex h-[380px] w-full items-center justify-center bg-[#c84f2f] text-[#f6f0e5] md:h-[520px]"><span className="display text-5xl">Cooked with fire</span></div><div className="absolute bottom-5 left-5 bg-[#36241d]/90 px-4 py-3 backdrop-blur-sm"><p className="mono text-[9px] uppercase tracking-[.18em] text-[#e5c99a]">Tonight's mood</p><p className="mt-1 text-sm">Low lights. Full plates.</p></div></div>
       </div>
       <div className="absolute bottom-6 right-10 hidden items-center gap-3 md:flex"><span className="mono text-[9px] uppercase tracking-[.2em] text-[#f6f0e5]/45">Scroll to eat</span><ArrowDownRight size={16} className="text-[#e5603e]" /></div>
     </section>
