@@ -86,14 +86,22 @@ function App() {
 }
 
 function Home({ onBrowse, onAdd, basketCount }: { onBrowse: (query?: string) => void; onAdd: (item: CatalogItem) => void; basketCount: number }) {
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+  useEffect(() => {
+    const preference = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const update = () => setPrefersReducedMotion(preference.matches);
+    update();
+    preference.addEventListener('change', update);
+    return () => preference.removeEventListener('change', update);
+  }, []);
   const featured = catalog.filter((item) => item.price !== null).slice(0, 8);
   const quickCategories = categories.slice(0, 8);
   return <main>
     <section className="mx-auto grid max-w-7xl gap-6 px-4 pb-9 pt-7 sm:px-6 lg:grid-cols-[1.5fr_.8fr] lg:pt-10">
       <div className="relative min-h-[300px] overflow-hidden rounded-3xl bg-[#21382d] text-white sm:min-h-[370px]">
-        <img src={photoUrl} alt="Nigerian jollof rice with chicken and sauce, illustrative food photography" className="absolute inset-0 h-full w-full object-cover opacity-45"/><video className="hero-video absolute inset-0 h-full w-full object-cover opacity-45" autoPlay muted loop playsInline preload="metadata" poster={photoUrl} aria-hidden="true"><source src="https://videos.pexels.com/video-files/27641728/12192259_1080_1920_30fps.mp4" type="video/mp4"/></video>
+        <img src={photoUrl} alt="Nigerian jollof rice with chicken and sauce, illustrative food photography" className="absolute inset-0 h-full w-full object-cover opacity-45"/><video className="hero-video absolute inset-0 h-full w-full object-cover opacity-45" autoPlay={!prefersReducedMotion} muted loop={!prefersReducedMotion} controls={prefersReducedMotion} playsInline preload="metadata" poster={photoUrl} aria-hidden="true"><source src="https://videos.pexels.com/video-files/27641728/12192259_1080_1920_30fps.mp4" type="video/mp4"/></video>
         <div className="absolute inset-0 bg-gradient-to-r from-[#172c21]/90 via-[#172c21]/55 to-transparent"/>
-        <div className="relative z-10 max-w-xl p-7 sm:p-10 lg:p-12"><span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1.5 text-xs"><Clock3 size={14}/> Open daily · 9 AM–9 PM</span><h1 className="mt-5 text-4xl font-extrabold leading-[1.05] tracking-tight sm:text-6xl">Hot from the kitchen.<br/><span className="text-[#ffbd79]">Ready for your table.</span></h1><p className="mt-4 max-w-md text-sm leading-6 text-white/80">Find Nigerian favourites, check the listed prices, and build your basket.</p><button onClick={() => onBrowse()} className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#e96d2c] px-5 py-3 text-sm font-bold hover:bg-[#d65b1d]">Browse the menu <ArrowRight size={17}/></button><a href="https://www.pexels.com/video/a-person-is-cooking-food-on-a-grill-27641728/" target="_blank" rel="noreferrer" className="mt-4 block text-[11px] text-white/70 underline underline-offset-2">Illustrative grill footage · Pexels</a></div>
+        <div className="relative z-10 max-w-xl p-7 sm:p-10 lg:p-12"><span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1.5 text-xs"><Clock3 size={14}/> Open daily · 9 AM–9 PM</span><h1 className="mt-5 text-4xl font-extrabold leading-[1.05] tracking-tight sm:text-6xl">Hot from the kitchen.<br/><span className="text-[#ffbd79]">Ready for your table.</span></h1><p className="mt-4 max-w-md text-sm leading-6 text-white/80">Find Nigerian favourites, check the listed prices, and build your basket.</p><button onClick={() => onBrowse()} className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#e96d2c] px-5 py-3 text-sm font-bold hover:bg-[#d65b1d]">Browse the menu <ArrowRight size={17}/></button><p className="mt-4 text-[11px] text-white/70">Illustrative media: <a href="https://unsplash.com/photos/a-table-topped-with-plates-of-food-and-a-bowl-of-rice-icciS_O3Gkk" target="_blank" rel="noreferrer" className="underline underline-offset-2">photo by Chibuzo Nwaneri / Unsplash</a> · <a href="https://www.pexels.com/video/a-person-is-cooking-food-on-a-grill-27641728/" target="_blank" rel="noreferrer" className="underline underline-offset-2">video by Kuiyibo Campos / Pexels</a></p></div>
       </div>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
         <div className="flex flex-col justify-between rounded-3xl bg-[#f2dfbf] p-6"><span className="grid h-11 w-11 place-items-center rounded-xl bg-white/75 text-[#e96d2c]"><Truck size={21}/></span><div><p className="text-xs font-bold uppercase tracking-wider text-[#6b604f]">Delivery</p><h2 className="mt-2 text-2xl font-bold">Lagos only</h2><p className="mt-2 text-sm text-[#625849]">₦3,000 minimum. Fee varies by distance.</p><Link href="/delivery" className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-[#b64a1a]">Delivery details <ArrowRight size={15}/></Link></div></div>
