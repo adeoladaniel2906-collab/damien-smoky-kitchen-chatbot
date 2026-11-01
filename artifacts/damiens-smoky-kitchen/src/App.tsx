@@ -4,8 +4,6 @@ import { ArrowDownRight, ArrowUpRight, CalendarDays, Check, ChevronDown, Clock3,
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { officialMenuContext } from '@/chatbot/knowledge';
-import { getManualReply } from '@/chatbot/reply';
 import NotFound from '@/pages/not-found';
 import SECURITY from '@/pages/SECURITY';
 import { Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
@@ -103,27 +101,14 @@ function ChatWidget() {
     setIsLoading(true);
 
     try {
-      const manualReply = getManualReply(trimmedQuestion);
-      if (manualReply !== null) {
-        const reply = manualReply;
-        setMessages((current) => current.map((message, index) => index === assistantIndex ? { ...message, text: reply } : message));
-        return;
-      }
-
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          messages: [
-            {
-              role: "system",
-              content: `You are the helpful kitchen assistant for Damien's Smoky Kitchen. Use only the official menu data below for menu items, categories, dietary options, and prices. Do not invent or substitute items or prices. For "full menu" requests, include every menu category and every item with its correct price, including drinks and vegan options. For other questions, answer accurately and concisely using the same data. If information is unavailable, say so and direct the customer to WhatsApp.\n\nOFFICIAL MENU DATA:\n${officialMenuContext}`,
-            },
-            ...conversation.map((message) => ({
-              role: message.from,
-              content: message.text,
-            })),
-          ],
+          messages: conversation.slice(-12).map((message) => ({
+            role: message.from,
+            content: message.text,
+          })),
         }),
       });
 
@@ -158,7 +143,7 @@ function ChatWidget() {
       <div className="flex items-center justify-between border-b border-[#f6f0e5]/15 px-5 py-4"><div><p className="mono text-[9px] uppercase tracking-[.18em] text-[#e5c99a]">Kitchen assistant</p><p className="mt-1 text-sm">Local answers, no fuss.</p></div><span className="pulse-soft h-2 w-2 bg-[#e5603e]" /></div>
       <div className="max-h-[min(18rem,45vh)] space-y-3 overflow-y-auto p-4">{messages.map((message, index) => <div key={`${message.from}-${index}`} className={`flex ${message.from === "user" ? "justify-end" : "justify-start"}`}><p className={`max-w-[88%] px-3 py-2 text-xs leading-5 ${message.from === "user" ? "bg-[#e5603e] text-[#f6f0e5]" : "bg-[#4a3328] text-[#f6f0e5]/85"}`} data-testid={`text-chat-message-${index}`}>{message.text || (isLoading && index === messages.length - 1 ? "Thinking..." : "")}</p></div>)}</div>
       {messages.length === 1 && <div className="flex flex-wrap gap-2 px-4 pb-3">{suggestions.map((suggestion) => <button key={suggestion.key} onClick={() => void sendMessage(suggestion.label)} disabled={isLoading} className="border border-[#f6f0e5]/25 px-2 py-2 text-[10px] text-[#f6f0e5]/80 hover:border-[#e5c99a] hover:text-[#e5c99a] disabled:cursor-not-allowed disabled:opacity-40" data-testid={`button-chat-${suggestion.key}`}>{suggestion.label}</button>)}</div>}
-      <form onSubmit={send} className="flex border-t border-[#f6f0e5]/15"><input value={input} onChange={(event) => setInput(event.target.value)} disabled={isLoading} placeholder="Ask the kitchen..." className="min-w-0 flex-1 bg-transparent px-4 py-3 text-xs outline-none placeholder:text-[#f6f0e5]/40 disabled:opacity-50" data-testid="input-chat" /><button disabled={isLoading} className="px-4 text-[#e5c99a] hover:text-[#e5603e] disabled:cursor-not-allowed disabled:opacity-40" data-testid="button-send-chat" aria-label="Send message"><Send size={16} /></button></form>
+      <form onSubmit={send} className="flex border-t border-[#f6f0e5]/15"><input value={input} onChange={(event) => setInput(event.target.value)} disabled={isLoading} placeholder="Ask the kitchen..." maxLength={2000} className="min-w-0 flex-1 bg-transparent px-4 py-3 text-xs outline-none placeholder:text-[#f6f0e5]/40 disabled:opacity-50" data-testid="input-chat" /><button disabled={isLoading} className="px-4 text-[#e5c99a] hover:text-[#e5603e] disabled:cursor-not-allowed disabled:opacity-40" data-testid="button-send-chat" aria-label="Send message"><Send size={16} /></button></form>
     </div>}
     <button onClick={() => setIsOpen(!isOpen)} className="ml-auto flex items-center gap-3 bg-[#e5603e] px-4 py-3 text-[#f6f0e5] shadow-lg transition-transform hover:-translate-y-1" data-testid="button-open-chat"><MessageCircle size={18} /><span className="mono text-[10px] uppercase">{isOpen ? "Close chat" : "Ask Damien"}</span></button>
   </div>;
