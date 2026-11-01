@@ -257,7 +257,7 @@ async function handleOrderPreview(request: Request, env: Env): Promise<Response>
     ) {
       return Response.json({ error: "One or more basket items are invalid." }, { status: 400 });
     }
-    const item = [...restaurantKnowledge.menu, ...restaurantKnowledge.veganMenu].find(
+    const item = [...restaurantKnowledge.menu, ...restaurantKnowledge.drinksMenu, ...restaurantKnowledge.veganMenu].find(
       (entry) => entry.name === candidate.name && entry.category === candidate.category,
     );
     if (!item || item.price === null) {
