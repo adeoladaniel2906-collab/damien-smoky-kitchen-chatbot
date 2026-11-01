@@ -204,6 +204,85 @@ async function handleChat(request: Request, env: Env): Promise<Response> {
   }
 }
 
+type OrderLineInput = { name?: unknown; category?: unknown; quantity?: unknown };
+type OrderPreviewInput = { name?: unknown; phone?: unknown; address?: unknown; state?: unknown; items?: unknown };
+
+async function handleOrderPreview(request: Request, env: Env): Promise<Response> {
+  const contentLength = Number(request.headers.get("content-length") ?? "0");
+  if (contentLength > MAX_BODY_BYTES) {
+    return Response.json({ error: "Request body is too large." }, { status: 413 });
+  }
+
+  const clientKey = request.headers.get("CF-Connecting-IP") ?? "unknown";
+  const rate = await env.CHAT_RATE_LIMIT.limit({ key: clientKey });
+  if (!rate.success) {
+    return Response.json({ error: "Too many requests. Please try again shortly." }, {
+      status: 429,
+      headers: { "Retry-After": "60", "Cache-Control": "no-store" },
+    });
+  }
+
+  let body: OrderPreviewInput;
+  try {
+    const rawBody = await readLimitedBody(request);
+    if (rawBody === null) {
+      return Response.json({ error: "Request body is too large." }, { status: 413 });
+    }
+    body = JSON.parse(rawBody) as OrderPreviewInput;
+  } catch {
+    return Response.json({ error: "Request body must be valid JSON." }, { status: 400 });
+  }
+
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return Response.json({ error: "Request body must be a JSON object." }, { status: 400 });
+  }
+  if (
+    typeof body.name !== "string" || body.name.trim().length < 1 || body.name.length > 100 ||
+    typeof body.phone !== "string" || !/^[+\d\s()\-]{8,24}$/.test(body.phone) ||
+    typeof body.address !== "string" || body.address.trim().length < 5 || body.address.length > 300 ||
+    body.state !== "Lagos" ||
+    !Array.isArray(body.items) || body.items.length < 1 || body.items.length > 30
+  ) {
+    return Response.json({ error: "Check the name, phone, Lagos address and basket details." }, { status: 400 });
+  }
+
+  let subtotal = 0;
+  for (const candidate of body.items as OrderLineInput[]) {
+    if (
+      typeof candidate?.name !== "string" ||
+      typeof candidate.category !== "string" ||
+      !Number.isInteger(candidate.quantity) ||
+      Number(candidate.quantity) < 1 ||
+      Number(candidate.quantity) > 20
+    ) {
+      return Response.json({ error: "One or more basket items are invalid." }, { status: 400 });
+    }
+    const item = [...restaurantKnowledge.menu, ...restaurantKnowledge.veganMenu].find(
+      (entry) => entry.name === candidate.name && entry.category === candidate.category,
+    );
+    if (!item || item.price === null) {
+      return Response.json({ error: "One or more basket items are not available at a listed price." }, { status: 400 });
+    }
+    subtotal += item.price * Number(candidate.quantity);
+  }
+
+  if (subtotal < restaurantKnowledge.minimumDeliveryOrder) {
+    return Response.json({
+      error: `The minimum delivery order is ₦${restaurantKnowledge.minimumDeliveryOrder.toLocaleString("en-NG")}.`,
+      subtotal,
+      minimumOrder: restaurantKnowledge.minimumDeliveryOrder,
+    }, { status: 422 });
+  }
+
+  return Response.json({
+    ok: true,
+    orderSubmitted: false,
+    subtotal,
+    deliveryFee: null,
+    message: "Basket details are valid. The delivery fee depends on distance and must be confirmed by the restaurant. This review has not submitted an order.",
+  }, { headers: { "Cache-Control": "no-store" } });
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const securityHeaders = {
@@ -212,6 +291,16 @@ export default {
       "X-Frame-Options": "DENY",
     };
     const url = new URL(request.url);
+
+    if (url.pathname === "/api/orders/preview") {
+      if (request.method === "POST") {
+        const response = await handleOrderPreview(request, env);
+        const headers = new Headers(response.headers);
+        for (const [name, value] of Object.entries(securityHeaders)) headers.set(name, value);
+        return new Response(response.body, { status: response.status, headers });
+      }
+      return Response.json({ error: "Method not allowed." }, { status: 405, headers: securityHeaders });
+    }
 
     if (url.pathname === "/api/chat") {
       if (request.method === "OPTIONS") {
