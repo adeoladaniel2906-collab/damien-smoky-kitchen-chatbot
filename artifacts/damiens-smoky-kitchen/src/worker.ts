@@ -1,4 +1,4 @@
-import { officialMenuContext } from "./chatbot/knowledge.ts";
+import { officialMenuContext, restaurantKnowledge } from "./chatbot/knowledge.ts";
 import { getChatbotReply, getManualReply } from "./chatbot/reply.ts";
 
 type WorkerMessage = {
