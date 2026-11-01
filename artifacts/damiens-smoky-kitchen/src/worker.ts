@@ -1,10 +1,21 @@
 import { officialMenuContext } from "./chatbot/knowledge.ts";
 import { getChatbotReply, getManualReply } from "./chatbot/reply.ts";
 
+type WorkerMessage = {
+  role: "system" | "user" | "assistant";
+  content: string;
+};
+
 interface Env {
-  AI: Ai;
-  ASSETS: Fetcher;
-  CHAT_RATE_LIMIT: RateLimit;
+  AI: {
+    run(model: string, input: { messages: WorkerMessage[] }): Promise<unknown>;
+  };
+  ASSETS: {
+    fetch(request: Request): Promise<Response>;
+  };
+  CHAT_RATE_LIMIT: {
+    limit(input: { key: string }): Promise<{ success: boolean }>;
+  };
 }
 
 type ChatMessage = {
@@ -217,4 +228,4 @@ export default {
 
     return env.ASSETS.fetch(request);
   },
-} satisfies ExportedHandler<Env>;
+};
