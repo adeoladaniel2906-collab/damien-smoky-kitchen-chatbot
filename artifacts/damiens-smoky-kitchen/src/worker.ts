@@ -53,6 +53,36 @@ function fallbackReply(question: string): string {
   return getChatbotReply(question) || unavailableReply;
 }
 
+async function readLimitedBody(request: Request): Promise<string | null> {
+  const reader = request.body?.getReader();
+  if (!reader) return null;
+
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      totalBytes += value.byteLength;
+      if (totalBytes > MAX_BODY_BYTES) {
+        await reader.cancel();
+        return null;
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  const body = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    body.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder().decode(body);
+}
+
 async function handleChat(request: Request, env: Env): Promise<Response> {
   const contentLength = Number(request.headers.get("content-length") ?? "0");
   if (contentLength > MAX_BODY_BYTES) {
@@ -70,7 +100,11 @@ async function handleChat(request: Request, env: Env): Promise<Response> {
 
   let body: ChatRequest;
   try {
-    body = (await request.json()) as ChatRequest;
+    const rawBody = await readLimitedBody(request);
+    if (rawBody === null) {
+      return Response.json({ error: "Request body is too large." }, { status: 413 });
+    }
+    body = JSON.parse(rawBody) as ChatRequest;
   } catch {
     return Response.json(
       { error: "Request body must be valid JSON." },
