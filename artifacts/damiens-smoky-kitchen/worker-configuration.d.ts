@@ -6,4 +6,6 @@ interface Env {
   AI: Ai;
   ASSETS: Fetcher;
   CHAT_RATE_LIMIT: RateLimit;
+  ORDER_RATE_LIMIT: RateLimit;
+  DB: D1Database;
 }
