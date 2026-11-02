@@ -441,7 +441,7 @@ async function currentSession(request: Request, env: Env): Promise<SessionRow | 
 const BASE32_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 
 function decodeBase32(value: string): Uint8Array | null {
-  const normalized = value.toUpperCase().replace(/=+$/g, "").replace(/\\s/g, "");
+  const normalized = value.toUpperCase().replace(/=+$/g, "").replace(/\s/g, "");
   if (!normalized || normalized.length > 128 || !/^[A-Z2-7]+$/.test(normalized)) return null;
   let buffer = 0;
   let bits = 0;
@@ -463,7 +463,7 @@ function hasValidTotpSecret(value: string | undefined): boolean {
 }
 
 async function verifyTotp(secret: string | undefined, code: string): Promise<boolean> {
-  if (!/^\\d{6}$/.test(code)) return false;
+  if (!/^\d{6}$/.test(code)) return false;
   const secretBytes = secret ? decodeBase32(secret) : null;
   if (!secretBytes || secretBytes.length < 20) return false;
   const key = await crypto.subtle.importKey("raw", secretBytes, { name: "HMAC", hash: "SHA-1" }, false, ["sign"]);
