@@ -16,6 +16,10 @@ interface Env {
   CHAT_RATE_LIMIT: {
     limit(input: { key: string }): Promise<{ success: boolean }>;
   };
+  ORDER_RATE_LIMIT: {
+    limit(input: { key: string }): Promise<{ success: boolean }>;
+  };
+  DB: D1Database;
 }
 
 type ChatMessage = {
@@ -287,38 +291,105 @@ async function handleOrderPreview(request: Request, env: Env): Promise<Response>
   }, { headers: { "Cache-Control": "no-store" } });
 }
 
+
+async function handleOrderCreate(request: Request, env: Env): Promise<Response> {
+  const clientKey = request.headers.get("CF-Connecting-IP") ?? "unknown";
+  const rate = await env.ORDER_RATE_LIMIT.limit({ key: clientKey });
+  if (!rate.success) return Response.json({ error: "Too many order attempts. Please try again shortly." }, { status: 429, headers: { "Retry-After": "60", "Cache-Control": "no-store" } });
+
+  const preview = await handleOrderPreview(request.clone(), env);
+  if (!preview.ok) return preview;
+
+  const idempotencyKey = request.headers.get("Idempotency-Key");
+  if (!idempotencyKey || !/^[A-Za-z0-9._:-]{16,128}$/.test(idempotencyKey)) {
+    return Response.json({ error: "A valid order request key is required. Please retry." }, { status: 400 });
+  }
+
+  let body: OrderPreviewInput;
+  try { body = JSON.parse(await request.text()) as OrderPreviewInput; }
+  catch { return Response.json({ error: "Request body must be valid JSON." }, { status: 400 }); }
+
+  const existing = await env.DB.prepare("SELECT id, subtotal_ngn, status FROM orders WHERE idempotency_key = ?")
+    .bind(idempotencyKey).first<{ id: string; subtotal_ngn: number; status: string }>();
+  if (existing) return Response.json({
+    ok: true, orderSubmitted: true, duplicate: true, orderId: existing.id,
+    status: existing.status, subtotal: existing.subtotal_ngn,
+    message: "This order request was already received. The restaurant must confirm it.",
+  }, { headers: { "Cache-Control": "no-store" } });
+
+  const items = body.items as OrderLineInput[];
+  const menu = [...restaurantKnowledge.menu, ...restaurantKnowledge.drinksMenu, ...restaurantKnowledge.veganMenu];
+  const lines = items.map((candidate) => {
+    const item = menu.find((entry) => entry.name === candidate.name && entry.category === candidate.category);
+    if (!item || item.price === null) throw new Error("Validated menu item disappeared.");
+    const quantity = Number(candidate.quantity);
+    return { name: item.name, category: item.category, quantity, unitPrice: item.price, lineTotal: item.price * quantity };
+  });
+  const subtotal = lines.reduce((sum, line) => sum + line.lineTotal, 0);
+  const orderId = crypto.randomUUID();
+
+  try {
+    await env.DB.batch([
+      env.DB.prepare("INSERT INTO orders (id, idempotency_key, customer_name, customer_phone, delivery_address, delivery_state, subtotal_ngn, status) VALUES (?, ?, ?, ?, ?, 'Lagos', ?, 'pending')")
+        .bind(orderId, idempotencyKey, (body.name as string).trim(), (body.phone as string).trim(), (body.address as string).trim(), subtotal),
+      ...lines.map((line) => env.DB.prepare("INSERT INTO order_items (order_id, item_name, category, quantity, unit_price_ngn, line_total_ngn) VALUES (?, ?, ?, ?, ?, ?)")
+        .bind(orderId, line.name, line.category, line.quantity, line.unitPrice, line.lineTotal)),
+    ]);
+  } catch (error) {
+    const duplicate = await env.DB.prepare("SELECT id, subtotal_ngn, status FROM orders WHERE idempotency_key = ?")
+      .bind(idempotencyKey).first<{ id: string; subtotal_ngn: number; status: string }>();
+    if (duplicate) return Response.json({
+      ok: true, orderSubmitted: true, duplicate: true, orderId: duplicate.id,
+      status: duplicate.status, subtotal: duplicate.subtotal_ngn,
+      message: "This order request was already received. The restaurant must confirm it.",
+    }, { headers: { "Cache-Control": "no-store" } });
+    console.error("Order persistence failed:", error);
+    return Response.json({ error: "We could not safely save this order. Please try again or contact the restaurant." }, { status: 503, headers: { "Cache-Control": "no-store" } });
+  }
+
+  return Response.json({
+    ok: true, orderSubmitted: true, duplicate: false, orderId, status: "pending", subtotal,
+    message: "Your order request has been saved. The restaurant must confirm availability and the delivery fee before the order is accepted.",
+  }, { status: 201, headers: { "Cache-Control": "no-store" } });
+}
+
+function withSecurityHeaders(response: Response): Response {
+  const headers = new Headers(response.headers);
+  const securityHeaders: Record<string, string> = {
+    "Content-Security-Policy": "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https://images.unsplash.com; media-src 'self' https://videos.pexels.com; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self'",
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+    "Cross-Origin-Opener-Policy": "same-origin",
+    "Strict-Transport-Security": "max-age=15552000",
+  };
+  for (const [name, value] of Object.entries(securityHeaders)) headers.set(name, value);
+  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    const securityHeaders = {
-      "X-Content-Type-Options": "nosniff",
-      "Referrer-Policy": "strict-origin-when-cross-origin",
-      "X-Frame-Options": "DENY",
-    };
     const url = new URL(request.url);
 
+    if (url.pathname === "/api/orders") {
+      if (request.method !== "POST") return withSecurityHeaders(Response.json({ error: "Method not allowed." }, { status: 405 }));
+      const origin = request.headers.get("Origin");
+      if (origin && origin !== url.origin) return withSecurityHeaders(Response.json({ error: "Cross-origin order requests are not allowed." }, { status: 403 }));
+      return withSecurityHeaders(await handleOrderCreate(request, env));
+    }
+
     if (url.pathname === "/api/orders/preview") {
-      if (request.method === "POST") {
-        const response = await handleOrderPreview(request, env);
-        const headers = new Headers(response.headers);
-        for (const [name, value] of Object.entries(securityHeaders)) headers.set(name, value);
-        return new Response(response.body, { status: response.status, headers });
-      }
-      return Response.json({ error: "Method not allowed." }, { status: 405, headers: securityHeaders });
+      if (request.method === "POST") return withSecurityHeaders(await handleOrderPreview(request, env));
+      return withSecurityHeaders(Response.json({ error: "Method not allowed." }, { status: 405 }));
     }
 
     if (url.pathname === "/api/chat") {
-      if (request.method === "OPTIONS") {
-        return new Response(null, { status: 204, headers: securityHeaders });
-      }
-      if (request.method === "POST") {
-        const response = await handleChat(request, env);
-        const headers = new Headers(response.headers);
-        for (const [name, value] of Object.entries(securityHeaders)) headers.set(name, value);
-        return new Response(response.body, { status: response.status, headers });
-      }
-      return Response.json({ error: "Method not allowed." }, { status: 405 });
+      if (request.method === "OPTIONS") return withSecurityHeaders(new Response(null, { status: 204 }));
+      if (request.method === "POST") return withSecurityHeaders(await handleChat(request, env));
+      return withSecurityHeaders(Response.json({ error: "Method not allowed." }, { status: 405 }));
     }
 
-    return env.ASSETS.fetch(request);
+    return withSecurityHeaders(await env.ASSETS.fetch(request));
   },
 };
