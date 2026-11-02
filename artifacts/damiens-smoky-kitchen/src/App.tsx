@@ -66,10 +66,10 @@ function App() {
         <form onSubmit={(event) => { event.preventDefault(); openMenu(search); }} className="flex min-w-0 flex-1 items-center gap-2 rounded-xl bg-[#f0ece2] px-3 py-2.5">
           <Search size={18} className="shrink-0 text-[#68786e]"/><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search dishes and drinks" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-[#89948c]" aria-label="Search dishes and drinks"/><button className="hidden text-xs font-semibold text-[#e96d2c] sm:block">Search</button>
         </form>
-        <nav className="hidden items-center gap-5 lg:flex"><Link href="/menu" className={location === '/menu' ? 'text-sm font-semibold text-[#e96d2c]' : 'text-sm hover:text-[#e96d2c]'}>Menu</Link><Link href="/delivery" className="text-sm hover:text-[#e96d2c]">Delivery</Link><Link href="/assistant" className="text-sm hover:text-[#e96d2c]">Ask the kitchen</Link></nav>
+        <nav className="hidden items-center gap-5 lg:flex"><Link href="/login" className="text-sm hover:text-[#e96d2c]">Log in</Link><Link href="/create-account" className="text-sm hover:text-[#e96d2c]">Create account</Link><Link href="/staff-login" className="text-sm hover:text-[#e96d2c]">Staff</Link><Link href="/menu" className={location === '/menu' ? 'text-sm font-semibold text-[#e96d2c]' : 'text-sm hover:text-[#e96d2c]'}>Menu</Link><Link href="/delivery" className="text-sm hover:text-[#e96d2c]">Delivery</Link><Link href="/assistant" className="text-sm hover:text-[#e96d2c]">Ask the kitchen</Link></nav>
         <Link href="/checkout" className="relative grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#21382d] text-white hover:bg-[#315541]" aria-label={`Basket, ${count} items`}><ShoppingBag size={19}/>{count > 0 && <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-[#e96d2c] px-1 text-[10px] font-bold">{count}</span>}</Link>
       </div>
-      <nav className="flex items-center justify-center gap-6 border-t border-[#ece7dc] px-4 py-2.5 text-xs lg:hidden"><Link href="/menu">Menu</Link><Link href="/delivery">Delivery</Link><Link href="/assistant">Kitchen assistant</Link></nav>
+      <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 border-t border-[#ece7dc] px-4 py-2.5 text-xs lg:hidden"><Link href="/login">Log in</Link><Link href="/create-account">Create account</Link><Link href="/staff-login">Staff</Link><Link href="/menu">Menu</Link><Link href="/delivery">Delivery</Link><Link href="/assistant">Kitchen assistant</Link></nav>
     </header>
 
     <Switch>
@@ -77,7 +77,7 @@ function App() {
       <Route path="/menu"><MenuPage search={search} setSearch={setSearch} add={add} basket={basket}/></Route>
       <Route path="/delivery"><DeliveryPage/></Route>
       <Route path="/assistant"><AssistantPage/></Route>
-      <Route path="/checkout"><CheckoutPage basket={basket} change={change} remove={remove} clear={() => setBasket([])}/></Route>
+      <Route path="/checkout"><CheckoutPage basket={basket} change={change} remove={remove} clear={() => setBasket([])}/></Route>\n      <Route path="/create-account"><CustomerAuthPage mode="register"/></Route>\n      <Route path="/login"><CustomerAuthPage mode="login"/></Route>\n      <Route path="/staff-login"><StaffLoginPage/></Route>\n      <Route path="/account"><CustomerAccountPage/></Route>\n      <Route path="/staff"><StaffPortalPage/></Route>
       <Route><NotFound/></Route>
     </Switch>
 
@@ -197,6 +197,119 @@ function CheckoutPage({ basket, change, remove, clear }: { basket: BasketLine[];
   if (confirmation) return <main className="mx-auto max-w-3xl px-4 py-20 text-center"><span className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-[#e8eee6] text-[#315541]"><ShoppingBag size={25}/></span><h1 className="mt-5 text-3xl font-extrabold">Order request saved</h1><p className="mt-3 text-sm leading-6 text-[#69766e]">{confirmation.message}</p><p className="mt-3 text-xs text-[#69766e]">Reference: <strong>{confirmation.orderId}</strong></p><Link href="/menu" className="mt-6 inline-flex rounded-xl bg-[#e96d2c] px-5 py-3 text-sm font-bold text-white">Continue browsing</Link></main>;
   if (!basket.length) return <main className="mx-auto max-w-3xl px-4 py-20 text-center"><span className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-[#e8eee6] text-[#315541]"><ShoppingBag size={25}/></span><h1 className="mt-5 text-3xl font-extrabold">Your basket is empty</h1><p className="mt-2 text-sm text-[#69766e]">Browse the menu and add dishes to start an order review.</p><Link href="/menu" className="mt-6 inline-flex rounded-xl bg-[#e96d2c] px-5 py-3 text-sm font-bold text-white">Browse menu</Link></main>;
   return <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6"><div><p className="text-xs font-bold uppercase tracking-widest text-[#e96d2c]">Your basket</p><h1 className="mt-2 text-3xl font-extrabold">Review your order</h1><p className="mt-2 text-sm text-[#69766e]">Your order request is saved securely. The restaurant must confirm availability and the delivery fee. No online payment is taken.</p></div><div className="mt-7 grid gap-8 lg:grid-cols-[1.1fr_.9fr]"><section className="space-y-3">{basket.map(({ item, quantity }) => <article key={item.id} className="flex items-center justify-between gap-3 rounded-2xl border border-[#e8e2d6] bg-white p-4"><div><h2 className="font-bold">{item.name}</h2><p className="mt-1 text-xs text-[#69766e]">{item.category} · {money(item.price ?? 0)} each</p></div><div className="flex items-center gap-2"><button onClick={() => change(item.id, -1)} className="grid h-8 w-8 place-items-center rounded-lg border" aria-label={`Remove one ${item.name}`}><Minus size={14}/></button><span className="w-5 text-center text-sm font-semibold">{quantity}</span><button onClick={() => change(item.id, 1)} className="grid h-8 w-8 place-items-center rounded-lg border" aria-label={`Add one ${item.name}`}><Plus size={14}/></button><button onClick={() => remove(item.id)} className="ml-1 text-[#8a6254]" aria-label={`Remove ${item.name}`}><Trash2 size={16}/></button></div></article>)}<button onClick={clear} className="text-xs font-semibold text-[#8a6254]">Clear basket</button><div className="rounded-2xl bg-[#e8eee6] p-4 text-sm"><strong>Delivery fee:</strong> depends on distance and is not included in this subtotal. The restaurant must confirm it.</div></section><section className="rounded-3xl border border-[#e8e2d6] bg-white p-5 sm:p-7"><div className="flex justify-between border-b border-[#eee9df] pb-4"><span className="text-sm">Food subtotal</span><strong>{money(subtotal)}</strong></div><p className="py-4 text-xs leading-5 text-[#69766e]">Minimum delivery order: {money(restaurantKnowledge.minimumDeliveryOrder)}. Delivery is limited to Lagos State.</p>{!meetsMinimum && <p className="mb-4 rounded-xl bg-[#fff0e5] p-3 text-xs text-[#8b401d]">Add {money(restaurantKnowledge.minimumDeliveryOrder - subtotal)} more to meet the delivery minimum.</p>}<form onSubmit={submitOrder} className="space-y-3"><label className="block text-xs font-semibold">Your name<input required maxLength={100} value={name} onChange={(event) => setName(event.target.value)} className="mt-1 w-full rounded-xl bg-[#f0ece2] px-3 py-3 text-sm font-normal outline-none focus:ring-2 focus:ring-[#e96d2c]"/></label><label className="block text-xs font-semibold">Phone number<input required maxLength={24} value={phone} onChange={(event) => setPhone(event.target.value)} className="mt-1 w-full rounded-xl bg-[#f0ece2] px-3 py-3 text-sm font-normal outline-none focus:ring-2 focus:ring-[#e96d2c]"/></label><label className="block text-xs font-semibold">Delivery address in Lagos<input required maxLength={300} value={address} onChange={(event) => setAddress(event.target.value)} className="mt-1 w-full rounded-xl bg-[#f0ece2] px-3 py-3 text-sm font-normal outline-none focus:ring-2 focus:ring-[#e96d2c]"/></label><label className="flex items-start gap-2 text-xs leading-5 text-[#69766e]"><input type="checkbox" required className="mt-1 accent-[#e96d2c]"/>I agree that the restaurant may store these details to process and contact me about this order.</label><button disabled={busy || !meetsMinimum} className="w-full rounded-xl bg-[#21382d] px-4 py-3.5 text-sm font-bold text-white hover:bg-[#315541] disabled:cursor-not-allowed disabled:opacity-50">{busy ? 'Saving order…' : 'Send order request'}</button>{status && <p role="status" className="rounded-xl bg-[#e8eee6] p-3 text-xs leading-5">{status}</p>}</form></section></div></main>;
+}
+
+
+function AuthShell({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) {
+  return <main className="mx-auto max-w-md px-4 py-12 sm:py-16"><section className="rounded-3xl border border-[#e8e2d6] bg-white p-6 shadow-sm sm:p-8"><p className="text-xs font-bold uppercase tracking-[0.18em] text-[#e96d2c]">Damien's Smoky Kitchen</p><h1 className="mt-3 text-3xl font-extrabold">{title}</h1><p className="mt-2 text-sm leading-6 text-[#69766e]">{subtitle}</p>{children}</section></main>;
+}
+
+function CustomerAuthPage({ mode }: { mode: "register" | "login" }) {
+  const [, setLocation] = useLocation();
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const register = mode === "register";
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (busy) return;
+    setBusy(true); setError("");
+    try {
+      const response = await fetch(register ? "/api/auth/register" : "/api/auth/login", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(register ? { name, email, phone, password } : { email, password }),
+      });
+      const result = await response.json() as { error?: string };
+      if (!response.ok) throw new Error(result.error ?? "We could not complete your request.");
+      setLocation("/account");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "We could not complete your request.");
+    } finally { setBusy(false); }
+  };
+  return <AuthShell title={register ? "Create your account" : "Welcome back"} subtitle={register ? "Save your details for a simpler ordering experience." : "Log in to access your customer account."}>
+    <form onSubmit={submit} className="mt-7 space-y-4">
+      {register && <label className="block text-xs font-semibold">Full name<input required autoComplete="name" maxLength={100} value={name} onChange={e => setName(e.target.value)} className="mt-1.5 w-full rounded-xl border border-[#e5dfd3] bg-[#fbf8f1] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#e96d2c]"/></label>}
+      <label className="block text-xs font-semibold">Email address<input required type="email" autoComplete="email" maxLength={254} value={email} onChange={e => setEmail(e.target.value)} className="mt-1.5 w-full rounded-xl border border-[#e5dfd3] bg-[#fbf8f1] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#e96d2c]"/></label>
+      {register && <label className="block text-xs font-semibold">Phone number<input required type="tel" autoComplete="tel" maxLength={24} value={phone} onChange={e => setPhone(e.target.value)} className="mt-1.5 w-full rounded-xl border border-[#e5dfd3] bg-[#fbf8f1] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#e96d2c]"/></label>}
+      <label className="block text-xs font-semibold">Password<input required type="password" autoComplete={register ? "new-password" : "current-password"} minLength={12} maxLength={128} value={password} onChange={e => setPassword(e.target.value)} className="mt-1.5 w-full rounded-xl border border-[#e5dfd3] bg-[#fbf8f1] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#e96d2c]"/><span className="mt-1 block text-[11px] font-normal text-[#7b887f]">Use at least 12 characters.</span></label>
+      {error && <p role="alert" className="rounded-xl bg-[#fff0e5] p-3 text-xs leading-5 text-[#8b401d]">{error}</p>}
+      <button disabled={busy} className="w-full rounded-xl bg-[#21382d] px-4 py-3.5 text-sm font-bold text-white hover:bg-[#315541] disabled:opacity-60">{busy ? "Please wait…" : register ? "Create account" : "Log in"}</button>
+    </form>
+    <p className="mt-6 text-center text-xs text-[#69766e]">{register ? "Already have an account?" : "New to Damien's Smoky Kitchen?"} <Link href={register ? "/login" : "/create-account"} className="font-bold text-[#b64a1a]">{register ? "Log in" : "Create account"}</Link></p>
+    <p className="mt-3 text-center text-xs"><Link href="/staff-login" className="text-[#69766e] underline underline-offset-4">Staff login</Link></p>
+  </AuthShell>;
+}
+
+function StaffLoginPage() {
+  const [, setLocation] = useLocation();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (busy) return;
+    setBusy(true); setError("");
+    try {
+      const response = await fetch("/api/auth/staff/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password }) });
+      const result = await response.json() as { error?: string };
+      if (!response.ok) throw new Error(result.error ?? "Staff login failed.");
+      setLocation("/staff");
+    } catch (caught) { setError(caught instanceof Error ? caught.message : "Staff login failed."); }
+    finally { setBusy(false); }
+  };
+  return <AuthShell title="Staff sign in" subtitle="Private access for authorised restaurant staff. Customer accounts cannot access this area.">
+    <form onSubmit={submit} className="mt-7 space-y-4">
+      <label className="block text-xs font-semibold">Authorised staff email<input required type="email" autoComplete="username" value={email} onChange={e => setEmail(e.target.value)} className="mt-1.5 w-full rounded-xl border border-[#e5dfd3] bg-[#fbf8f1] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#e96d2c]"/></label>
+      <label className="block text-xs font-semibold">Password<input required type="password" autoComplete="current-password" minLength={12} maxLength={128} value={password} onChange={e => setPassword(e.target.value)} className="mt-1.5 w-full rounded-xl border border-[#e5dfd3] bg-[#fbf8f1] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#e96d2c]"/></label>
+      {error && <p role="alert" className="rounded-xl bg-[#fff0e5] p-3 text-xs leading-5 text-[#8b401d]">{error}</p>}
+      <button disabled={busy} className="w-full rounded-xl bg-[#21382d] px-4 py-3.5 text-sm font-bold text-white disabled:opacity-60">{busy ? "Verifying…" : "Sign in to staff portal"}</button>
+    </form>
+    <p className="mt-6 text-center text-xs"><Link href="/login" className="font-semibold text-[#b64a1a]">Customer login</Link></p>
+  </AuthShell>;
+}
+
+function CustomerAccountPage() {
+  const [, setLocation] = useLocation();
+  const [user, setUser] = useState<{ name: string; email: string; phone: string } | null>(null);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    let active = true;
+    fetch("/api/auth/me", { credentials: "same-origin" }).then(async response => {
+      if (!response.ok) throw new Error("Please log in to view your account.");
+      const result = await response.json();
+      if (result.role !== "customer") throw new Error("This page is for customer accounts.");
+      if (active) setUser(result.user);
+    }).catch(() => { if (active) setLocation("/login"); }).finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [setLocation]);
+  const logout = async () => { await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" }); setLocation("/login"); };
+  return <AuthShell title="Your account" subtitle="Your customer profile. Order history will be connected in a later stage.">
+    {loading ? <p className="mt-6 text-sm text-[#69766e]">Loading your account…</p> : user && <div className="mt-6 space-y-3 text-sm"><p><strong>Name:</strong> {user.name}</p><p><strong>Email:</strong> {user.email}</p><p><strong>Phone:</strong> {user.phone}</p><button onClick={logout} className="mt-4 w-full rounded-xl border border-[#d9d4c9] px-4 py-3 text-sm font-semibold">Log out</button></div>}
+  </AuthShell>;
+}
+
+function StaffPortalPage() {
+  const [, setLocation] = useLocation();
+  const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    let active = true;
+    fetch("/api/auth/me", { credentials: "same-origin" }).then(async response => {
+      if (!response.ok) throw new Error("Staff login required.");
+      const result = await response.json();
+      if (result.role !== "staff") throw new Error("Staff access required.");
+      if (active) setEmail(result.user.email);
+    }).catch(() => { if (active) setLocation("/staff-login"); }).finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [setLocation]);
+  const logout = async () => { await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" }); setLocation("/staff-login"); };
+  return <AuthShell title="Staff portal" subtitle="Private staff identity check. Order management will be added after this authentication layer is verified.">
+    {loading ? <p className="mt-6 text-sm text-[#69766e]">Verifying staff session…</p> : email && <div className="mt-6 space-y-4"><p className="text-sm">Signed in as <strong>{email}</strong>.</p><p className="rounded-xl bg-[#e8eee6] p-3 text-xs leading-5">Your staff session is active. Customer account permissions are separate.</p><button onClick={logout} className="w-full rounded-xl border border-[#d9d4c9] px-4 py-3 text-sm font-semibold">Log out</button></div>}
+  </AuthShell>;
 }
 
 function NotFound() {
