@@ -16,6 +16,6 @@ interface Env {
   AI: Ai;
   ASSETS: Fetcher;
   CHAT_RATE_LIMIT: RateLimit;
-  ORDER_RATE_LIMIT: RateLimit;
+  ORDER_RATE_LIMIT: RateLimit;\n  AUTH_RATE_LIMIT: RateLimit;\n  STAFF_EMAIL?: string;\n  STAFF_PASSWORD_HASH?: string;
   DB: OrderDatabaseBinding;
 }
