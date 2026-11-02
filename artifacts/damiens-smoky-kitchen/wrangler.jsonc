@@ -3,6 +3,12 @@
   "name": "damien-smoky-kitchen-chatbot54",
   "main": "./src/worker.ts",
   "compatibility_date": "2026-09-24",
+  "observability": {
+    "enabled": true,
+    "logs": { "enabled": true, "head_sampling_rate": 1 },
+    "traces": { "enabled": true, "head_sampling_rate": 0.1 },
+    "issues": { "enabled": true }
+  },
 
   "ratelimits": [
     {
@@ -14,6 +20,22 @@
 
   "ai": {
     "binding": "AI"
+  },
+
+  "previews": {
+    "ratelimits": [
+      {
+        "name": "CHAT_RATE_LIMIT",
+        "namespace_id": "1002",
+        "simple": { "limit": 20, "period": 60 }
+      }
+    ],
+    "ai": { "binding": "AI" },
+    "observability": {
+      "enabled": true,
+      "logs": { "enabled": true, "head_sampling_rate": 1 },
+      "traces": { "enabled": true, "head_sampling_rate": 0.1 }
+    }
   },
 
   "assets": {
