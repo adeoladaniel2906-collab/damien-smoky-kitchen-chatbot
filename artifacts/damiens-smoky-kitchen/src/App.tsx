@@ -290,6 +290,9 @@ function CustomerAccountPage() {
   const [, setLocation] = useLocation();
   const [user, setUser] = useState<{ name: string; email: string; phone: string } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [status, setStatus] = useState("");
+  const [busy, setBusy] = useState(false);
   useEffect(() => {
     let active = true;
     fetch("/api/auth/me", { credentials: "same-origin" }).then(async response => {
@@ -301,8 +304,21 @@ function CustomerAccountPage() {
     return () => { active = false; };
   }, [setLocation]);
   const logout = async () => { await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" }); setLocation("/login"); };
+  const deleteAccount = async () => {
+    if (busy || !deletePassword) return;
+    if (!window.confirm("Permanently delete your customer account? This cannot be undone. Order records may be retained where required by law.")) return;
+    setBusy(true); setStatus("");
+    try {
+      const response = await fetch("/api/auth/delete-account", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "same-origin", body: JSON.stringify({ password: deletePassword }) });
+      const result = await response.json() as { error?: string };
+      if (!response.ok) throw new Error(result.error ?? "We could not delete your account.");
+      setLocation("/");
+    } catch (caught) {
+      setStatus(caught instanceof Error ? caught.message : "We could not delete your account.");
+    } finally { setBusy(false); }
+  };
   return <AuthShell title="Your account" subtitle="Your customer profile. Order history will be connected in a later stage.">
-    {loading ? <p className="mt-6 text-sm text-[#69766e]">Loading your account…</p> : user && <div className="mt-6 space-y-3 text-sm"><p><strong>Name:</strong> {user.name}</p><p><strong>Email:</strong> {user.email}</p><p><strong>Phone:</strong> {user.phone}</p><button onClick={logout} className="mt-4 w-full rounded-xl border border-[#d9d4c9] px-4 py-3 text-sm font-semibold">Log out</button></div>}
+    {loading ? <p className="mt-6 text-sm text-[#69766e]">Loading your account…</p> : user && <div className="mt-6 space-y-3 text-sm"><p><strong>Name:</strong> {user.name}</p><p><strong>Email:</strong> {user.email}</p><p><strong>Phone:</strong> {user.phone}</p><button onClick={logout} className="mt-4 w-full rounded-xl border border-[#d9d4c9] px-4 py-3 text-sm font-semibold">Log out</button><div className="mt-6 border-t border-[#e8e2d6] pt-5"><h2 className="font-bold text-[#8b401d]">Delete account</h2><p className="mt-2 text-xs leading-5 text-[#69766e]">Enter your password to delete your account and sign out all sessions. Transaction records may be retained where the law requires them.</p><input type="password" autoComplete="current-password" minLength={12} maxLength={128} value={deletePassword} onChange={event => setDeletePassword(event.target.value)} placeholder="Current password" className="mt-3 w-full rounded-xl border border-[#e5dfd3] bg-[#fbf8f1] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#e96d2c]"/><button type="button" disabled={busy || !deletePassword} onClick={deleteAccount} className="mt-3 w-full rounded-xl border border-[#b64a1a] px-4 py-3 text-sm font-bold text-[#b64a1a] disabled:opacity-50">{busy ? "Deleting…" : "Permanently delete account"}</button>{status && <p role="alert" className="mt-3 rounded-xl bg-[#fff0e5] p-3 text-xs">{status}</p>}</div></div>}
   </AuthShell>;
 }
 
