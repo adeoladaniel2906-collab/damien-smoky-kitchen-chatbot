@@ -28,7 +28,7 @@ pnpm --filter @workspace/damiens-smoky-kitchen test
 pnpm --filter @workspace/damiens-smoky-kitchen build
 ```
 
-The Worker regression tests use Node's built-in test runner and TypeScript stripping. GitHub Actions also runs Wrangler's deployment dry-run and CodeQL static analysis.
+The Worker regression tests use Node's built-in test runner and TypeScript stripping. GitHub Actions runs typechecking, application tests, production dependency auditing, Wrangler configuration dry-runs and CodeQL static analysis. Cloudflare Workers Builds performs Cloudflare preview and production deployments; GitHub Actions does not deploy the Worker.
 
 ## Cloudflare resources
 
@@ -87,6 +87,7 @@ The privacy notice describes the current data categories and third-party provide
 - [ ] Confirm the business's NDPA processor contracts and cross-border transfer mechanism before changing `ORDERS_ENABLED` from `false`.
 - [ ] Review the privacy notice, cookie categories, age process, terms, allergen information and refund/cancellation procedures with the business.
 - [ ] Confirm production domain, HTTPS, monitoring, rollback and backup procedures.
-- [ ] Merge only after all required checks and release blockers are cleared.
+- [ ] Keep `ORDERS_ENABLED`, `CUSTOMER_AUTH_ENABLED` and `STAFF_AUTH_ENABLED` set to `false` until every applicable data-protection, identity, database and runtime release gate above is independently verified.
+- [ ] The public website may be deployed while those features remain disabled; do not treat a successful website deployment as approval to collect customer order or account data.
 
 No production deployment is authorised by this README. The release must be approved through the pull request and verified against the live Cloudflare environment.
