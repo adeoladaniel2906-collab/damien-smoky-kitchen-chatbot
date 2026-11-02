@@ -20,6 +20,9 @@ interface Env {
     limit(input: { key: string }): Promise<{ success: boolean }>;
   };
   DB: OrderDatabaseBinding;
+  AUTH_RATE_LIMIT: { limit(input: { key: string }): Promise<{ success: boolean }> };
+  STAFF_EMAIL?: string;
+  STAFF_PASSWORD_HASH?: string;
 }
 
 type ChatMessage = {
@@ -353,6 +356,148 @@ async function handleOrderCreate(request: Request, env: Env): Promise<Response> 
   }, { status: 201, headers: { "Cache-Control": "no-store" } });
 }
 
+
+const SESSION_COOKIE = "__Host-dsk_session";
+const SESSION_TTL_SECONDS = 604800;
+const PBKDF2_ITERATIONS = 310000;
+function b64url(bytes: Uint8Array): string {
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
+}
+function unb64url(value: string): Uint8Array {
+  const normalized = value.replaceAll("-", "+").replaceAll("_", "/");
+  const binary = atob(normalized + "=".repeat((4 - normalized.length % 4) % 4));
+  return Uint8Array.from(binary, (character) => character.charCodeAt(0));
+}
+async function hashToken(value: string): Promise<string> {
+  const bytes = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value)));
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+async function derivePassword(password: string, salt: Uint8Array): Promise<Uint8Array> {
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveBits"]);
+  const saltBuffer = new Uint8Array(new ArrayBuffer(salt.byteLength));
+  saltBuffer.set(salt);
+  return new Uint8Array(await crypto.subtle.deriveBits({ name: "PBKDF2", salt: saltBuffer, iterations: PBKDF2_ITERATIONS, hash: "SHA-256" }, key, 256));
+}
+async function makePasswordHash(password: string): Promise<string> {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  return b64url(salt) + "." + b64url(await derivePassword(password, salt));
+}
+async function verifyPassword(password: string, encoded: string): Promise<boolean> {
+  try {
+    const parts = encoded.split(".");
+    if (parts.length !== 2) return false;
+    const expected = unb64url(parts[1]);
+    const actual = await derivePassword(password, unb64url(parts[0]));
+    if (expected.length !== actual.length) return false;
+    let mismatch = 0;
+    for (let i = 0; i < expected.length; i++) mismatch |= expected[i] ^ actual[i];
+    return mismatch === 0;
+  } catch { return false; }
+}
+function cookieValue(request: Request, name: string): string | null {
+  for (const part of (request.headers.get("Cookie") ?? "").split(";")) {
+    const separator = part.indexOf("=");
+    if (separator > 0 && part.slice(0, separator).trim() === name) return part.slice(separator + 1).trim() || null;
+  }
+  return null;
+}
+function setSessionCookie(token: string): string {
+  return SESSION_COOKIE + "=" + token + "; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=" + SESSION_TTL_SECONDS;
+}
+function clearSessionCookie(): string {
+  return SESSION_COOKIE + "=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0";
+}
+type SessionRow = { role: "customer" | "staff"; user_id: string; expires_at: number };
+function authResponse(data: unknown, status = 200, cookie?: string): Response {
+  const headers = new Headers({ "Cache-Control": "no-store", "Pragma": "no-cache" });
+  if (cookie) headers.set("Set-Cookie", cookie);
+  return Response.json(data, { status, headers });
+}
+async function issueSession(env: Env, role: "customer" | "staff", userId: string): Promise<string> {
+  const token = b64url(crypto.getRandomValues(new Uint8Array(32)));
+  const tokenHash = await hashToken(token);
+  const expires = Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS;
+  await env.DB.prepare("INSERT INTO auth_sessions (token_hash, role, user_id, expires_at) VALUES (?, ?, ?, ?)")
+    .bind(tokenHash, role, userId, expires).run();
+  return token;
+}
+async function currentSession(request: Request, env: Env): Promise<SessionRow | null> {
+  const token = cookieValue(request, SESSION_COOKIE);
+  if (!token || token.length > 128) return null;
+  return await env.DB.prepare("SELECT role, user_id, expires_at FROM auth_sessions WHERE token_hash = ? AND expires_at > ?")
+    .bind(await hashToken(token), Math.floor(Date.now() / 1000)).first<SessionRow>();
+}
+function validEmail(value: string): boolean { return value.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value); }
+async function handleAuth(request: Request, env: Env, url: URL): Promise<Response> {
+  const path = url.pathname;
+  if (path === "/api/auth/me" && request.method === "GET") {
+    const session = await currentSession(request, env);
+    if (!session) return authResponse({ authenticated: false }, 401);
+    if (session.role === "staff") return authResponse({ authenticated: true, role: "staff", user: { email: session.user_id } });
+    const customer = await env.DB.prepare("SELECT id, name, email, phone FROM customer_accounts WHERE id = ?")
+      .bind(session.user_id).first<{ id: string; name: string; email: string; phone: string }>();
+    return customer ? authResponse({ authenticated: true, role: "customer", user: customer }) : authResponse({ authenticated: false }, 401, clearSessionCookie());
+  }
+  if (path === "/api/auth/logout" && request.method === "POST") {
+    const origin = request.headers.get("Origin");
+    if (origin && origin !== url.origin) return authResponse({ error: "Request origin is not allowed." }, 403);
+    const token = cookieValue(request, SESSION_COOKIE);
+    if (token) await env.DB.prepare("DELETE FROM auth_sessions WHERE token_hash = ?").bind(await hashToken(token)).run();
+    return authResponse({ ok: true }, 200, clearSessionCookie());
+  }
+  if (request.method !== "POST" || !["/api/auth/register", "/api/auth/login", "/api/auth/staff/login"].includes(path)) return authResponse({ error: "Not found." }, 404);
+  const origin = request.headers.get("Origin");
+  if (origin && origin !== url.origin) return authResponse({ error: "Request origin is not allowed." }, 403);
+  const limit = await env.AUTH_RATE_LIMIT.limit({ key: request.headers.get("CF-Connecting-IP") ?? "unknown" });
+  if (!limit.success) return authResponse({ error: "Too many authentication attempts. Please wait and try again." }, 429);
+  let body: Record<string, unknown>;
+  try {
+    const raw = await readLimitedBody(request);
+    if (raw === null) return authResponse({ error: "Request body is too large." }, 413);
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return authResponse({ error: "Invalid request." }, 400);
+    body = parsed as Record<string, unknown>;
+  } catch { return authResponse({ error: "Invalid request." }, 400); }
+  const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+  const password = typeof body.password === "string" ? body.password : "";
+  if (!validEmail(email) || password.length < 12 || password.length > 128) return authResponse({ error: "Enter a valid email and a password between 12 and 128 characters." }, 400);
+  if (path === "/api/auth/register") {
+    const name = typeof body.name === "string" ? body.name.trim() : "";
+    const phone = typeof body.phone === "string" ? body.phone.trim() : "";
+    if (!name || name.length > 100 || !/^[+\d\s()\-]{8,24}$/.test(phone) || phone.replace(/\D/g, "").length < 8) return authResponse({ error: "Enter your name and a valid phone number." }, 400);
+    const existing = await env.DB.prepare("SELECT id FROM customer_accounts WHERE email = ?").bind(email).first<{ id: string }>();
+    if (existing) return authResponse({ error: "An account with this email already exists. Please log in." }, 409);
+    const id = crypto.randomUUID();
+    const passwordHash = await makePasswordHash(password);
+    try {
+      await env.DB.prepare("INSERT INTO customer_accounts (id, name, email, phone, password_hash) VALUES (?, ?, ?, ?, ?)")
+        .bind(id, name, email, phone, passwordHash).run();
+    } catch (error) {
+      const duplicate = await env.DB.prepare("SELECT id FROM customer_accounts WHERE email = ?").bind(email).first<{ id: string }>();
+      if (duplicate) return authResponse({ error: "An account with this email already exists. Please log in." }, 409);
+      console.error("Customer registration failed:", error);
+      return authResponse({ error: "We could not create your account. Please try again." }, 503);
+    }
+    const token = await issueSession(env, "customer", id);
+    return authResponse({ ok: true, role: "customer" }, 201, setSessionCookie(token));
+  }
+  if (path === "/api/auth/staff/login") {
+    const configuredEmail = (env.STAFF_EMAIL ?? "").trim().toLowerCase();
+    const configuredHash = env.STAFF_PASSWORD_HASH ?? "";
+    if (!configuredEmail || !configuredHash || email !== configuredEmail || !(await verifyPassword(password, configuredHash))) {
+      return authResponse({ error: "Staff credentials are incorrect or staff login has not been configured." }, 401);
+    }
+    const token = await issueSession(env, "staff", configuredEmail);
+    return authResponse({ ok: true, role: "staff" }, 200, setSessionCookie(token));
+  }
+  const customer = await env.DB.prepare("SELECT id, password_hash FROM customer_accounts WHERE email = ?")
+    .bind(email).first<{ id: string; password_hash: string }>();
+  if (!customer || !(await verifyPassword(password, customer.password_hash))) return authResponse({ error: "The email or password is incorrect." }, 401);
+  const token = await issueSession(env, "customer", customer.id);
+  return authResponse({ ok: true, role: "customer" }, 200, setSessionCookie(token));
+}
 function withSecurityHeaders(response: Response): Response {
   const headers = new Headers(response.headers);
   const securityHeaders: Record<string, string> = {
@@ -371,6 +516,7 @@ function withSecurityHeaders(response: Response): Response {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+    if (url.pathname.startsWith("/api/auth/")) return withSecurityHeaders(await handleAuth(request, env, url));
 
     if (url.pathname === "/api/orders") {
       if (request.method !== "POST") return withSecurityHeaders(Response.json({ error: "Method not allowed." }, { status: 405 }));
