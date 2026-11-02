@@ -165,15 +165,8 @@ function Home({ onBrowse, onAdd, basketCount }: { onBrowse: (query?: string) => 
 }
 
 function ProductCard({ item, onAdd }: { item: CatalogItem; onAdd: () => void }) {
-  const foodPhotos = [
-    "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&w=900&q=85",
-    "https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?auto=format&fit=crop&w=900&q=85",
-    "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=900&q=85",
-    "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=900&q=85"
-  ];
-  const photoIndex = Math.abs(item.name.split("").reduce((sum, char) => sum + char.charCodeAt(0), 0)) % foodPhotos.length;
   return <article className="group overflow-hidden rounded-3xl border border-[#e7e9e2] bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
-    <div className="relative h-40 overflow-hidden bg-[#f0f1eb]"><img src={foodPhotos[photoIndex]} alt={item.name} loading="lazy" className="h-full w-full object-cover transition duration-500 group-hover:scale-105"/><span className="absolute left-3 top-3 rounded-full bg-white/95 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-[#526a50]">{item.category}</span></div>
+    <div className="relative h-40 overflow-hidden bg-[#f0f1eb]"><img src={menuPhoto(item)} alt={`${item.name} food photography`} loading="lazy" className="h-full w-full object-cover transition duration-500 group-hover:scale-105"/><span className="absolute left-3 top-3 rounded-full bg-white/95 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-[#526a50]">{item.category}</span></div>
     <div className="p-4"><h3 className="min-h-10 font-bold leading-snug text-[#29382d]">{item.name}</h3><div className="mt-4 flex items-center justify-between gap-3"><strong className="text-base text-[#26372c]">{item.price === null ? 'Ask for price' : money(item.price)}</strong>{item.price !== null && <button onClick={onAdd} aria-label={`Add ${item.name} to basket`} className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#ffc94a] text-[#26372c] transition hover:bg-[#f4b923]"><Plus size={19}/></button>}</div></div>
   </article>;
 }
