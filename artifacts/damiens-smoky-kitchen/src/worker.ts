@@ -335,8 +335,8 @@ async function handleOrderCreate(request: Request, env: Env): Promise<Response> 
 
   try {
     await env.DB.batch([
-      env.DB.prepare("INSERT INTO orders (id, idempotency_key, customer_name, customer_phone, delivery_address, delivery_state, subtotal_ngn, status) VALUES (?, ?, ?, ?, ?, 'Lagos', ?, 'pending')")
-        .bind(orderId, idempotencyKey, (body.name as string).trim(), (body.phone as string).trim(), (body.address as string).trim(), subtotal),
+      env.DB.prepare("INSERT INTO orders (id, idempotency_key, customer_name, customer_phone, delivery_address, delivery_state, subtotal_ngn, status, adult_confirmed_at) VALUES (?, ?, ?, ?, ?, 'Lagos', ?, 'pending', ?)")
+        .bind(orderId, idempotencyKey, (body.name as string).trim(), (body.phone as string).trim(), (body.address as string).trim(), subtotal, new Date().toISOString()),
       ...lines.map((line) => env.DB.prepare("INSERT INTO order_items (order_id, item_name, category, quantity, unit_price_ngn, line_total_ngn) VALUES (?, ?, ?, ?, ?, ?)")
         .bind(orderId, line.name, line.category, line.quantity, line.unitPrice, line.lineTotal)),
     ]);
