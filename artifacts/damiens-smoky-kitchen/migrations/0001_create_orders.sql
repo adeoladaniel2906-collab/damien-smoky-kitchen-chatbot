@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS orders (
   customer_phone TEXT NOT NULL CHECK(length(customer_phone) BETWEEN 8 AND 24),
   delivery_address TEXT NOT NULL CHECK(length(delivery_address) BETWEEN 5 AND 300),
   delivery_state TEXT NOT NULL CHECK(delivery_state = 'Lagos'),
+  adult_confirmed_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   subtotal_ngn INTEGER NOT NULL CHECK(subtotal_ngn >= 3000),
   delivery_fee_ngn INTEGER,
   status TEXT NOT NULL DEFAULT 'pending'
