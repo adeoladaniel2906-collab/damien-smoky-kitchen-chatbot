@@ -78,6 +78,8 @@ function makeEnv(overrides = {}) {
     AUTH_EMAIL_RATE_LIMIT: { limit: async () => ({ success: true }) },
     CHAT_RATE_LIMIT: { limit: async () => ({ success: true }) },
     ORDER_RATE_LIMIT: { limit: async () => ({ success: true }) },
+    CUSTOMER_AUTH_ENABLED: "true",
+    STAFF_AUTH_ENABLED: "true",
     STAFF_EMAIL: "staff@example.com",
     STAFF_PASSWORD_HASH: staffHash("StaffPassword!2026"),
     ASSETS: { fetch: async () => new Response("asset") },
