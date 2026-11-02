@@ -1,93 +1,92 @@
-# Damien's Smoky Kitchen Chatbot
+# Damien's Smoky Kitchen Website
 
-A React restaurant website and customer chatbot for Damien's Smoky Kitchen in Ibafo, Ogun State, Nigeria.
+A React restaurant website, guest-order request flow and customer assistant for Damien's Smoky Kitchen in Ibafo, Ogun State, Nigeria.
 
 ## Architecture
 
 - **Frontend:** React and TypeScript, built with Vite.
-- **Backend:** Cloudflare Worker serves the React assets and owns `POST /api/chat`.
-- **Chat flow:** request validation → Cloudflare rate limiting → deterministic answers from the restaurant knowledge base → Workers AI fallback for questions that need language reasoning.
-- **Knowledge boundary:** replies must use the supplied restaurant facts. Unknown prices, delivery fees, delivery times, ingredients, and policies are not guessed; customers are directed to WhatsApp.
-- **AI credentials:** Workers AI uses the Cloudflare binding. No provider credential is shipped to the browser.
-
-Restaurant facts in the app: Ibafo, Ogun State; Lagos State delivery only; 9 AM–9 PM; ₦3,000 minimum delivery order; delivery fees vary by distance. Confirm any additional operational claims against the official restaurant source before adding them.
+- **Backend:** Cloudflare Worker serves the React assets and owns the chat, order-request and authentication APIs.
+- **Chat:** bounded request validation, rate limiting, deterministic restaurant knowledge and Workers AI fallback. The assistant must not invent menu prices, delivery fees, ingredients or policies.
+- **Orders:** the Worker validates the current menu and price data, applies per-IP rate limits, requires an idempotency key, and stores pending order requests in D1. The restaurant must confirm availability and delivery fee. The site does not collect online card payments.
+- **Data:** D1 databases are restricted to the EU jurisdiction and read replication is disabled. This is a data-location control, not a substitute for the required Nigeria Data Protection Act cross-border transfer assessment and processor agreements.
+- **Secrets:** keep credentials in Cloudflare Worker secrets/variables. Never put secrets in Vite variables, frontend code, commits or logs.
 
 ## Development
 
-Requires Node.js and pnpm.
+Requires Node.js 22 and pnpm.
 
 ```sh
 pnpm install
 pnpm --filter @workspace/damiens-smoky-kitchen dev
 ```
 
-Build and typecheck:
+Build, typecheck and test:
 
 ```sh
 pnpm --filter @workspace/damiens-smoky-kitchen typecheck
+pnpm --filter @workspace/damiens-smoky-kitchen test
 pnpm --filter @workspace/damiens-smoky-kitchen build
 ```
 
-## Cloudflare deployment
+The Worker regression tests use Node's built-in test runner and TypeScript stripping. GitHub Actions also runs Wrangler's deployment dry-run and CodeQL static analysis.
 
-From `artifacts/damiens-smoky-kitchen`:
+## Cloudflare resources
 
-```sh
-pnpm exec wrangler dev
-pnpm exec wrangler deploy
-```
+The Wrangler configuration references:
+- Production D1: `damien-smoky-kitchen-orders-eu`
+- Preview D1: `damien-smoky-kitchen-orders-preview-eu`
 
-The Worker requires the Workers AI binding and a Cloudflare Rate Limiting binding configured in `wrangler.jsonc`. Configure that binding in the target Cloudflare account before deployment. The current rule allows 20 requests per key per minute. The key uses the client IP supplied by Cloudflare.
+Both databases are configured with the `eu` jurisdiction and read replication disabled. The preview schema has been applied and checked. The production database is intentionally not migrated or bound to the live Worker yet.
 
-The frontend and Worker must be deployed together so `/api/chat` reaches the Worker. Do not put secrets in Vite variables or client-side code.
-
-## Chat API
-
-Send a JSON body with a bounded `messages` array containing only `user` and `assistant` roles. System instructions are owned by the Worker and client-supplied system messages are rejected. Successful responses are UTF-8 plain text; validation and rate-limit failures return JSON errors.
-
-## Project layout
-
-- `artifacts/damiens-smoky-kitchen/src` — React application, chatbot knowledge and Cloudflare Worker.
-- `artifacts/damiens-smoky-kitchen/wrangler.jsonc` — Worker, AI, assets and rate-limit bindings.
-- `artifacts/api-server` and root Vercel configuration — legacy deployment artifacts; Cloudflare is the canonical chatbot deployment described here.
-
-## Security
-
-Never commit API credentials, customer information, or local environment files. Keep rate limits enabled in production, review Cloudflare logs for safe metadata only, and do not log chat contents or provider secrets.
-
-
-## Customer and staff authentication
-
-The Worker provides separate customer and staff authentication:
-- `/create-account` and `/login` are public customer account pages.
-- `/staff-login` is the staff sign-in page. Public customer registration cannot create staff accounts.
-- `/account` and `/staff` check the server-issued session and role.
-- Passwords are hashed with PBKDF2-SHA-256 (310,000 iterations) and a per-account random salt. Session tokens are random, stored only as SHA-256 hashes in D1, and sent in Secure, HttpOnly, SameSite=Lax cookies.
-- Authentication endpoints have a dedicated Cloudflare rate limit. Customer and staff roles are checked by the Worker, not trusted from the browser.
-
-Before enabling staff login, configure these Worker variables/secrets in the Cloudflare dashboard:
-- `STAFF_EMAIL`: the one authorised staff email address.
-- `STAFF_PASSWORD_HASH`: the PBKDF2 hash generated locally as described below.
-
-Generate the hash without putting the password in shell history (from the repository root):
+From `artifacts/damiens-smoky-kitchen`, preview migrations can be checked with:
 
 ```sh
-read -s -p "Staff password: " STAFF_PASSWORD
-printf '\\n'
-printf %s "$STAFF_PASSWORD" | node scripts/hash-staff-password.mjs
-unset STAFF_PASSWORD
+pnpm exec wrangler d1 migrations list damien-smoky-kitchen-orders-preview-eu --config wrangler.preview-migrations.jsonc --remote
 ```
 
-Copy the generated hash into the Cloudflare Worker secret named `STAFF_PASSWORD_HASH`. Set `STAFF_EMAIL` as a Worker variable (or secret). Never put either value in Vite variables, source files, or GitHub commits.
+Do not apply production migrations or deploy until the release checklist is complete.
 
-Apply the new D1 migration to the preview database before preview authentication testing, then to production only when the release is approved:
+## Customer and staff account status
 
-```sh
-cd artifacts/damiens-smoky-kitchen
-pnpm exec wrangler d1 migrations apply damien-smoky-kitchen-orders-preview --config wrangler.preview-migrations.jsonc --remote
-```
+The site contains separate customer Create Account, Customer Login and Staff Login pages. They are **disabled by default** through server-side feature flags:
+- `CUSTOMER_AUTH_ENABLED`
+- `STAFF_AUTH_ENABLED`
 
-Customer account email ownership is not verified in this first implementation. Do not use account email as a high-assurance identity until an email verification or password-reset workflow is added. The staff portal currently verifies staff identity only; order-management actions are not exposed until separately implemented and protected.
+The Worker returns an explicit unavailable status unless the corresponding flag is enabled. Customer registration cannot create staff privileges.
 
+The current password implementation uses PBKDF2-HMAC-SHA-256 with 600,000 iterations, a unique random salt, a SHA-256 hash of each random session token in D1, and Secure, HttpOnly, SameSite=Lax cookies. It has per-IP and per-account rate limits. The production flags must remain off until:
+1. The target Cloudflare runtime is benchmarked against its actual CPU limit.
+2. Customer email verification and password-reset flows are implemented.
+3. Staff MFA or a properly configured identity provider is in place.
+4. The D1 and Worker bindings are deployed and tested together.
 
-**Free-plan runtime check required:** Cloudflare documents a 10 ms CPU-time limit per HTTP request on Workers Free. PBKDF2 password verification is intentionally expensive; do not enable customer or staff login in production until the deployed preview proves registration and login stay within the Free CPU limit. If it exceeds the limit, do not weaken the password hash to force it through; use a suitable managed authentication service or a plan/runtime that supports the required CPU budget.
+Cloudflare Workers Free allows 10 ms CPU time per HTTP request. Paid Workers have a substantially larger CPU budget. Do not reduce the password-hashing work factor to work around a plan limit. The staff hash utility is provided at `scripts/hash-staff-password.mjs`; it reads the password from standard input and must be run locally. Never send the password through chat or commit it.
+
+## Privacy and consumer information
+
+The site includes:
+- A centred cookie-choice dialog with Accept all, Reject optional and saved preferences.
+- A persistent Manage cookies control.
+- Privacy, Cookie and Ordering Terms pages.
+- An adult confirmation check for account registration and order submission. A parent/legal guardian must submit a child's order using the adult's own details.
+- A customer account deletion endpoint that requires the current password and revokes that customer's sessions.
+
+Optional analytics and marketing trackers are not currently loaded. If a tracker is added, it must be gated on the corresponding saved consent preference before it is loaded.
+
+The privacy notice describes the current data categories and third-party providers. Before live customer data is collected, the business must confirm the legal data-controller identity, processor agreements, cross-border transfer safeguards, privacy-request handling, retention operations and any required DPO arrangements. Tax transaction records must be retained as required by section 31(5) of the Nigeria Tax Administration Act 2025; the site does not automatically delete legally required order records when an account is deleted.
+
+## Release checklist
+
+- [ ] Configure Cloudflare Worker D1, AI and all rate-limit bindings from `wrangler.jsonc`.
+- [ ] Confirm the EU-restricted production D1 schema and migration history.
+- [ ] Configure Cloudflare observability with privacy-minimised logs and query-string redaction.
+- [ ] Complete a preview Worker deployment and browser/API end-to-end tests.
+- [ ] Benchmark PBKDF2 on the actual Worker plan before enabling authentication.
+- [ ] Implement and test customer email verification and password reset.
+- [ ] Add staff MFA or a suitable identity-provider gate before enabling staff access.
+- [ ] Confirm the business's NDPA processor contracts and cross-border transfer mechanism.
+- [ ] Review the privacy notice, cookie categories, age process, terms, allergen information and refund/cancellation procedures with the business.
+- [ ] Confirm production domain, HTTPS, monitoring, rollback and backup procedures.
+- [ ] Merge only after all required checks and release blockers are cleared.
+
+No production deployment is authorised by this README. The release must be approved through the pull request and verified against the live Cloudflare environment.
