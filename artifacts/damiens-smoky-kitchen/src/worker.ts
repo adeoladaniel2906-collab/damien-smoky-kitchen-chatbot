@@ -637,6 +637,10 @@ async function handleStaffOperations(request: Request, env: Env, url: URL): Prom
       if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return authResponse({ error: "Invalid request." }, 400);
       body = parsed as Record<string, unknown>;
     } catch { return authResponse({ error: "Invalid request." }, 400); }
+    const next = typeof body.status === "string" ? body.status : "";
+    const existing = await env.DB.prepare("SELECT status FROM orders WHERE id = ?").bind(id).first<{ status: string }>();
+    if (!existing) return authResponse({ error: "Order not found." }, 404);
+    if (existing.status === next) return authResponse({ ok: true, status: next });
     const transitions: Record<string, string[]> = {
       pending: ["accepted", "cancelled"],
       accepted: ["preparing", "cancelled"],
@@ -645,11 +649,7 @@ async function handleStaffOperations(request: Request, env: Env, url: URL): Prom
       completed: [],
       cancelled: []
     };
-    const next = typeof body.status === "string" ? body.status : "";
     if (!Object.prototype.hasOwnProperty.call(transitions, existing.status) || !transitions[existing.status].includes(next)) return authResponse({ error: "This order status transition is not allowed." }, 409);
-    const existing = await env.DB.prepare("SELECT status FROM orders WHERE id = ?").bind(id).first<{ status: string }>();
-    if (!existing) return authResponse({ error: "Order not found." }, 404);
-    if (existing.status === next) return authResponse({ ok: true, status: next });
     await env.DB.batch([
       env.DB.prepare("UPDATE orders SET status = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?").bind(next, id),
       env.DB.prepare("INSERT INTO staff_audit_logs (actor, action, target_id) VALUES (?, ?, ?)").bind(session.user_id, "order.status:" + existing.status + "->" + next, id)
