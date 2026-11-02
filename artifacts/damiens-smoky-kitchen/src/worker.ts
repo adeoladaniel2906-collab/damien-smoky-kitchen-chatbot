@@ -419,6 +419,7 @@ async function issueSession(env: Env, role: "customer" | "staff", userId: string
   const token = b64url(crypto.getRandomValues(new Uint8Array(32)));
   const tokenHash = await hashToken(token);
   const expires = Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS;
+  await env.DB.prepare("DELETE FROM auth_sessions WHERE expires_at <= ?").bind(Math.floor(Date.now() / 1000)).run();
   await env.DB.prepare("INSERT INTO auth_sessions (token_hash, role, user_id, expires_at) VALUES (?, ?, ?, ?)")
     .bind(tokenHash, role, userId, expires).run();
   return token;
@@ -426,8 +427,10 @@ async function issueSession(env: Env, role: "customer" | "staff", userId: string
 async function currentSession(request: Request, env: Env): Promise<SessionRow | null> {
   const token = cookieValue(request, SESSION_COOKIE);
   if (!token || token.length > 128) return null;
-  return await env.DB.prepare("SELECT role, user_id, expires_at FROM auth_sessions WHERE token_hash = ? AND expires_at > ?")
+  const session = await env.DB.prepare("SELECT role, user_id, expires_at FROM auth_sessions WHERE token_hash = ? AND expires_at > ?")
     .bind(await hashToken(token), Math.floor(Date.now() / 1000)).first<SessionRow>();
+  if (session?.role === "staff" && session.user_id !== (env.STAFF_EMAIL ?? "").trim().toLowerCase()) return null;
+  return session;
 }
 function validEmail(value: string): boolean { return value.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value); }
 async function handleAuth(request: Request, env: Env, url: URL): Promise<Response> {
@@ -442,14 +445,14 @@ async function handleAuth(request: Request, env: Env, url: URL): Promise<Respons
   }
   if (path === "/api/auth/logout" && request.method === "POST") {
     const origin = request.headers.get("Origin");
-    if (origin && origin !== url.origin) return authResponse({ error: "Request origin is not allowed." }, 403);
+    if (origin !== url.origin) return authResponse({ error: "Request origin is not allowed." }, 403);
     const token = cookieValue(request, SESSION_COOKIE);
     if (token) await env.DB.prepare("DELETE FROM auth_sessions WHERE token_hash = ?").bind(await hashToken(token)).run();
     return authResponse({ ok: true }, 200, clearSessionCookie());
   }
   if (request.method !== "POST" || !["/api/auth/register", "/api/auth/login", "/api/auth/staff/login"].includes(path)) return authResponse({ error: "Not found." }, 404);
   const origin = request.headers.get("Origin");
-  if (origin && origin !== url.origin) return authResponse({ error: "Request origin is not allowed." }, 403);
+  if (origin !== url.origin) return authResponse({ error: "Request origin is not allowed." }, 403);
   const limit = await env.AUTH_RATE_LIMIT.limit({ key: request.headers.get("CF-Connecting-IP") ?? "unknown" });
   if (!limit.success) return authResponse({ error: "Too many authentication attempts. Please wait and try again." }, 429);
   let body: Record<string, unknown>;
