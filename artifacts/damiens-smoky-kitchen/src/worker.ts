@@ -451,6 +451,37 @@ async function handleAuth(request: Request, env: Env, url: URL): Promise<Respons
     if (token) await env.DB.prepare("DELETE FROM auth_sessions WHERE token_hash = ?").bind(await hashToken(token)).run();
     return authResponse({ ok: true }, 200, clearSessionCookie());
   }
+  if (path === "/api/auth/delete-account" && request.method === "POST") {
+    const origin = request.headers.get("Origin");
+    if (origin !== url.origin) return authResponse({ error: "Request origin is not allowed." }, 403);
+    const limit = await env.AUTH_RATE_LIMIT.limit({ key: request.headers.get("CF-Connecting-IP") ?? "unknown" });
+    if (!limit.success) return authResponse({ error: "Too many requests. Please wait and try again." }, 429);
+    const session = await currentSession(request, env);
+    if (!session || session.role !== "customer") return authResponse({ error: "Customer sign-in is required." }, 401);
+    let body: Record<string, unknown>;
+    try {
+      const raw = await readLimitedBody(request);
+      if (raw === null) return authResponse({ error: "Request body is too large." }, 413);
+      const parsed: unknown = JSON.parse(raw);
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return authResponse({ error: "Invalid request." }, 400);
+      body = parsed as Record<string, unknown>;
+    } catch { return authResponse({ error: "Invalid request." }, 400); }
+    const password = typeof body.password === "string" ? body.password : "";
+    if (password.length < 12 || password.length > 128) return authResponse({ error: "Enter your current password to confirm account deletion." }, 400);
+    const customer = await env.DB.prepare("SELECT password_hash FROM customer_accounts WHERE id = ?")
+      .bind(session.user_id).first<{ password_hash: string }>();
+    if (!customer || !(await verifyPassword(password, customer.password_hash))) return authResponse({ error: "The password is incorrect." }, 401);
+    try {
+      await env.DB.batch([
+        env.DB.prepare("DELETE FROM auth_sessions WHERE role = 'customer' AND user_id = ?").bind(session.user_id),
+        env.DB.prepare("DELETE FROM customer_accounts WHERE id = ?").bind(session.user_id),
+      ]);
+    } catch (error) {
+      console.error("Customer account deletion failed:", error);
+      return authResponse({ error: "We could not delete the account. Please contact the restaurant." }, 503);
+    }
+    return authResponse({ ok: true }, 200, clearSessionCookie());
+  }
   if (request.method !== "POST" || !["/api/auth/register", "/api/auth/login", "/api/auth/staff/login"].includes(path)) return authResponse({ error: "Not found." }, 404);
   const origin = request.headers.get("Origin");
   if (origin !== url.origin) return authResponse({ error: "Request origin is not allowed." }, 403);
