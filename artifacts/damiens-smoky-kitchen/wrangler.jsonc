@@ -3,6 +3,11 @@
   "name": "damien-smoky-kitchen-chatbot54",
   "main": "./src/worker.ts",
   "compatibility_date": "2026-09-24",
+  "vars": {
+    "ORDERS_ENABLED": "false",
+    "CUSTOMER_AUTH_ENABLED": "false",
+    "STAFF_AUTH_ENABLED": "false"
+  },
   "observability": {
     "enabled": true,
     "redact_query_string": true,
