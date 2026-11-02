@@ -605,6 +605,60 @@ async function handleAuth(request: Request, env: Env, url: URL): Promise<Respons
   const token = await issueSession(env, "customer", customer.id);
   return authResponse({ ok: true, role: "customer" }, 200, setSessionCookie(token));
 }
+
+type StaffOrderRow = { id: string; customer_name: string; customer_phone: string; delivery_address: string; subtotal_ngn: number; delivery_fee_ngn: number | null; status: string; created_at: string; updated_at: string };
+async function handleStaffOperations(request: Request, env: Env, url: URL): Promise<Response> {
+  const session = await currentSession(request, env);
+  if (!session || session.role !== "staff") return authResponse({ error: "Staff authentication required." }, 401);
+  if (request.method === "GET" && url.pathname === "/api/staff/orders") {
+    const result = await env.DB.prepare("SELECT id, customer_name, customer_phone, delivery_address, subtotal_ngn, delivery_fee_ngn, status, created_at, updated_at FROM orders ORDER BY created_at DESC LIMIT 50").all<StaffOrderRow>();
+    const orders = result.results ?? [];
+    const ids = orders.map(order => order.id);
+    const items: Array<{ order_id: string; item_name: string; quantity: number; line_total_ngn: number }> = [];
+    for (const id of ids) {
+      const lines = await env.DB.prepare("SELECT order_id, item_name, quantity, line_total_ngn FROM order_items WHERE order_id = ? ORDER BY id").bind(id).all<{ order_id: string; item_name: string; quantity: number; line_total_ngn: number }>();
+      items.push(...(lines.results ?? []));
+    }
+    return authResponse({ orders: orders.map(order => ({ ...order, items: items.filter(item => item.order_id === order.id).map(({ item_name, quantity, line_total_ngn }) => ({ name: item_name, quantity, total: line_total_ngn })) })) });
+  }
+  if (request.method === "GET" && url.pathname === "/api/staff/logs") {
+    const result = await env.DB.prepare("SELECT id, actor, action, target_id, created_at FROM staff_audit_logs ORDER BY id DESC LIMIT 100").all<{ id: number; actor: string; action: string; target_id: string | null; created_at: string }>();
+    return authResponse({ logs: result.results ?? [] });
+  }
+  if (request.method === "PATCH" && url.pathname.startsWith("/api/staff/orders/")) {
+    if (request.headers.get("Origin") !== url.origin) return authResponse({ error: "Request origin is not allowed." }, 403);
+    const id = decodeURIComponent(url.pathname.slice("/api/staff/orders/".length));
+    if (!/^[0-9a-f-]{36}$/i.test(id)) return authResponse({ error: "Invalid order identifier." }, 400);
+    let body: Record<string, unknown>;
+    try {
+      const raw = await readLimitedBody(request);
+      if (!raw || raw.length > 2048) return authResponse({ error: "Invalid request." }, 400);
+      const parsed: unknown = JSON.parse(raw);
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return authResponse({ error: "Invalid request." }, 400);
+      body = parsed as Record<string, unknown>;
+    } catch { return authResponse({ error: "Invalid request." }, 400); }
+    const next = typeof body.status === "string" ? body.status : "";
+    const existing = await env.DB.prepare("SELECT status FROM orders WHERE id = ?").bind(id).first<{ status: string }>();
+    if (!existing) return authResponse({ error: "Order not found." }, 404);
+    if (existing.status === next) return authResponse({ ok: true, status: next });
+    const transitions: Record<string, string[]> = {
+      pending: ["accepted", "cancelled"],
+      accepted: ["preparing", "cancelled"],
+      preparing: ["dispatched", "cancelled"],
+      dispatched: ["completed", "cancelled"],
+      completed: [],
+      cancelled: []
+    };
+    if (!Object.prototype.hasOwnProperty.call(transitions, existing.status) || !transitions[existing.status].includes(next)) return authResponse({ error: "This order status transition is not allowed." }, 409);
+    await env.DB.batch([
+      env.DB.prepare("UPDATE orders SET status = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?").bind(next, id),
+      env.DB.prepare("INSERT INTO staff_audit_logs (actor, action, target_id) VALUES (?, ?, ?)").bind(session.user_id, "order.status:" + existing.status + "->" + next, id)
+    ]);
+    return authResponse({ ok: true, status: next });
+  }
+  return authResponse({ error: "Not found." }, 404);
+}
+
 function withSecurityHeaders(response: Response): Response {
   const headers = new Headers(response.headers);
   const securityHeaders: Record<string, string> = {
@@ -624,6 +678,7 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     if (url.pathname.startsWith("/api/auth/")) return withSecurityHeaders(await handleAuth(request, env, url));
+    if (url.pathname.startsWith("/api/staff/")) return withSecurityHeaders(await handleStaffOperations(request, env, url));
 
     if (url.pathname === "/api/orders/status") {
       if (request.method !== "GET") return withSecurityHeaders(Response.json({ error: "Method not allowed." }, { status: 405 }));

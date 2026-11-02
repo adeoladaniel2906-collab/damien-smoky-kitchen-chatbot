@@ -438,21 +438,73 @@ function CustomerAccountPage() {
 function StaffPortalPage() {
   const [, setLocation] = useLocation();
   const [email, setEmail] = useState("");
+  const [orders, setOrders] = useState<Array<{id:string;customer_name:string;customer_phone:string;delivery_address:string;subtotal_ngn:number;status:string;created_at:string;items:Array<{name:string;quantity:number;total:number}>}>>([]);
+  const [logs, setLogs] = useState<Array<{id:number;actor:string;action:string;target_id:string|null;created_at:string}>>([]);
+  const [tab, setTab] = useState<"orders"|"activity">("orders");
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [busyOrder, setBusyOrder] = useState("");
+  const load = async () => {
+    const [orderResponse, logResponse] = await Promise.all([
+      fetch("/api/staff/orders", { credentials:"same-origin", cache:"no-store" }),
+      fetch("/api/staff/logs", { credentials:"same-origin", cache:"no-store" })
+    ]);
+    if (orderResponse.status === 401 || logResponse.status === 401) throw new Error("Your staff session has expired. Please sign in again.");
+    if (!orderResponse.ok || !logResponse.ok) throw new Error("The operations data could not be loaded.");
+    const orderData = await orderResponse.json();
+    const logData = await logResponse.json();
+    setOrders(orderData.orders ?? []);
+    setLogs(logData.logs ?? []);
+  };
   useEffect(() => {
     let active = true;
-    fetch("/api/auth/me", { credentials: "same-origin" }).then(async response => {
+    fetch("/api/auth/me", { credentials:"same-origin", cache:"no-store" }).then(async response => {
       if (!response.ok) throw new Error("Staff login required.");
       const result = await response.json();
       if (result.role !== "staff") throw new Error("Staff access required.");
-      if (active) setEmail(result.user.email);
+      if (active) { setEmail(result.user.email); await load(); }
     }).catch(() => { if (active) setLocation("/staff-login"); }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [setLocation]);
-  const logout = async () => { await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" }); setLocation("/staff-login"); };
-  return <AuthShell title="Staff portal" subtitle="Private staff identity check. Order management will be added after this authentication layer is verified.">
-    {loading ? <p className="mt-6 text-sm text-[#69766e]">Verifying staff session…</p> : email && <div className="mt-6 space-y-4"><p className="text-sm">Signed in as <strong>{email}</strong>.</p><p className="rounded-xl bg-[#e8eee6] p-3 text-xs leading-5">Your staff session is active. Customer account permissions are separate.</p><button onClick={logout} className="w-full rounded-xl border border-[#d9d4c9] px-4 py-3 text-sm font-semibold">Log out</button></div>}
-  </AuthShell>;
+  const logout = async () => { await fetch("/api/auth/logout", { method:"POST", credentials:"same-origin" }); setLocation("/staff-login"); };
+  const updateStatus = async (id:string, status:string) => {
+    setBusyOrder(id); setError("");
+    try {
+      const response = await fetch("/api/staff/orders/"+encodeURIComponent(id), { method:"PATCH", credentials:"same-origin", headers:{"Content-Type":"application/json"}, body:JSON.stringify({status}) });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error ?? "Order update failed.");
+      await load();
+    } catch (caught) { setError(caught instanceof Error ? caught.message : "Order update failed."); }
+    finally { setBusyOrder(""); }
+  };
+  const money = (amount:number) => "₦"+amount.toLocaleString("en-NG");
+  const pending = orders.filter(order => order.status === "pending").length;
+  const active = orders.filter(order => ["accepted","preparing","dispatched"].includes(order.status)).length;
+  if (loading) return <main className="mx-auto max-w-7xl px-4 py-16 text-sm text-[#69766e]">Verifying your private staff session…</main>;
+  return <main className="min-h-[75vh] bg-[#f6f7f3] px-4 py-8 sm:px-6">
+    <div className="mx-auto max-w-7xl">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div><p className="text-xs font-bold uppercase tracking-[.18em] text-[#738174]">Private operations</p><h1 className="mt-2 text-3xl font-extrabold tracking-tight text-[#20372b] sm:text-4xl">Kitchen dashboard</h1><p className="mt-2 text-sm text-[#6b776e]">Signed in as {email}. Staff-only access.</p></div>
+        <button onClick={logout} className="rounded-xl border border-[#d9dfd6] bg-white px-4 py-2.5 text-sm font-semibold text-[#314739]">Sign out</button>
+      </div>
+      <div className="mt-7 grid gap-3 sm:grid-cols-3">
+        <div className="rounded-2xl border border-[#e4e9e1] bg-white p-5"><p className="text-xs font-semibold uppercase tracking-wide text-[#778478]">Orders shown</p><p className="mt-2 text-3xl font-extrabold text-[#20372b]">{orders.length}</p><p className="mt-1 text-xs text-[#7a867c]">Most recent 50 orders</p></div>
+        <div className="rounded-2xl border border-[#e4e9e1] bg-white p-5"><p className="text-xs font-semibold uppercase tracking-wide text-[#778478]">Awaiting review</p><p className="mt-2 text-3xl font-extrabold text-[#c45b2b]">{pending}</p><p className="mt-1 text-xs text-[#7a867c]">Pending restaurant confirmation</p></div>
+        <div className="rounded-2xl border border-[#e4e9e1] bg-white p-5"><p className="text-xs font-semibold uppercase tracking-wide text-[#778478]">In progress</p><p className="mt-2 text-3xl font-extrabold text-[#20372b]">{active}</p><p className="mt-1 text-xs text-[#7a867c]">Accepted, preparing or dispatched</p></div>
+      </div>
+      <div className="mt-7 flex items-center gap-2 border-b border-[#dfe5dc]">
+        <button onClick={()=>setTab("orders")} className={tab==="orders"?"border-b-2 border-[#df7139] px-4 py-3 text-sm font-bold text-[#20372b]":"px-4 py-3 text-sm font-semibold text-[#7a867c]"}>Orders</button>
+        <button onClick={()=>setTab("activity")} className={tab==="activity"?"border-b-2 border-[#df7139] px-4 py-3 text-sm font-bold text-[#20372b]":"px-4 py-3 text-sm font-semibold text-[#7a867c]"}>Audit activity</button>
+        <button onClick={()=>{load().catch(e=>setError(e.message));}} className="ml-auto rounded-lg px-3 py-2 text-xs font-semibold text-[#526a50]">Refresh</button>
+      </div>
+      {error && <p role="alert" className="mt-4 rounded-xl bg-[#fff0e5] p-3 text-sm text-[#8b401d]">{error}</p>}
+      {tab==="orders" ? <div className="mt-5 space-y-3">{orders.length===0 ? <div className="rounded-2xl border border-dashed border-[#cbd5c9] bg-white p-10 text-center"><p className="font-bold text-[#314739]">No saved orders yet</p><p className="mt-2 text-sm text-[#7a867c]">New order requests will appear here when online ordering is securely enabled.</p></div> : orders.map(order=><article key={order.id} className="rounded-2xl border border-[#e4e9e1] bg-white p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-wide text-[#7b887f]">Order · {order.id.slice(0,8)}</p><h2 className="mt-1 text-lg font-bold text-[#20372b]">{order.customer_name}</h2><p className="mt-1 text-sm text-[#66746a]">{order.customer_phone} · {order.delivery_address}</p><p className="mt-1 text-xs text-[#8a948c]">{new Date(order.created_at).toLocaleString()}</p></div><div className="text-right"><p className="text-lg font-extrabold text-[#20372b]">{money(order.subtotal_ngn)}</p><span className="mt-1 inline-block rounded-full bg-[#eef2eb] px-3 py-1 text-xs font-semibold capitalize text-[#526a50]">{order.status}</span></div></div>
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[#edf0ea] pt-3"><p className="text-xs text-[#69766e]">{order.items.map(item=>item.quantity+" × "+item.name).join(" · ")}</p><div className="flex flex-wrap gap-2">{order.status!=="completed"&&order.status!=="cancelled"&&<><select aria-label={"Update status for order "+order.id} disabled={busyOrder===order.id} value={order.status} onChange={e=>updateStatus(order.id,e.target.value)} className="rounded-lg border border-[#dfe5dc] bg-white px-3 py-2 text-xs font-semibold"><option value="pending">Pending</option><option value="accepted">Accepted</option><option value="preparing">Preparing</option><option value="dispatched">Dispatched</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select><span className="self-center text-[10px] text-[#89948c]">{busyOrder===order.id?"Saving…":"Status changes are audited"}</span></>}</div></div>
+      </article>)}</div> : <div className="mt-5 overflow-hidden rounded-2xl border border-[#e4e9e1] bg-white"><div className="border-b border-[#edf0ea] px-5 py-4"><h2 className="font-bold text-[#20372b]">Staff audit trail</h2><p className="mt-1 text-xs text-[#7a867c]">Order status changes only. Customer details and credentials are never written to this log.</p></div>{logs.length===0?<p className="p-6 text-sm text-[#7a867c]">No staff actions recorded yet.</p>:logs.map(log=><div key={log.id} className="flex flex-wrap justify-between gap-2 border-b border-[#f0f2ed] px-5 py-3 text-xs"><span className="font-semibold text-[#314739]">{log.action}</span><span className="text-[#7a867c]">{log.actor} · {new Date(log.created_at).toLocaleString()}</span></div>)}</div>}
+      <p className="mt-6 text-xs leading-5 text-[#89948c]">Customer information is displayed only inside this authenticated staff area. Keep this screen private and sign out on shared devices.</p>
+    </div>
+  </main>;
 }
 
 function NotFound() {
