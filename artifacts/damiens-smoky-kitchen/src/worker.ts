@@ -24,6 +24,8 @@ interface Env {
   AUTH_EMAIL_RATE_LIMIT: { limit(input: { key: string }): Promise<{ success: boolean }> };
   STAFF_EMAIL?: string;
   STAFF_PASSWORD_HASH?: string;
+  CUSTOMER_AUTH_ENABLED?: string;
+  STAFF_AUTH_ENABLED?: string;
 }
 
 type ChatMessage = {
@@ -431,12 +433,18 @@ async function currentSession(request: Request, env: Env): Promise<SessionRow | 
   if (!token || token.length > 128) return null;
   const session = await env.DB.prepare("SELECT role, user_id, expires_at FROM auth_sessions WHERE token_hash = ? AND expires_at > ?")
     .bind(await hashToken(token), Math.floor(Date.now() / 1000)).first<SessionRow>();
-  if (session?.role === "staff" && session.user_id !== (env.STAFF_EMAIL ?? "").trim().toLowerCase()) return null;
+  if (session?.role === "staff" && (env.STAFF_AUTH_ENABLED !== "true" || session.user_id !== (env.STAFF_EMAIL ?? "").trim().toLowerCase())) return null;
+  if (session?.role === "customer" && env.CUSTOMER_AUTH_ENABLED !== "true") return null;
   return session;
 }
 function validEmail(value: string): boolean { return value.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value); }
 async function handleAuth(request: Request, env: Env, url: URL): Promise<Response> {
   const path = url.pathname;
+  const customerAuthEnabled = env.CUSTOMER_AUTH_ENABLED === "true" && Boolean(env.DB) && Boolean(env.AUTH_RATE_LIMIT) && Boolean(env.AUTH_EMAIL_RATE_LIMIT);
+  const staffAuthEnabled = env.STAFF_AUTH_ENABLED === "true" && Boolean(env.STAFF_EMAIL?.trim()) && Boolean(env.STAFF_PASSWORD_HASH) && Boolean(env.DB) && Boolean(env.AUTH_RATE_LIMIT);
+  if (path === "/api/auth/status" && request.method === "GET") return authResponse({ customerEnabled: customerAuthEnabled, staffEnabled: staffAuthEnabled });
+  if ((path === "/api/auth/register" || path === "/api/auth/login") && !customerAuthEnabled) return authResponse({ error: "Customer accounts are temporarily unavailable while secure sign-in is being configured. You can still place a guest order." }, 503);
+  if (path === "/api/auth/staff/login" && !staffAuthEnabled) return authResponse({ error: "Staff sign-in is not enabled yet. Contact the site administrator." }, 503);
   if (path === "/api/auth/me" && request.method === "GET") {
     const session = await currentSession(request, env);
     if (!session) return authResponse({ authenticated: false }, 401);
