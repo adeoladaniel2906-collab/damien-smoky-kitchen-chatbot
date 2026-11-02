@@ -322,8 +322,8 @@
 }
 
 html { scroll-behavior: smooth; }
-body { background: #eee9df; color: #36241d; }
-::selection { background: #e5603e; color: #f6f0e5; }
+body { background: #f7f8f4; color: #26372c; }
+::selection { background: #ffc94a; color: #26372c; }
 
 .grain::after {
   content: "";
