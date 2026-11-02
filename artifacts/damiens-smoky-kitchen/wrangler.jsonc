@@ -21,7 +21,7 @@
     {
       "binding": "DB",
       "database_name": "damien-smoky-kitchen-orders",
-      "database_id": "1db6849c-2db7-476d-9f73-7b7bde7b81fd",
+      "database_id": "d8ab1f47-bb9a-4f45-a017-848397fc4c4f",
       "migrations_dir": "migrations"
     }
   ],
@@ -67,7 +67,7 @@
       {
         "binding": "DB",
         "database_name": "damien-smoky-kitchen-orders-preview",
-        "database_id": "106a3a8d-f4eb-4151-aac5-34ca245982e6"
+        "database_id": "06ff960d-aeaa-41da-9fd6-51b2b59274be"
       }
     ],
     "ratelimits": [
