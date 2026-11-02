@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS customer_accounts (
  email TEXT NOT NULL COLLATE NOCASE UNIQUE CHECK(length(email) BETWEEN 3 AND 254),
  phone TEXT NOT NULL CHECK(length(phone) BETWEEN 8 AND 24),
  password_hash TEXT NOT NULL,
+ adult_confirmed_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 CREATE TABLE IF NOT EXISTS auth_sessions (
