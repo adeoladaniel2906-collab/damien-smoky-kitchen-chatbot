@@ -5,22 +5,25 @@
   "compatibility_date": "2026-09-24",
   "observability": {
     "enabled": true,
+    "redact_query_string": true,
     "logs": {
-      "enabled": true,
-      "head_sampling_rate": 1
-    },
-    "traces": {
       "enabled": true,
       "head_sampling_rate": 0.1
     },
-    "issues": {
+    "traces": {
+      "enabled": true,
+      "head_sampling_rate": 0.1,
+      "invocation_logs": false,
+      "persist": true
+    },
+    "traces": {
       "enabled": true
     }
   },
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "damien-smoky-kitchen-orders",
+      "database_name": "damien-smoky-kitchen-orders-eu",
       "database_id": "d8ab1f47-bb9a-4f45-a017-848397fc4c4f",
       "migrations_dir": "migrations"
     }
@@ -66,7 +69,7 @@
     "d1_databases": [
       {
         "binding": "DB",
-        "database_name": "damien-smoky-kitchen-orders-preview",
+        "database_name": "damien-smoky-kitchen-orders-preview-eu",
         "database_id": "06ff960d-aeaa-41da-9fd6-51b2b59274be"
       }
     ],
@@ -109,13 +112,15 @@
     },
     "observability": {
       "enabled": true,
+      "redact_query_string": true,
       "logs": {
         "enabled": true,
         "head_sampling_rate": 1
       },
       "traces": {
         "enabled": true,
-        "head_sampling_rate": 0.1
+        "head_sampling_rate": 0.05,
+        "persist": false
       }
     }
   },
