@@ -1,0 +1,40 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "damien-smoky-kitchen-preview",
+  "main": "./src/worker.ts",
+  "compatibility_date": "2026-09-24",
+  "vars": {
+    "ORDERS_ENABLED": "false",
+    "CUSTOMER_AUTH_ENABLED": "false",
+    "STAFF_AUTH_ENABLED": "false"
+  },
+  "workers_dev": true,
+  "preview_urls": true,
+  "observability": {
+    "enabled": true,
+    "redact_query_string": true,
+    "logs": { "enabled": true, "head_sampling_rate": 0.1, "invocation_logs": false, "persist": true },
+    "traces": { "enabled": true, "head_sampling_rate": 0.05, "persist": false }
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "damien-smoky-kitchen-orders-preview-eu",
+      "database_id": "06ff960d-aeaa-41da-9fd6-51b2b59274be",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "ratelimits": [
+    { "name": "CHAT_RATE_LIMIT", "namespace_id": "1002", "simple": { "limit": 20, "period": 60 } },
+    { "name": "ORDER_RATE_LIMIT", "namespace_id": "1004", "simple": { "limit": 5, "period": 60 } },
+    { "name": "AUTH_RATE_LIMIT", "namespace_id": "1006", "simple": { "limit": 8, "period": 60 } },
+    { "name": "AUTH_EMAIL_RATE_LIMIT", "namespace_id": "1008", "simple": { "limit": 5, "period": 60 } }
+  ],
+  "ai": { "binding": "AI" },
+  "assets": {
+    "directory": "./dist/public",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  }
+}
