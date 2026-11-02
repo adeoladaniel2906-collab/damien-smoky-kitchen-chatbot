@@ -226,13 +226,12 @@ function CustomerAuthPage({ mode }: { mode: "register" | "login" }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [authEnabled, setAuthEnabled] = useState(false);
-  const [googleEnabled, setGoogleEnabled] = useState(false);
   const [statusLoading, setStatusLoading] = useState(true);
   const register = mode === "register";
   useEffect(() => {
     let active = true;
     fetch("/api/auth/status", { cache: "no-store" }).then(response => response.json()).then(result => {
-      if (active) { setAuthEnabled(result.customerEnabled === true); setGoogleEnabled(result.googleEnabled === true); }
+      if (active) setAuthEnabled(result.customerEnabled === true);
     }).catch(() => { if (active) setAuthEnabled(false); }).finally(() => { if (active) setStatusLoading(false); });
     return () => { active = false; };
   }, []);
@@ -252,20 +251,8 @@ function CustomerAuthPage({ mode }: { mode: "register" | "login" }) {
       setError(caught instanceof Error ? caught.message : "We could not complete your request.");
     } finally { setBusy(false); }
   };
-  const googleNotice = new URLSearchParams(window.location.search).get("google");
-  const googleMessages: Record<string, string> = {
-    link_required: "This Google account matches an existing customer email but is not linked. Sign in with your password first, then connect Google from your account page.",
-    register_first: "No account is linked to this Google identity yet. Create your customer account first, then connect Google from your account page.",
-    login_required: "Log in before connecting a Google account.",
-    already_linked: "That Google account is already connected to another customer account.",
-    failed: "Google sign-in could not be completed. Please try again.",
-    invalid_state: "The Google sign-in request could not be verified. Please start again.",
-    expired: "The Google sign-in request expired. Please start again.",
-    cancelled: "Google sign-in was cancelled."
-  };
   return <AuthShell title={register ? "Create your account" : "Welcome back"} subtitle={register ? "Save your details for a simpler ordering experience." : "Log in to access your customer account."}>
     {statusLoading ? <p className="mt-6 text-sm text-[#69766e]">Checking account availability…</p> : !authEnabled ? <div className="mt-6 rounded-2xl bg-[#e8eee6] p-4 text-sm leading-6 text-[#52645a]"><strong className="block text-[#21382d]">Customer accounts are not enabled yet.</strong><span className="mt-2 block">We are completing the secure sign-in and email-verification setup. You can still browse the menu and submit a guest order without creating an account.</span><Link href="/menu" className="mt-4 inline-flex font-bold text-[#b64a1a] underline">Continue as a guest</Link></div> : <>
-      {googleNotice && googleMessages[googleNotice] && <p role="status" className="mt-5 rounded-xl bg-[#e8eee6] p-3 text-xs leading-5 text-[#52645a]">{googleMessages[googleNotice]}</p>}
       <form onSubmit={submit} className="mt-7 space-y-4">
         {register && <label className="block text-xs font-semibold">Full name<input required autoComplete="name" maxLength={100} value={name} onChange={e => setName(e.target.value)} className="mt-1.5 w-full rounded-xl border border-[#e5dfd3] bg-[#fbf8f1] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#e96d2c]"/></label>}
         {register && <label className="flex items-start gap-2 text-xs leading-5 text-[#69766e]"><input type="checkbox" required checked={adultConfirmed} onChange={e => setAdultConfirmed(e.target.checked)} className="mt-1 accent-[#e96d2c]"/>I confirm I am 18 or older and have read the <Link href="/privacy" className="font-semibold underline">Privacy Notice</Link>. A parent/legal guardian must create an account or place an order for a child using their own details.</label>}
@@ -275,7 +262,6 @@ function CustomerAuthPage({ mode }: { mode: "register" | "login" }) {
         {error && <p role="alert" className="rounded-xl bg-[#fff0e5] p-3 text-xs leading-5 text-[#8b401d]">{error}</p>}
         <button disabled={busy} className="w-full rounded-xl bg-[#21382d] px-4 py-3.5 text-sm font-bold text-white hover:bg-[#315541] disabled:opacity-60">{busy ? "Please wait…" : register ? "Create account" : "Log in"}</button>
       </form>
-      {!register && googleEnabled && <div className="mt-4"><div className="flex items-center gap-3 text-[10px] uppercase tracking-wider text-[#89948c]"><span className="h-px flex-1 bg-[#e5dfd3]"/>or continue with<span className="h-px flex-1 bg-[#e5dfd3]"/></div><a href="/api/auth/google/start" className="mt-4 flex w-full items-center justify-center gap-3 rounded-xl border border-[#d9d4c9] bg-white px-4 py-3.5 text-sm font-semibold text-[#21382d] hover:bg-[#f7f4ed]"><span className="grid h-5 w-5 place-items-center rounded-full border border-[#e5dfd3] text-xs font-bold">G</span>Continue with Google</a></div>}
       <p className="mt-6 text-center text-xs text-[#69766e]">{register ? "Already have an account?" : "New to Damien's Smoky Kitchen?"} <Link href={register ? "/login" : "/create-account"} className="font-bold text-[#b64a1a]">{register ? "Log in" : "Create account"}</Link></p>
     </>}
     <p className="mt-3 text-center text-xs"><Link href="/staff-login" className="text-[#69766e] underline underline-offset-4">Staff login</Link></p>
@@ -323,7 +309,6 @@ function StaffLoginPage() {
 function CustomerAccountPage() {
   const [, setLocation] = useLocation();
   const [user, setUser] = useState<{ name: string; email: string; phone: string } | null>(null);
-  const [googleLinked, setGoogleLinked] = useState(false);
   const [loading, setLoading] = useState(true);
   const [deletePassword, setDeletePassword] = useState("");
   const [status, setStatus] = useState("");
@@ -334,7 +319,7 @@ function CustomerAccountPage() {
       if (!response.ok) throw new Error("Please log in to view your account.");
       const result = await response.json();
       if (result.role !== "customer") throw new Error("This page is for customer accounts.");
-      if (active) { setUser(result.user); setGoogleLinked(result.googleLinked === true); }
+      if (active) setUser(result.user);
     }).catch(() => { if (active) setLocation("/login"); }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [setLocation]);
@@ -352,9 +337,8 @@ function CustomerAccountPage() {
       setStatus(caught instanceof Error ? caught.message : "We could not delete your account.");
     } finally { setBusy(false); }
   };
-  const googleNotice = new URLSearchParams(window.location.search).get("google");
   return <AuthShell title="Your account" subtitle="Your customer profile. Order history will be connected in a later stage.">
-    {loading ? <p className="mt-6 text-sm text-[#69766e]">Loading your account…</p> : user && <div className="mt-6 space-y-3 text-sm">{googleNotice === "linked" && <p role="status" className="rounded-xl bg-[#e8eee6] p-3 text-xs text-[#315541]">Your Google account is now connected.</p>}{googleNotice === "already_linked" && <p role="alert" className="rounded-xl bg-[#fff0e5] p-3 text-xs text-[#8b401d]">That Google account is already connected to another customer account.</p>}<p><strong>Name:</strong> {user.name}</p><p><strong>Email:</strong> {user.email}</p><p><strong>Phone:</strong> {user.phone}</p><div className="mt-4 rounded-xl border border-[#e5dfd3] p-4"><p className="text-xs font-semibold">Google sign-in</p>{googleLinked ? <p className="mt-2 text-xs text-[#315541]">Google account connected</p> : <><p className="mt-2 text-xs leading-5 text-[#69766e]">Connect Google to use it the next time you sign in. You must be signed in to this customer account first.</p><a href="/api/auth/google/link/start" className="mt-3 inline-flex rounded-lg border border-[#d9d4c9] px-3 py-2 text-xs font-semibold">Connect Google account</a></>}</div><button onClick={logout} className="mt-4 w-full rounded-xl border border-[#d9d4c9] px-4 py-3 text-sm font-semibold">Log out</button><div className="mt-6 border-t border-[#e8e2d6] pt-5"><h2 className="font-bold text-[#8b401d]">Delete account</h2><p className="mt-2 text-xs leading-5 text-[#69766e]">Enter your password to delete your account and sign out all sessions. Transaction records may be retained where the law requires them.</p><input type="password" autoComplete="current-password" minLength={12} maxLength={128} value={deletePassword} onChange={event => setDeletePassword(event.target.value)} placeholder="Current password" className="mt-3 w-full rounded-xl border border-[#e5dfd3] bg-[#fbf8f1] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#e96d2c]"/><button type="button" disabled={busy || !deletePassword} onClick={deleteAccount} className="mt-3 w-full rounded-xl border border-[#b64a1a] px-4 py-3 text-sm font-bold text-[#b64a1a] disabled:opacity-50">{busy ? "Deleting…" : "Permanently delete account"}</button>{status && <p role="alert" className="mt-3 rounded-xl bg-[#fff0e5] p-3 text-xs">{status}</p>}</div></div>}
+    {loading ? <p className="mt-6 text-sm text-[#69766e]">Loading your account…</p> : user && <div className="mt-6 space-y-3 text-sm"><p><strong>Name:</strong> {user.name}</p><p><strong>Email:</strong> {user.email}</p><p><strong>Phone:</strong> {user.phone}</p><button onClick={logout} className="mt-4 w-full rounded-xl border border-[#d9d4c9] px-4 py-3 text-sm font-semibold">Log out</button><div className="mt-6 border-t border-[#e8e2d6] pt-5"><h2 className="font-bold text-[#8b401d]">Delete account</h2><p className="mt-2 text-xs leading-5 text-[#69766e]">Enter your password to delete your account and sign out all sessions. Transaction records may be retained where the law requires them.</p><input type="password" autoComplete="current-password" minLength={12} maxLength={128} value={deletePassword} onChange={event => setDeletePassword(event.target.value)} placeholder="Current password" className="mt-3 w-full rounded-xl border border-[#e5dfd3] bg-[#fbf8f1] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#e96d2c]"/><button type="button" disabled={busy || !deletePassword} onClick={deleteAccount} className="mt-3 w-full rounded-xl border border-[#b64a1a] px-4 py-3 text-sm font-bold text-[#b64a1a] disabled:opacity-50">{busy ? "Deleting…" : "Permanently delete account"}</button>{status && <p role="alert" className="mt-3 rounded-xl bg-[#fff0e5] p-3 text-xs">{status}</p>}</div></div>}
   </AuthShell>;
 }
 
