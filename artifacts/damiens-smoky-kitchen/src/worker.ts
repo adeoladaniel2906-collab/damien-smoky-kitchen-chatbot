@@ -363,7 +363,7 @@ async function handleOrderCreate(request: Request, env: Env): Promise<Response> 
 
 const SESSION_COOKIE = "__Host-dsk_session";
 const SESSION_TTL_SECONDS = 604800;
-const PBKDF2_ITERATIONS = 310000;
+const PBKDF2_ITERATIONS = 600000;
 function b64url(bytes: Uint8Array): string {
   let binary = "";
   for (const byte of bytes) binary += String.fromCharCode(byte);
