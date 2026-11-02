@@ -25,6 +25,7 @@ interface Env {
   STAFF_EMAIL?: string;
   STAFF_PASSWORD_HASH?: string;
   STAFF_TOTP_SECRET?: string;
+  ORDERS_ENABLED?: string;
   CUSTOMER_AUTH_ENABLED?: string;
   STAFF_AUTH_ENABLED?: string;
 }
@@ -624,16 +625,23 @@ export default {
     const url = new URL(request.url);
     if (url.pathname.startsWith("/api/auth/")) return withSecurityHeaders(await handleAuth(request, env, url));
 
+    if (url.pathname === "/api/orders/status") {
+      if (request.method !== "GET") return withSecurityHeaders(Response.json({ error: "Method not allowed." }, { status: 405 }));
+      return withSecurityHeaders(Response.json({ enabled: env.ORDERS_ENABLED === "true" }, { headers: { "Cache-Control": "no-store" } }));
+    }
+
     if (url.pathname === "/api/orders") {
       if (request.method !== "POST") return withSecurityHeaders(Response.json({ error: "Method not allowed." }, { status: 405 }));
       const origin = request.headers.get("Origin");
       if (origin && origin !== url.origin) return withSecurityHeaders(Response.json({ error: "Cross-origin order requests are not allowed." }, { status: 403 }));
+      if (env.ORDERS_ENABLED !== "true") return withSecurityHeaders(Response.json({ error: "Online ordering is temporarily unavailable while secure customer-data processing is being completed." }, { status: 503, headers: { "Cache-Control": "no-store" } }));
       return withSecurityHeaders(await handleOrderCreate(request, env));
     }
 
     if (url.pathname === "/api/orders/preview") {
-      if (request.method === "POST") return withSecurityHeaders(await handleOrderPreview(request, env));
-      return withSecurityHeaders(Response.json({ error: "Method not allowed." }, { status: 405 }));
+      if (request.method !== "POST") return withSecurityHeaders(Response.json({ error: "Method not allowed." }, { status: 405 }));
+      if (env.ORDERS_ENABLED !== "true") return withSecurityHeaders(Response.json({ error: "Order review is temporarily unavailable." }, { status: 503, headers: { "Cache-Control": "no-store" } }));
+      return withSecurityHeaders(await handleOrderPreview(request, env));
     }
 
     if (url.pathname === "/api/chat") {
