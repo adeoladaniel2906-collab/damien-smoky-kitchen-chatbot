@@ -67,7 +67,7 @@ class FakeDatabase {
 
 function staffHash(password) {
   const salt = Buffer.from("00112233445566778899aabbccddeeff", "hex");
-  const hash = pbkdf2Sync(password, salt, 310000, 32, "sha256");
+  const hash = pbkdf2Sync(password, salt, 600000, 32, "sha256");
   return b64url(salt) + "." + b64url(hash);
 }
 
