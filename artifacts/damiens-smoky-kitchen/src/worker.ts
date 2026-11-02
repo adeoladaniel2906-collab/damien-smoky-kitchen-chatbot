@@ -415,7 +415,7 @@ async function issueSession(env: Env, role: "customer" | "staff", userId: string
   const tokenHash = await hashToken(token);
   const expires = Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS;
   await env.DB.prepare("INSERT INTO auth_sessions (token_hash, role, user_id, expires_at) VALUES (?, ?, ?, ?)")
-    .bind(tokenHash, role, userId, expires).first();
+    .bind(tokenHash, role, userId, expires).run();
   return token;
 }
 async function currentSession(request: Request, env: Env): Promise<SessionRow | null> {
@@ -439,7 +439,7 @@ async function handleAuth(request: Request, env: Env, url: URL): Promise<Respons
     const origin = request.headers.get("Origin");
     if (origin && origin !== url.origin) return authResponse({ error: "Request origin is not allowed." }, 403);
     const token = cookieValue(request, SESSION_COOKIE);
-    if (token) await env.DB.prepare("DELETE FROM auth_sessions WHERE token_hash = ?").bind(await hashToken(token)).first();
+    if (token) await env.DB.prepare("DELETE FROM auth_sessions WHERE token_hash = ?").bind(await hashToken(token)).run();
     return authResponse({ ok: true }, 200, clearSessionCookie());
   }
   if (request.method !== "POST" || !["/api/auth/register", "/api/auth/login", "/api/auth/staff/login"].includes(path)) return authResponse({ error: "Not found." }, 404);
@@ -468,7 +468,7 @@ async function handleAuth(request: Request, env: Env, url: URL): Promise<Respons
     const passwordHash = await makePasswordHash(password);
     try {
       await env.DB.prepare("INSERT INTO customer_accounts (id, name, email, phone, password_hash) VALUES (?, ?, ?, ?, ?)")
-        .bind(id, name, email, phone, passwordHash).first();
+        .bind(id, name, email, phone, passwordHash).run();
     } catch (error) {
       const duplicate = await env.DB.prepare("SELECT id FROM customer_accounts WHERE email = ?").bind(email).first<{ id: string }>();
       if (duplicate) return authResponse({ error: "An account with this email already exists. Please log in." }, 409);
