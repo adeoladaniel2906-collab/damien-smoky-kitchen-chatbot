@@ -1,0 +1,11 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "d1_databases": [
+    {
+      "binding": "PREVIEW_DB",
+      "database_name": "damien-smoky-kitchen-orders-preview",
+      "database_id": "106a3a8d-f4eb-4151-aac5-34ca245982e6",
+      "migrations_dir": "migrations"
+    }
+  ]
+}
