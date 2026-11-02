@@ -1,9 +1,10 @@
+import type { ReactNode } from "react";
 import { Link } from "wouter";
 import { openCookieSettings } from "@/components/CookieConsent";
 
 const contactUrl = "https://wa.me/2348032201672?text=Hello%20Damien%27s%20Smoky%20Kitchen%2C%20I%20have%20a%20privacy%20request.";
 
-function LegalLayout({ eyebrow, title, updated, children }: { eyebrow: string; title: string; updated: string; children: React.ReactNode }) {
+function LegalLayout({ eyebrow, title, updated, children }: { eyebrow: string; title: string; updated: string; children: ReactNode }) {
   return <main className="mx-auto max-w-4xl px-4 py-12 sm:px-6">
     <p className="text-xs font-bold uppercase tracking-widest text-[#e96d2c]">{eyebrow}</p>
     <h1 className="mt-2 text-3xl font-extrabold sm:text-4xl">{title}</h1>
