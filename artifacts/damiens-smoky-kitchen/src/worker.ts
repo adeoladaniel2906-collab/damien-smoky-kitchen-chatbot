@@ -26,6 +26,8 @@ interface Env {
   STAFF_PASSWORD_HASH?: string;
   CUSTOMER_AUTH_ENABLED?: string;
   STAFF_AUTH_ENABLED?: string;
+  GOOGLE_CLIENT_ID?: string;
+  GOOGLE_CLIENT_SECRET?: string;
 }
 
 type ChatMessage = {
@@ -437,12 +439,96 @@ async function currentSession(request: Request, env: Env): Promise<SessionRow | 
   if (session?.role === "customer" && env.CUSTOMER_AUTH_ENABLED !== "true") return null;
   return session;
 }
+
+type GoogleStateRow = { nonce: string; verifier: string; purpose: "login" | "link"; user_id: string | null; expires_at: number };
+let googleJwksCache: { keys: JsonWebKey[]; expiresAt: number } | null = null;
+function randomToken(bytes = 32): string { return b64url(crypto.getRandomValues(new Uint8Array(bytes))); }
+function equalSecret(a: string, b: string): boolean { const x=new TextEncoder().encode(a), y=new TextEncoder().encode(b); if(x.length!==y.length)return false; let d=0; for(let i=0;i<x.length;i++)d|=x[i]^y[i]; return d===0; }
+function decodeJwtPart(value: string): Record<string, unknown> { const p:unknown=JSON.parse(new TextDecoder().decode(unb64url(value))); if(!p||typeof p!=="object"||Array.isArray(p))throw new Error("Invalid identity token."); return p as Record<string,unknown>; }
+async function googleJwks(): Promise<JsonWebKey[]> {
+  if(googleJwksCache&&googleJwksCache.expiresAt>Date.now())return googleJwksCache.keys;
+  const r=await fetch("https://www.googleapis.com/oauth2/v3/certs",{headers:{Accept:"application/json"}});
+  if(!r.ok)throw new Error("Google signing keys unavailable.");
+  const d=await r.json() as {keys?:JsonWebKey[]}; if(!Array.isArray(d.keys))throw new Error("Invalid Google signing keys.");
+  googleJwksCache={keys:d.keys,expiresAt:Date.now()+3600000}; return d.keys;
+}
+async function verifyGoogleIdToken(token:string,nonce:string,clientId:string):Promise<{sub:string;email:string}> {
+  const p=token.split("."); if(p.length!==3||token.length>12000)throw new Error("Invalid Google token.");
+  const h=decodeJwtPart(p[0]), c=decodeJwtPart(p[1]);
+  if(h.alg!=="RS256"||typeof h.kid!=="string")throw new Error("Unsupported token signature.");
+  const jwk=(await googleJwks()).find(k=>k.kid===h.kid&&k.alg==="RS256"); if(!jwk){googleJwksCache=null;throw new Error("Google signing key missing.");}
+  const key=await crypto.subtle.importKey("jwk",jwk,{name:"RSASSA-PKCS1-v1_5",hash:"SHA-256"},false,["verify"]);
+  const sig=await crypto.subtle.verify({name:"RSASSA-PKCS1-v1_5"},key,unb64url(p[2]),new TextEncoder().encode(p[0]+"."+p[1]));
+  const now=Math.floor(Date.now()/1000), aud=c.aud;
+  if(!sig||(c.iss!=="https://accounts.google.com"&&c.iss!=="accounts.google.com")||
+    !(aud===clientId||(Array.isArray(aud)&&aud.includes(clientId)))||typeof c.exp!=="number"||c.exp<=now||
+    (typeof c.iat==="number"&&c.iat>now+60)||c.nonce!==nonce||c.email_verified!==true||
+    typeof c.sub!=="string"||!c.sub||c.sub.length>255||typeof c.email!=="string"||!validEmail(c.email))
+    throw new Error("Google identity verification failed.");
+  return {sub:c.sub,email:c.email.trim().toLowerCase()};
+}
+function googleRedirect(url:URL,path:string):Response {
+  const h=new Headers({Location:new URL(path,url.origin).toString(),"Cache-Control":"no-store","Referrer-Policy":"no-referrer",
+    "Set-Cookie":"__Host-dsk_oauth_state=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0"});
+  return new Response(null,{status:302,headers:h});
+}
+async function handleGoogleAuth(request:Request,env:Env,url:URL):Promise<Response> {
+  const path=url.pathname, clientId=env.GOOGLE_CLIENT_ID?.trim()??"", secret=env.GOOGLE_CLIENT_SECRET??"";
+  if(env.CUSTOMER_AUTH_ENABLED!=="true"||!clientId||!secret||!env.DB||!env.AUTH_RATE_LIMIT)return authResponse({error:"Google sign-in is not configured yet."},503);
+  if(path==="/api/auth/google/start"||path==="/api/auth/google/link/start"){
+    if(request.method!=="GET")return authResponse({error:"Method not allowed."},405);
+    const purpose=path.endsWith("/link/start")?"link":"login"; let userId:string|null=null;
+    if(purpose==="link"){const s=await currentSession(request,env);if(!s||s.role!=="customer")return googleRedirect(url,"/login?google=login_required");userId=s.user_id;}
+    const rate=await env.AUTH_RATE_LIMIT.limit({key:request.headers.get("CF-Connecting-IP")??"unknown"});
+    if(!rate.success)return authResponse({error:"Too many sign-in attempts. Please wait and try again."},429);
+    const state=randomToken(),nonce=randomToken(),verifier=randomToken(48),expires=Math.floor(Date.now()/1000)+600;
+    const challenge=b64url(new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(verifier))));
+    await env.DB.prepare("DELETE FROM google_oauth_states WHERE expires_at <= ?").bind(Math.floor(Date.now()/1000)).run();
+    await env.DB.prepare("INSERT INTO google_oauth_states (state_hash, nonce, verifier, purpose, user_id, expires_at) VALUES (?, ?, ?, ?, ?, ?)")
+      .bind(await hashToken(state),nonce,verifier,purpose,userId,expires).run();
+    const target=new URL("https://accounts.google.com/o/oauth2/v2/auth");
+    target.search=new URLSearchParams({client_id:clientId,redirect_uri:new URL("/api/auth/google/callback",url.origin).toString(),response_type:"code",scope:"openid email profile",state,nonce,code_challenge:challenge,code_challenge_method:"S256",prompt:"select_account"}).toString();
+    return new Response(null,{status:302,headers:{Location:target.toString(),"Cache-Control":"no-store","Referrer-Policy":"no-referrer",
+      "Set-Cookie":"__Host-dsk_oauth_state="+state+"; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=600"}});
+  }
+  if(path!=="/api/auth/google/callback"||request.method!=="GET")return authResponse({error:"Not found."},404);
+  const code=url.searchParams.get("code")??"",state=url.searchParams.get("state")??"",cookie=cookieValue(request,"__Host-dsk_oauth_state");
+  if(url.searchParams.has("error"))return googleRedirect(url,"/login?google=cancelled");
+  if(!code||code.length>4096||!state||state.length>256||!cookie||!equalSecret(state,cookie))return googleRedirect(url,"/login?google=invalid_state");
+  const stateHash=await hashToken(state);
+  const row=await env.DB.prepare("SELECT nonce, verifier, purpose, user_id, expires_at FROM google_oauth_states WHERE state_hash = ?").bind(stateHash).first<GoogleStateRow>();
+  if(!row||row.expires_at<=Math.floor(Date.now()/1000))return googleRedirect(url,"/login?google=expired");
+  await env.DB.prepare("DELETE FROM google_oauth_states WHERE state_hash = ?").bind(stateHash).run();
+  try{
+    const tokenResponse=await fetch("https://oauth2.googleapis.com/token",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded",Accept:"application/json"},
+      body:new URLSearchParams({code,client_id:clientId,client_secret:secret,redirect_uri:new URL("/api/auth/google/callback",url.origin).toString(),grant_type:"authorization_code",code_verifier:row.verifier})});
+    if(!tokenResponse.ok)throw new Error("Google token exchange failed.");
+    const data=await tokenResponse.json() as {id_token?:string}; if(typeof data.id_token!=="string")throw new Error("Missing Google ID token.");
+    const identity=await verifyGoogleIdToken(data.id_token,row.nonce,clientId);
+    if(row.purpose==="link"){
+      if(!row.user_id)return googleRedirect(url,"/account?google=failed");
+      const existing=await env.DB.prepare("SELECT customer_id FROM google_identities WHERE google_sub = ?").bind(identity.sub).first<{customer_id:string}>();
+      if(existing&&existing.customer_id!==row.user_id)return googleRedirect(url,"/account?google=already_linked");
+      await env.DB.prepare("INSERT INTO google_identities (google_sub, customer_id, email) VALUES (?, ?, ?) ON CONFLICT(google_sub) DO NOTHING").bind(identity.sub,row.user_id,identity.email).run();
+      const linked=await env.DB.prepare("SELECT customer_id FROM google_identities WHERE google_sub = ?").bind(identity.sub).first<{customer_id:string}>();
+      return googleRedirect(url,linked?.customer_id===row.user_id?"/account?google=linked":"/account?google=already_linked");
+    }
+    const linked=await env.DB.prepare("SELECT customer_id FROM google_identities WHERE google_sub = ?").bind(identity.sub).first<{customer_id:string}>();
+    if(linked){const session=await issueSession(env,"customer",linked.customer_id);return new Response(null,{status:302,headers:{
+      Location:new URL("/account",url.origin).toString(),"Cache-Control":"no-store",
+      "Set-Cookie":setSessionCookie(session)+", __Host-dsk_oauth_state=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0"}});}
+    const existing=await env.DB.prepare("SELECT id FROM customer_accounts WHERE email = ?").bind(identity.email).first<{id:string}>();
+    return googleRedirect(url,existing?"/login?google=link_required":"/create-account?google=register_first");
+  }catch(error){console.error("Google authentication failed:",error instanceof Error?error.message:"unknown error");return googleRedirect(url,"/login?google=failed");}
+}
+
 function validEmail(value: string): boolean { return value.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value); }
 async function handleAuth(request: Request, env: Env, url: URL): Promise<Response> {
   const path = url.pathname;
   const customerAuthEnabled = env.CUSTOMER_AUTH_ENABLED === "true" && Boolean(env.DB) && Boolean(env.AUTH_RATE_LIMIT) && Boolean(env.AUTH_EMAIL_RATE_LIMIT);
   const staffAuthEnabled = env.STAFF_AUTH_ENABLED === "true" && Boolean(env.STAFF_EMAIL?.trim()) && Boolean(env.STAFF_PASSWORD_HASH) && Boolean(env.DB) && Boolean(env.AUTH_RATE_LIMIT) && Boolean(env.AUTH_EMAIL_RATE_LIMIT);
-  if (path === "/api/auth/status" && request.method === "GET") return authResponse({ customerEnabled: customerAuthEnabled, staffEnabled: staffAuthEnabled });
+  if (path === "/api/auth/status" && request.method === "GET") return authResponse({ customerEnabled: customerAuthEnabled, staffEnabled: staffAuthEnabled, googleEnabled: customerAuthEnabled && Boolean(env.GOOGLE_CLIENT_ID?.trim()) && Boolean(env.GOOGLE_CLIENT_SECRET) });
+  if (path.startsWith("/api/auth/google/")) return handleGoogleAuth(request, env, url);
   if ((path === "/api/auth/register" || path === "/api/auth/login") && !customerAuthEnabled) return authResponse({ error: "Customer accounts are temporarily unavailable while secure sign-in is being configured. You can still place a guest order." }, 503);
   if (path === "/api/auth/staff/login" && !staffAuthEnabled) return authResponse({ error: "Staff sign-in is not enabled yet. Contact the site administrator." }, 503);
   if (path === "/api/auth/me" && request.method === "GET") {
@@ -451,7 +537,9 @@ async function handleAuth(request: Request, env: Env, url: URL): Promise<Respons
     if (session.role === "staff") return authResponse({ authenticated: true, role: "staff", user: { email: session.user_id } });
     const customer = await env.DB.prepare("SELECT id, name, email, phone FROM customer_accounts WHERE id = ?")
       .bind(session.user_id).first<{ id: string; name: string; email: string; phone: string }>();
-    return customer ? authResponse({ authenticated: true, role: "customer", user: customer }) : authResponse({ authenticated: false }, 401, clearSessionCookie());
+    if (!customer) return authResponse({ authenticated: false }, 401, clearSessionCookie());
+    const google = await env.DB.prepare("SELECT google_sub FROM google_identities WHERE customer_id = ?").bind(session.user_id).first<{ google_sub: string }>();
+    return authResponse({ authenticated: true, role: "customer", user: customer, googleLinked: Boolean(google) });
   }
   if (path === "/api/auth/logout" && request.method === "POST") {
     const origin = request.headers.get("Origin");
