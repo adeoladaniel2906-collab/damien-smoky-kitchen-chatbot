@@ -441,15 +441,16 @@ async function currentSession(request: Request, env: Env): Promise<SessionRow | 
 }
 
 type GoogleStateRow = { nonce: string; verifier: string; purpose: "login" | "link"; user_id: string | null; expires_at: number };
-let googleJwksCache: { keys: JsonWebKey[]; expiresAt: number } | null = null;
+type GoogleJwk = JsonWebKey & { kid?: string; alg?: string };
+let googleJwksCache: { keys: GoogleJwk[]; expiresAt: number } | null = null;
 function randomToken(bytes = 32): string { return b64url(crypto.getRandomValues(new Uint8Array(bytes))); }
 function equalSecret(a: string, b: string): boolean { const x=new TextEncoder().encode(a), y=new TextEncoder().encode(b); if(x.length!==y.length)return false; let d=0; for(let i=0;i<x.length;i++)d|=x[i]^y[i]; return d===0; }
 function decodeJwtPart(value: string): Record<string, unknown> { const p:unknown=JSON.parse(new TextDecoder().decode(unb64url(value))); if(!p||typeof p!=="object"||Array.isArray(p))throw new Error("Invalid identity token."); return p as Record<string,unknown>; }
-async function googleJwks(): Promise<JsonWebKey[]> {
+async function googleJwks(): Promise<GoogleJwk[]> {
   if(googleJwksCache&&googleJwksCache.expiresAt>Date.now())return googleJwksCache.keys;
   const r=await fetch("https://www.googleapis.com/oauth2/v3/certs",{headers:{Accept:"application/json"}});
   if(!r.ok)throw new Error("Google signing keys unavailable.");
-  const d=await r.json() as {keys?:JsonWebKey[]}; if(!Array.isArray(d.keys))throw new Error("Invalid Google signing keys.");
+  const d=await r.json() as {keys?:GoogleJwk[]}; if(!Array.isArray(d.keys))throw new Error("Invalid Google signing keys.");
   googleJwksCache={keys:d.keys,expiresAt:Date.now()+3600000}; return d.keys;
 }
 async function verifyGoogleIdToken(token:string,nonce:string,clientId:string):Promise<{sub:string;email:string}> {
@@ -458,7 +459,9 @@ async function verifyGoogleIdToken(token:string,nonce:string,clientId:string):Pr
   if(h.alg!=="RS256"||typeof h.kid!=="string")throw new Error("Unsupported token signature.");
   const jwk=(await googleJwks()).find(k=>k.kid===h.kid&&k.alg==="RS256"); if(!jwk){googleJwksCache=null;throw new Error("Google signing key missing.");}
   const key=await crypto.subtle.importKey("jwk",jwk,{name:"RSASSA-PKCS1-v1_5",hash:"SHA-256"},false,["verify"]);
-  const sig=await crypto.subtle.verify({name:"RSASSA-PKCS1-v1_5"},key,unb64url(p[2]),new TextEncoder().encode(p[0]+"."+p[1]));
+  const signatureBytes=unb64url(p[2]); const signature=new Uint8Array(new ArrayBuffer(signatureBytes.byteLength)); signature.set(signatureBytes);
+  const signedData=new TextEncoder().encode(p[0]+"."+p[1]);
+  const sig=await crypto.subtle.verify({name:"RSASSA-PKCS1-v1_5"},key,signature,signedData);
   const now=Math.floor(Date.now()/1000), aud=c.aud;
   if(!sig||(c.iss!=="https://accounts.google.com"&&c.iss!=="accounts.google.com")||
     !(aud===clientId||(Array.isArray(aud)&&aud.includes(clientId)))||typeof c.exp!=="number"||c.exp<=now||
