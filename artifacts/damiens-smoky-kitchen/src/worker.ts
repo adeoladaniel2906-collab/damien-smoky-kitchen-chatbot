@@ -23,9 +23,6 @@ interface Env {
   AUTH_RATE_LIMIT: { limit(input: { key: string }): Promise<{ success: boolean }> };
   STAFF_EMAIL?: string;
   STAFF_PASSWORD_HASH?: string;
-  AUTH_RATE_LIMIT: { limit(input: { key: string }): Promise<{ success: boolean }> };
-  STAFF_EMAIL?: string;
-  STAFF_PASSWORD_HASH?: string;
 }
 
 type ChatMessage = {
