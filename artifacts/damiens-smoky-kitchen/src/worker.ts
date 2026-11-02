@@ -20,6 +20,9 @@ interface Env {
     limit(input: { key: string }): Promise<{ success: boolean }>;
   };
   DB: OrderDatabaseBinding;
+  AUTH_RATE_LIMIT: { limit(input: { key: string }): Promise<{ success: boolean }> };
+  STAFF_EMAIL?: string;
+  STAFF_PASSWORD_HASH?: string;
 }
 
 type ChatMessage = {
@@ -510,7 +513,8 @@ async function handleAuth(request: Request, env: Env, url: URL): Promise<Respons
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    const url = new URL(request.url);\n    if (url.pathname.startsWith(\"/api/auth/\")) return withSecurityHeaders(await handleAuth(request, env, url));
+    const url = new URL(request.url);
+    if (url.pathname.startsWith("/api/auth/")) return withSecurityHeaders(await handleAuth(request, env, url));
 
     if (url.pathname === "/api/orders") {
       if (request.method !== "POST") return withSecurityHeaders(Response.json({ error: "Method not allowed." }, { status: 405 }));
