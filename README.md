@@ -7,7 +7,7 @@ A React restaurant website, guest-order request flow and customer assistant for 
 - **Frontend:** React and TypeScript, built with Vite.
 - **Backend:** Cloudflare Worker serves the React assets and owns the chat, order-request and authentication APIs.
 - **Chat:** bounded request validation, rate limiting, deterministic restaurant knowledge and Workers AI fallback. The assistant must not invent menu prices, delivery fees, ingredients or policies.
-- **Orders:** the Worker validates the current menu and price data, applies per-IP rate limits, requires an idempotency key, and stores pending order requests in D1. The restaurant must confirm availability and delivery fee. The site does not collect online card payments.
+- **Orders:** the Worker can validate the current menu and price data, apply per-IP rate limits, require an idempotency key, and store pending order requests in D1. `ORDERS_ENABLED` defaults to `false` in both production and preview. While disabled, the checkout does not ask for customer name, phone or address, and the API rejects order submission before reading or storing customer details. Enable it only after the NDPA, processor, transfer and retention release gates are satisfied. The restaurant must confirm availability and delivery fee; the site does not collect online card payments.
 - **Data:** D1 databases are restricted to the EU jurisdiction and read replication is disabled. This is a data-location control, not a substitute for the required Nigeria Data Protection Act cross-border transfer assessment and processor agreements.
 - **Secrets:** keep credentials in Cloudflare Worker secrets/variables. Never put secrets in Vite variables, frontend code, commits or logs.
 
@@ -84,7 +84,7 @@ The privacy notice describes the current data categories and third-party provide
 - [ ] Benchmark PBKDF2 on the actual Worker plan before enabling authentication.
 - [ ] Implement and test customer email verification and password reset.
 - [ ] Generate and enroll the staff TOTP secret, configure `STAFF_TOTP_SECRET` as a Cloudflare secret, apply migration 0004 and verify replay rejection before enabling staff access.
-- [ ] Confirm the business's NDPA processor contracts and cross-border transfer mechanism.
+- [ ] Confirm the business's NDPA processor contracts and cross-border transfer mechanism before changing `ORDERS_ENABLED` from `false`.
 - [ ] Review the privacy notice, cookie categories, age process, terms, allergen information and refund/cancellation procedures with the business.
 - [ ] Confirm production domain, HTTPS, monitoring, rollback and backup procedures.
 - [ ] Merge only after all required checks and release blockers are cleared.
