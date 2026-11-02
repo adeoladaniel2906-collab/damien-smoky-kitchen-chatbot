@@ -496,7 +496,7 @@ async function handleAuth(request: Request, env: Env, url: URL): Promise<Respons
   const token = await issueSession(env, "customer", customer.id);
   return authResponse({ ok: true, role: "customer" }, 200, setSessionCookie(token));
 }
-\nfunction withSecurityHeaders(response: Response): Response {
+function withSecurityHeaders(response: Response): Response {
   const headers = new Headers(response.headers);
   const securityHeaders: Record<string, string> = {
     "Content-Security-Policy": "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https://images.unsplash.com; media-src 'self' https://videos.pexels.com; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self'",
