@@ -4,7 +4,7 @@
 // The bindings mirror artifacts/damiens-smoky-kitchen/wrangler.jsonc.
 interface OrderDatabaseStatement {
   bind(...values: Array<string | number | null>): OrderDatabaseStatement;
-  first<T = Record<string, unknown>>(): Promise<T | null>;
+  first<T = Record<string, unknown>>(): Promise<T | null>;\n  run(): Promise<unknown>;
 }
 
 interface OrderDatabaseBinding {
