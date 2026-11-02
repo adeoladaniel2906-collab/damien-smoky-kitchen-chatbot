@@ -113,7 +113,7 @@ test("authentication stays disabled unless explicit server-side feature flags ar
   const env = makeEnv({ CUSTOMER_AUTH_ENABLED: "false", STAFF_AUTH_ENABLED: "false" });
   const status = await worker.fetch(request("/api/auth/status", { method: "GET" }), env);
   assert.equal(status.status, 200);
-  assert.deepEqual(await status.json(), { customerEnabled: false, staffEnabled: false });
+  assert.deepEqual(await status.json(), { customerEnabled: false, staffEnabled: false, googleEnabled: false });
   const registration = await worker.fetch(request("/api/auth/register", {
     body: { name: "Test User", email: "disabled@example.com", phone: "08012345678", password: "LongEnoughPassword1!", adultConfirmed: true },
   }), env);
@@ -205,4 +205,19 @@ test("order preview rejects an order without adult confirmation", async () => {
     body: { name: "Test User", phone: "08012345678", address: "Ibafo, Lagos", state: "Lagos", adultConfirmed: false, items: [{ name: "Jollof Rice", category: "Rice", quantity: 1 }] },
   }), env);
   assert.equal(response.status, 400);
+});
+
+test("Google OAuth endpoints stay disabled until server-side credentials are configured", async () => {
+  const env = makeEnv({ GOOGLE_CLIENT_ID: undefined, GOOGLE_CLIENT_SECRET: undefined });
+  const start = await worker.fetch(new Request("https://restaurant.example/api/auth/google/start"), env);
+  assert.equal(start.status, 503);
+  assert.equal((await start.json()).error, "Google sign-in is not configured yet.");
+});
+
+test("Google OAuth callback rejects a missing state cookie", async () => {
+  const env = makeEnv({ GOOGLE_CLIENT_ID: "test-client-id", GOOGLE_CLIENT_SECRET: "test-secret" });
+  const callback = await worker.fetch(new Request("https://restaurant.example/api/auth/google/callback?code=untrusted&state=untrusted"), env);
+  assert.equal(callback.status, 302);
+  assert.match(callback.headers.get("Location"), /google=invalid_state/);
+  assert.match(callback.headers.get("Set-Cookie"), /Max-Age=0/);
 });
