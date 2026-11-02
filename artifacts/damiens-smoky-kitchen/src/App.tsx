@@ -18,6 +18,36 @@ function money(value: number) {
   return '₦' + value.toLocaleString('en-NG');
 }
 
+const commonsPhoto = (file: string) => `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(file)}?width=900`;
+const menuPhoto = (item: CatalogItem) => {
+  const name = item.name.toLowerCase();
+  if (name.includes('jollof')) return commonsPhoto('A Nigeria Jollof Rice with chicken.jpg');
+  if (name.includes('fried rice')) return commonsPhoto('Fried Rice and Chicken.jpg');
+  if (name.includes('ofada')) return commonsPhoto('Ofada Rice and Jollof Rice.jpg');
+  if (name.includes('coconut rice')) return commonsPhoto('Isip (coconut) rice.jpg');
+  if (name.includes('egusi')) return commonsPhoto('African dish,,Egusi Soup and Eba.jpg');
+  if (name.includes('amala')) return commonsPhoto('Amala and ewedu.jpg');
+  if (name.includes('pounded yam')) return commonsPhoto('EGUSI SOUP AND POUNDED YAM.JPG');
+  if (name.includes('eba') || name.includes('fufu') || name.includes('ogbono') || name.includes('okra')) return commonsPhoto('Eba and Vegetable Soup with Fish.jpg');
+  if (name.includes('puff puff')) return commonsPhoto('Nigerian-puff-puff-recipe.jpg');
+  if (name.includes('akara')) return commonsPhoto('Akara with bread, good combination for breakfast.jpg');
+  if (name.includes('moi moi')) return commonsPhoto('Images of a local dish in Nigeria called Moi-Moi.jpg');
+  if (name.includes('plantain') || name.includes('dodo')) return commonsPhoto('FRYING PLANTAIN.jpg');
+  if (name.includes('spaghetti') || name.includes('macaroni') || name.includes('indomie')) return commonsPhoto('Jollof Spaghettis with turkey wings.png');
+  if (name.includes('catfish')) return commonsPhoto('African Cat-Fish Pepper Soup.jpg');
+  if (name.includes('asun')) return commonsPhoto('Asun rice by Chef Phizzle. Native Delight. 03.jpg');
+  if (name.includes('snail')) return commonsPhoto('Fried Snail Stew.jpg');
+  if (name.includes('yam')) return commonsPhoto('Yam Pottage Longthroat Memoirs.jpg');
+  if (name.includes('smoothie') || name.includes('juice') || name.includes('zobo') || name.includes('kunu') || name.includes('tigernut') || name.includes('sobo')) return 'https://images.unsplash.com/photo-1600271886742-f049cd451bba?auto=format&fit=crop&w=900&q=85';
+  if (item.category.toLowerCase().includes('drink') || item.category.toLowerCase().includes('alcohol')) return 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?auto=format&fit=crop&w=900&q=85';
+  if (item.category.toLowerCase().includes('protein')) return commonsPhoto('A Nigeria Jollof Rice with chicken.jpg');
+  if (item.category.toLowerCase().includes('small chops')) return commonsPhoto('Nigerian-puff-puff-recipe.jpg');
+  if (item.category.toLowerCase().includes('breakfast')) return commonsPhoto('Akara and kwunu breakfast (beans cake and pap).jpg');
+  if (item.category.toLowerCase().includes('side')) return commonsPhoto('FRYING PLANTAIN.jpg');
+  if (item.category.toLowerCase().includes('rice')) return commonsPhoto('A Nigeria Jollof Rice with chicken.jpg');
+  return commonsPhoto('African dish,,Egusi Soup and Eba.jpg');
+};
+
 function App() {
   const [location, setLocation] = useLocation();
   const [basket, setBasket] = useState<BasketLine[]>(() => {
@@ -152,11 +182,22 @@ function MenuPage({ search, setSearch, add, basket }: { search: string; setSearc
   const [active, setActive] = useState('All');
   const categoriesWithAll = ['All', ...categories];
   const filtered = catalog.filter((item) => (active === 'All' || item.category === active) && `${item.name} ${item.category}`.toLowerCase().includes(search.toLowerCase()));
-  return <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6"><div className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-widest text-[#e96d2c]">Damien's Smoky Kitchen</p><h1 className="mt-2 text-3xl font-extrabold sm:text-4xl">The menu</h1><p className="mt-2 text-sm text-[#69766e]">Prices shown are from the restaurant's menu information.</p></div><div className="rounded-xl bg-[#e8eee6] px-4 py-3 text-xs font-semibold">Minimum delivery order <strong className="ml-1">₦3,000</strong></div></div>
-    <div className="mt-6 flex gap-2 overflow-x-auto pb-2">{categoriesWithAll.map((category) => <button key={category} onClick={() => setActive(category)} className={active === category ? 'shrink-0 rounded-full bg-[#21382d] px-4 py-2.5 text-xs font-bold text-white' : 'shrink-0 rounded-full border border-[#ded9ce] bg-white px-4 py-2.5 text-xs font-semibold hover:border-[#e96d2c]'}>{category}</button>)}</div>
-    <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{filtered.map((item) => <article key={item.id} className="flex items-center justify-between gap-4 rounded-2xl border border-[#e8e2d6] bg-white p-4"><div className="min-w-0"><span className="text-[10px] font-semibold uppercase tracking-wider text-[#7b887f]">{item.category}</span><h2 className="mt-1 font-bold">{item.name}</h2><p className="mt-1 text-sm font-semibold">{item.price === null ? 'Price not listed' : money(item.price)}</p></div>{item.price !== null && <button onClick={() => add(item)} className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-[#e96d2c] px-3 py-2.5 text-xs font-bold text-white hover:bg-[#d65b1d]"><Plus size={15}/> Add</button>}</article>)}</div>
+  const basketCount = basket.reduce((sum, line) => sum + line.quantity, 0);
+  return <main className="mx-auto max-w-7xl bg-[#f7f8f4] px-4 py-8 sm:px-6">
+    <div className="flex flex-wrap items-end justify-between gap-4">
+      <div><p className="text-xs font-bold uppercase tracking-widest text-[#71816f]">Damien's Smoky Kitchen</p><h1 className="mt-2 text-3xl font-extrabold tracking-tight text-[#26372c] sm:text-4xl">Explore the menu</h1><p className="mt-2 text-sm text-[#69766e]">Browse every dish, see the price and add your favourites to your basket.</p></div>
+      <div className="rounded-2xl bg-[#fff0cf] px-4 py-3 text-xs font-semibold text-[#39463b]">Minimum delivery order <strong className="ml-1">₦3,000</strong></div>
+    </div>
+    <div className="sticky top-[72px] z-20 -mx-4 mt-6 border-y border-[#e7e9e2] bg-[#f7f8f4]/95 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-2xl sm:border">
+      <div className="flex gap-2 overflow-x-auto pb-1">{categoriesWithAll.map((category) => <button key={category} onClick={() => setActive(category)} className={active === category ? 'shrink-0 rounded-full bg-[#26372c] px-4 py-2.5 text-xs font-bold text-white' : 'shrink-0 rounded-full border border-[#dfe4dc] bg-white px-4 py-2.5 text-xs font-semibold text-[#526a50] transition hover:border-[#ffc94a]'}>{category}</button>)}</div>
+    </div>
+    <div className="mt-6 flex items-center justify-between gap-3"><p className="text-sm font-semibold text-[#526a50]">{filtered.length} menu items</p><p className="text-xs text-[#7a857b]">Prices in Nigerian naira</p></div>
+    <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{filtered.map((item) => <article key={item.id} className="group overflow-hidden rounded-3xl border border-[#e7e9e2] bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
+      <div className="relative h-44 overflow-hidden bg-[#eef0e9]"><img src={menuPhoto(item)} alt={`${item.name} food photography`} loading="lazy" className="h-full w-full object-cover transition duration-500 group-hover:scale-105"/><span className="absolute left-3 top-3 rounded-full bg-white/95 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[#526a50]">{item.category}</span></div>
+      <div className="p-4"><h2 className="min-h-10 font-bold leading-snug text-[#29382d]">{item.name}</h2><div className="mt-4 flex items-center justify-between gap-3"><strong className="text-base text-[#26372c]">{item.price === null ? 'Ask for price' : money(item.price)}</strong>{item.price !== null && <button onClick={() => add(item)} aria-label={`Add ${item.name} to basket`} className="inline-flex shrink-0 items-center gap-2 rounded-full bg-[#ffc94a] px-4 py-2.5 text-xs font-bold text-[#26372c] transition hover:bg-[#f4b923]"><Plus size={15}/> Add</button>}</div></div>
+    </article>)}</div>
     {filtered.length === 0 && <p className="rounded-2xl bg-white p-8 text-center text-sm text-[#69766e]">No menu items match that search.</p>}
-    <aside className="fixed bottom-4 left-1/2 z-30 flex w-[min(92vw,560px)] -translate-x-1/2 items-center justify-between rounded-2xl bg-[#21382d] px-5 py-4 text-white shadow-xl"><span className="text-sm font-semibold">{basket.reduce((sum, line) => sum + line.quantity, 0)} items in basket</span><Link href="/checkout" className="inline-flex items-center gap-2 rounded-xl bg-[#e96d2c] px-4 py-2.5 text-sm font-bold">Review basket <ArrowRight size={16}/></Link></aside>
+    <aside className="fixed bottom-4 left-1/2 z-30 flex w-[min(92vw,560px)] -translate-x-1/2 items-center justify-between rounded-2xl bg-[#26372c] px-5 py-4 text-white shadow-xl"><span className="text-sm font-semibold">{basketCount} items in basket</span><Link href="/checkout" className="inline-flex items-center gap-2 rounded-xl bg-[#ffc94a] px-4 py-2.5 text-sm font-bold text-[#26372c]">Review basket <ArrowRight size={16}/></Link></aside>
   </main>;
 }
 
