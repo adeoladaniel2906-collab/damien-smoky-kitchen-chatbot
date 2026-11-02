@@ -3,7 +3,7 @@
   "d1_databases": [
     {
       "binding": "PREVIEW_DB",
-      "database_name": "damien-smoky-kitchen-orders-preview",
+      "database_name": "damien-smoky-kitchen-orders-preview-eu",
       "database_id": "06ff960d-aeaa-41da-9fd6-51b2b59274be",
       "migrations_dir": "migrations"
     }
