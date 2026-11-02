@@ -216,7 +216,7 @@ async function handleChat(request: Request, env: Env): Promise<Response> {
 }
 
 type OrderLineInput = { name?: unknown; category?: unknown; quantity?: unknown };
-type OrderPreviewInput = { name?: unknown; phone?: unknown; address?: unknown; state?: unknown; items?: unknown };
+type OrderPreviewInput = { name?: unknown; phone?: unknown; address?: unknown; state?: unknown; adultConfirmed?: unknown; items?: unknown };
 
 async function handleOrderPreview(request: Request, env: Env): Promise<Response> {
   const contentLength = Number(request.headers.get("content-length") ?? "0");
@@ -252,9 +252,10 @@ async function handleOrderPreview(request: Request, env: Env): Promise<Response>
     typeof body.phone !== "string" || !/^[+\d\s()\-]{8,24}$/.test(body.phone) || body.phone.replace(/\D/g, "").length < 8 ||
     typeof body.address !== "string" || body.address.trim().length < 5 || body.address.length > 300 ||
     body.state !== "Lagos" ||
+    body.adultConfirmed !== true ||
     !Array.isArray(body.items) || body.items.length < 1 || body.items.length > 30
   ) {
-    return Response.json({ error: "Check the name, phone, Lagos address and basket details." }, { status: 400 });
+    return Response.json({ error: "Confirm you are 18 or older, or that you are a parent/legal guardian placing the order with your own details. Check the name, phone, Lagos address and basket." }, { status: 400 });
   }
 
   let subtotal = 0;
@@ -467,6 +468,7 @@ async function handleAuth(request: Request, env: Env, url: URL): Promise<Respons
   const password = typeof body.password === "string" ? body.password : "";
   if (!validEmail(email) || password.length < 12 || password.length > 128) return authResponse({ error: "Enter a valid email and a password between 12 and 128 characters." }, 400);
   if (path === "/api/auth/register") {
+    if (body.adultConfirmed !== true) return authResponse({ error: "You must confirm you are 18 or older to create an account." }, 403);
     const name = typeof body.name === "string" ? body.name.trim() : "";
     const phone = typeof body.phone === "string" ? body.phone.trim() : "";
     if (!name || name.length > 100 || !/^[+\d\s()\-]{8,24}$/.test(phone) || phone.replace(/\D/g, "").length < 8) return authResponse({ error: "Enter your name and a valid phone number." }, 400);
