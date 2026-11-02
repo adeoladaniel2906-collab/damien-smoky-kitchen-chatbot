@@ -514,9 +514,7 @@ async function handleGoogleAuth(request:Request,env:Env,url:URL):Promise<Respons
       return googleRedirect(url,linked?.customer_id===row.user_id?"/account?google=linked":"/account?google=already_linked");
     }
     const linked=await env.DB.prepare("SELECT customer_id FROM google_identities WHERE google_sub = ?").bind(identity.sub).first<{customer_id:string}>();
-    if(linked){const session=await issueSession(env,"customer",linked.customer_id);return new Response(null,{status:302,headers:{
-      Location:new URL("/account",url.origin).toString(),"Cache-Control":"no-store",
-      "Set-Cookie":setSessionCookie(session)+", __Host-dsk_oauth_state=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0"}});}
+    if(linked){const session=await issueSession(env,"customer",linked.customer_id);const headers=new Headers({Location:new URL("/account",url.origin).toString(),"Cache-Control":"no-store","Referrer-Policy":"no-referrer"});headers.append("Set-Cookie",setSessionCookie(session));headers.append("Set-Cookie","__Host-dsk_oauth_state=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0");return new Response(null,{status:302,headers});}
     const existing=await env.DB.prepare("SELECT id FROM customer_accounts WHERE email = ?").bind(identity.email).first<{id:string}>();
     return googleRedirect(url,existing?"/login?google=link_required":"/create-account?google=register_first");
   }catch(error){console.error("Google authentication failed:",error instanceof Error?error.message:"unknown error");return googleRedirect(url,"/login?google=failed");}
