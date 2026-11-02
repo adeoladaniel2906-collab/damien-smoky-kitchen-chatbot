@@ -75,6 +75,7 @@ function makeEnv(overrides = {}) {
   return {
     DB: new FakeDatabase(),
     AUTH_RATE_LIMIT: { limit: async () => ({ success: true }) },
+    AUTH_EMAIL_RATE_LIMIT: { limit: async () => ({ success: true }) },
     CHAT_RATE_LIMIT: { limit: async () => ({ success: true }) },
     ORDER_RATE_LIMIT: { limit: async () => ({ success: true }) },
     STAFF_EMAIL: "staff@example.com",
