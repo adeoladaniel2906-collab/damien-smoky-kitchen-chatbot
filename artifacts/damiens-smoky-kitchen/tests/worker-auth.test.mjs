@@ -91,7 +91,10 @@ class FakeStatement {
   }
 }
 
-class FakeDatabase {\n  accounts = new Map();\n  sessions = new Map();\n  totpState = new Map();
+class FakeDatabase {
+  accounts = new Map();
+  sessions = new Map();
+  totpState = new Map();
   prepare(sql) { return new FakeStatement(this, sql); }
   async batch(statements) {
     const results = [];
@@ -116,7 +119,8 @@ function makeEnv(overrides = {}) {
     CUSTOMER_AUTH_ENABLED: "true",
     STAFF_AUTH_ENABLED: "true",
     STAFF_EMAIL: "staff@example.com",
-    STAFF_PASSWORD_HASH: staffHash("StaffPassword!2026"),\n    STAFF_TOTP_SECRET,
+    STAFF_PASSWORD_HASH: staffHash("StaffPassword!2026"),
+    STAFF_TOTP_SECRET,
     ASSETS: { fetch: async () => new Response("asset") },
     AI: { run: async () => ({ response: "test" }) },
     ...overrides,
