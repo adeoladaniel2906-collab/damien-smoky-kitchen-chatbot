@@ -441,7 +441,7 @@ function validEmail(value: string): boolean { return value.length <= 254 && /^[^
 async function handleAuth(request: Request, env: Env, url: URL): Promise<Response> {
   const path = url.pathname;
   const customerAuthEnabled = env.CUSTOMER_AUTH_ENABLED === "true" && Boolean(env.DB) && Boolean(env.AUTH_RATE_LIMIT) && Boolean(env.AUTH_EMAIL_RATE_LIMIT);
-  const staffAuthEnabled = env.STAFF_AUTH_ENABLED === "true" && Boolean(env.STAFF_EMAIL?.trim()) && Boolean(env.STAFF_PASSWORD_HASH) && Boolean(env.DB) && Boolean(env.AUTH_RATE_LIMIT);
+  const staffAuthEnabled = env.STAFF_AUTH_ENABLED === "true" && Boolean(env.STAFF_EMAIL?.trim()) && Boolean(env.STAFF_PASSWORD_HASH) && Boolean(env.DB) && Boolean(env.AUTH_RATE_LIMIT) && Boolean(env.AUTH_EMAIL_RATE_LIMIT);
   if (path === "/api/auth/status" && request.method === "GET") return authResponse({ customerEnabled: customerAuthEnabled, staffEnabled: staffAuthEnabled });
   if ((path === "/api/auth/register" || path === "/api/auth/login") && !customerAuthEnabled) return authResponse({ error: "Customer accounts are temporarily unavailable while secure sign-in is being configured. You can still place a guest order." }, 503);
   if (path === "/api/auth/staff/login" && !staffAuthEnabled) return authResponse({ error: "Staff sign-in is not enabled yet. Contact the site administrator." }, 503);
