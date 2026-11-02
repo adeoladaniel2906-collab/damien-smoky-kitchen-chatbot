@@ -60,7 +60,7 @@ The current password implementation uses PBKDF2-HMAC-SHA-256 with 600,000 iterat
 3. Staff MFA or a properly configured identity provider is in place.
 4. The D1 and Worker bindings are deployed and tested together.
 
-Cloudflare Workers Free allows 10 ms CPU time per HTTP request. Paid Workers have a substantially larger CPU budget. Do not reduce the password-hashing work factor to work around a plan limit. The staff hash utility is provided at `scripts/hash-staff-password.mjs`; it reads the password from standard input and must be run locally. Never send the password through chat or commit it.
+Cloudflare Workers Free allows 10 ms CPU time per HTTP request. Paid Workers have a substantially larger CPU budget. Do not reduce the password-hashing work factor to work around a plan limit. The staff hash utility is provided at `scripts/hash-staff-password.mjs`; it reads the password from standard input and must be run locally. The authenticator secret utility is `scripts/generate-staff-totp-secret.mjs`; run it locally with the authorised staff email, add the generated key to an authenticator app, and store the same key as the Cloudflare Worker secret `STAFF_TOTP_SECRET`. Never send either secret through chat or commit them.
 
 ## Privacy and consumer information
 
@@ -83,7 +83,7 @@ The privacy notice describes the current data categories and third-party provide
 - [ ] Complete a preview Worker deployment and browser/API end-to-end tests.
 - [ ] Benchmark PBKDF2 on the actual Worker plan before enabling authentication.
 - [ ] Implement and test customer email verification and password reset.
-- [ ] Add staff MFA or a suitable identity-provider gate before enabling staff access.
+- [ ] Generate and enroll the staff TOTP secret, configure `STAFF_TOTP_SECRET` as a Cloudflare secret, apply migration 0004 and verify replay rejection before enabling staff access.
 - [ ] Confirm the business's NDPA processor contracts and cross-border transfer mechanism.
 - [ ] Review the privacy notice, cookie categories, age process, terms, allergen information and refund/cancellation procedures with the business.
 - [ ] Confirm production domain, HTTPS, monitoring, rollback and backup procedures.
