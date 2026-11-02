@@ -140,7 +140,11 @@ async function handleChat(request: Request, env: Env): Promise<Response> {
       );
     }
     messages = body.messages;
-  } else if (typeof body.message === "string" && body.message.trim()) {
+  } else if (
+    typeof body.message === "string" &&
+    body.message.trim() &&
+    body.message.length <= MAX_MESSAGE_LENGTH
+  ) {
     messages = [{ role: "user", content: body.message.trim() }];
   } else {
     return Response.json(
