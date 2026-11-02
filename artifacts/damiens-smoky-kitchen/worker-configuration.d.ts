@@ -4,7 +4,9 @@
 // The bindings mirror artifacts/damiens-smoky-kitchen/wrangler.jsonc.
 interface OrderDatabaseStatement {
   bind(...values: Array<string | number | null>): OrderDatabaseStatement;
-  first<T = Record<string, unknown>>(): Promise<T | null>;\n  run(): Promise<unknown>;
+  first<T = Record<string, unknown>>(): Promise<T | null>;
+  run(): Promise<unknown>;
+  run(): Promise<unknown>;
 }
 
 interface OrderDatabaseBinding {
@@ -16,6 +18,9 @@ interface Env {
   AI: Ai;
   ASSETS: Fetcher;
   CHAT_RATE_LIMIT: RateLimit;
-  ORDER_RATE_LIMIT: RateLimit;\n  AUTH_RATE_LIMIT: RateLimit;\n  STAFF_EMAIL?: string;\n  STAFF_PASSWORD_HASH?: string;
+  ORDER_RATE_LIMIT: RateLimit;
+  AUTH_RATE_LIMIT: RateLimit;
+  STAFF_EMAIL?: string;
+  STAFF_PASSWORD_HASH?: string;
   DB: OrderDatabaseBinding;
 }
