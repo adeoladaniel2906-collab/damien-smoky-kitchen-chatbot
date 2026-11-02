@@ -242,7 +242,7 @@ async function handleOrderPreview(request: Request, env: Env): Promise<Response>
   }
   if (
     typeof body.name !== "string" || body.name.trim().length < 1 || body.name.length > 100 ||
-    typeof body.phone !== "string" || !/^[+\d\s()\-]{8,24}$/.test(body.phone) ||
+    typeof body.phone !== "string" || !/^[+\d\s()\-]{8,24}$/.test(body.phone) || body.phone.replace(/\D/g, "").length < 8 ||
     typeof body.address !== "string" || body.address.trim().length < 5 || body.address.length > 300 ||
     body.state !== "Lagos" ||
     !Array.isArray(body.items) || body.items.length < 1 || body.items.length > 30
