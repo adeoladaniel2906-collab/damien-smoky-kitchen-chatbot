@@ -225,10 +225,19 @@ function CustomerAuthPage({ mode }: { mode: "register" | "login" }) {
   const [adultConfirmed, setAdultConfirmed] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [authEnabled, setAuthEnabled] = useState(false);
+  const [statusLoading, setStatusLoading] = useState(true);
   const register = mode === "register";
+  useEffect(() => {
+    let active = true;
+    fetch("/api/auth/status", { cache: "no-store" }).then(response => response.json()).then(result => {
+      if (active) setAuthEnabled(result.customerEnabled === true);
+    }).catch(() => { if (active) setAuthEnabled(false); }).finally(() => { if (active) setStatusLoading(false); });
+    return () => { active = false; };
+  }, []);
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    if (busy) return;
+    if (busy || !authEnabled) return;
     setBusy(true); setError("");
     try {
       const response = await fetch(register ? "/api/auth/register" : "/api/auth/login", {
@@ -243,16 +252,18 @@ function CustomerAuthPage({ mode }: { mode: "register" | "login" }) {
     } finally { setBusy(false); }
   };
   return <AuthShell title={register ? "Create your account" : "Welcome back"} subtitle={register ? "Save your details for a simpler ordering experience." : "Log in to access your customer account."}>
-    <form onSubmit={submit} className="mt-7 space-y-4">
-      {register && <label className="block text-xs font-semibold">Full name<input required autoComplete="name" maxLength={100} value={name} onChange={e => setName(e.target.value)} className="mt-1.5 w-full rounded-xl border border-[#e5dfd3] bg-[#fbf8f1] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#e96d2c]"/></label>}
-      {register && <label className="flex items-start gap-2 text-xs leading-5 text-[#69766e]"><input type="checkbox" required checked={adultConfirmed} onChange={e => setAdultConfirmed(e.target.checked)} className="mt-1 accent-[#e96d2c]"/>I confirm I am 18 or older and have read the <Link href="/privacy" className="font-semibold underline">Privacy Notice</Link>. A parent/legal guardian must create an account or place an order for a child using their own details.</label>}
-      <label className="block text-xs font-semibold">Email address<input required type="email" autoComplete="email" maxLength={254} value={email} onChange={e => setEmail(e.target.value)} className="mt-1.5 w-full rounded-xl border border-[#e5dfd3] bg-[#fbf8f1] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#e96d2c]"/></label>
-      {register && <label className="block text-xs font-semibold">Phone number<input required type="tel" autoComplete="tel" maxLength={24} value={phone} onChange={e => setPhone(e.target.value)} className="mt-1.5 w-full rounded-xl border border-[#e5dfd3] bg-[#fbf8f1] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#e96d2c]"/></label>}
-      <label className="block text-xs font-semibold">Password<input required type="password" autoComplete={register ? "new-password" : "current-password"} minLength={12} maxLength={128} value={password} onChange={e => setPassword(e.target.value)} className="mt-1.5 w-full rounded-xl border border-[#e5dfd3] bg-[#fbf8f1] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#e96d2c]"/><span className="mt-1 block text-[11px] font-normal text-[#7b887f]">Use at least 12 characters.</span></label>
-      {error && <p role="alert" className="rounded-xl bg-[#fff0e5] p-3 text-xs leading-5 text-[#8b401d]">{error}</p>}
-      <button disabled={busy} className="w-full rounded-xl bg-[#21382d] px-4 py-3.5 text-sm font-bold text-white hover:bg-[#315541] disabled:opacity-60">{busy ? "Please wait…" : register ? "Create account" : "Log in"}</button>
-    </form>
-    <p className="mt-6 text-center text-xs text-[#69766e]">{register ? "Already have an account?" : "New to Damien's Smoky Kitchen?"} <Link href={register ? "/login" : "/create-account"} className="font-bold text-[#b64a1a]">{register ? "Log in" : "Create account"}</Link></p>
+    {statusLoading ? <p className="mt-6 text-sm text-[#69766e]">Checking account availability…</p> : !authEnabled ? <div className="mt-6 rounded-2xl bg-[#e8eee6] p-4 text-sm leading-6 text-[#52645a]"><strong className="block text-[#21382d]">Customer accounts are not enabled yet.</strong><span className="mt-2 block">We are completing the secure sign-in and email-verification setup. You can still browse the menu and submit a guest order without creating an account.</span><Link href="/menu" className="mt-4 inline-flex font-bold text-[#b64a1a] underline">Continue as a guest</Link></div> : <>
+      <form onSubmit={submit} className="mt-7 space-y-4">
+        {register && <label className="block text-xs font-semibold">Full name<input required autoComplete="name" maxLength={100} value={name} onChange={e => setName(e.target.value)} className="mt-1.5 w-full rounded-xl border border-[#e5dfd3] bg-[#fbf8f1] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#e96d2c]"/></label>}
+        {register && <label className="flex items-start gap-2 text-xs leading-5 text-[#69766e]"><input type="checkbox" required checked={adultConfirmed} onChange={e => setAdultConfirmed(e.target.checked)} className="mt-1 accent-[#e96d2c]"/>I confirm I am 18 or older and have read the <Link href="/privacy" className="font-semibold underline">Privacy Notice</Link>. A parent/legal guardian must create an account or place an order for a child using their own details.</label>}
+        <label className="block text-xs font-semibold">Email address<input required type="email" autoComplete="email" maxLength={254} value={email} onChange={e => setEmail(e.target.value)} className="mt-1.5 w-full rounded-xl border border-[#e5dfd3] bg-[#fbf8f1] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#e96d2c]"/></label>
+        {register && <label className="block text-xs font-semibold">Phone number<input required type="tel" autoComplete="tel" maxLength={24} value={phone} onChange={e => setPhone(e.target.value)} className="mt-1.5 w-full rounded-xl border border-[#e5dfd3] bg-[#fbf8f1] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#e96d2c]"/></label>}
+        <label className="block text-xs font-semibold">Password<input required type="password" autoComplete={register ? "new-password" : "current-password"} minLength={12} maxLength={128} value={password} onChange={e => setPassword(e.target.value)} className="mt-1.5 w-full rounded-xl border border-[#e5dfd3] bg-[#fbf8f1] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#e96d2c]"/><span className="mt-1 block text-[11px] font-normal text-[#7b887f]">Use at least 12 characters.</span></label>
+        {error && <p role="alert" className="rounded-xl bg-[#fff0e5] p-3 text-xs leading-5 text-[#8b401d]">{error}</p>}
+        <button disabled={busy} className="w-full rounded-xl bg-[#21382d] px-4 py-3.5 text-sm font-bold text-white hover:bg-[#315541] disabled:opacity-60">{busy ? "Please wait…" : register ? "Create account" : "Log in"}</button>
+      </form>
+      <p className="mt-6 text-center text-xs text-[#69766e]">{register ? "Already have an account?" : "New to Damien's Smoky Kitchen?"} <Link href={register ? "/login" : "/create-account"} className="font-bold text-[#b64a1a]">{register ? "Log in" : "Create account"}</Link></p>
+    </>}
     <p className="mt-3 text-center text-xs"><Link href="/staff-login" className="text-[#69766e] underline underline-offset-4">Staff login</Link></p>
   </AuthShell>;
 }
@@ -263,9 +274,18 @@ function StaffLoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [staffEnabled, setStaffEnabled] = useState(false);
+  const [statusLoading, setStatusLoading] = useState(true);
+  useEffect(() => {
+    let active = true;
+    fetch("/api/auth/status", { cache: "no-store" }).then(response => response.json()).then(result => {
+      if (active) setStaffEnabled(result.staffEnabled === true);
+    }).catch(() => { if (active) setStaffEnabled(false); }).finally(() => { if (active) setStatusLoading(false); });
+    return () => { active = false; };
+  }, []);
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    if (busy) return;
+    if (busy || !staffEnabled) return;
     setBusy(true); setError("");
     try {
       const response = await fetch("/api/auth/staff/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password }) });
@@ -276,12 +296,12 @@ function StaffLoginPage() {
     finally { setBusy(false); }
   };
   return <AuthShell title="Staff sign in" subtitle="Private access for authorised restaurant staff. Customer accounts cannot access this area.">
-    <form onSubmit={submit} className="mt-7 space-y-4">
+    {statusLoading ? <p className="mt-6 text-sm text-[#69766e]">Checking staff access…</p> : !staffEnabled ? <div className="mt-6 rounded-2xl bg-[#e8eee6] p-4 text-sm leading-6 text-[#52645a]"><strong className="block text-[#21382d]">Staff sign-in is not enabled yet.</strong><span className="mt-2 block">The administrator must configure the staff credential secret and confirm the Worker can support the required password-hashing workload. No staff password is collected or stored by this page until then.</span></div> : <form onSubmit={submit} className="mt-7 space-y-4">
       <label className="block text-xs font-semibold">Authorised staff email<input required type="email" autoComplete="username" value={email} onChange={e => setEmail(e.target.value)} className="mt-1.5 w-full rounded-xl border border-[#e5dfd3] bg-[#fbf8f1] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#e96d2c]"/></label>
       <label className="block text-xs font-semibold">Password<input required type="password" autoComplete="current-password" minLength={12} maxLength={128} value={password} onChange={e => setPassword(e.target.value)} className="mt-1.5 w-full rounded-xl border border-[#e5dfd3] bg-[#fbf8f1] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#e96d2c]"/></label>
       {error && <p role="alert" className="rounded-xl bg-[#fff0e5] p-3 text-xs leading-5 text-[#8b401d]">{error}</p>}
       <button disabled={busy} className="w-full rounded-xl bg-[#21382d] px-4 py-3.5 text-sm font-bold text-white disabled:opacity-60">{busy ? "Verifying…" : "Sign in to staff portal"}</button>
-    </form>
+    </form>}
     <p className="mt-6 text-center text-xs"><Link href="/login" className="font-semibold text-[#b64a1a]">Customer login</Link></p>
   </AuthShell>;
 }
