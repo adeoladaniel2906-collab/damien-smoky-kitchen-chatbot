@@ -121,6 +121,7 @@ function makeEnv(overrides = {}) {
     STAFF_EMAIL: "staff@example.com",
     STAFF_PASSWORD_HASH: staffHash("StaffPassword!2026"),
     STAFF_TOTP_SECRET,
+    ORDERS_ENABLED: "false",
     ASSETS: { fetch: async () => new Response("asset") },
     AI: { run: async () => ({ response: "test" }) },
     ...overrides,
@@ -278,8 +279,19 @@ test("account deletion requires the current password and revokes sessions", asyn
   assert.match(deleted.headers.get("Set-Cookie"), /Max-Age=0/);
 });
 
-test("order preview rejects an order without adult confirmation", async () => {
+test("live order collection is disabled by default and does not request customer details", async () => {
   const env = makeEnv();
+  const status = await worker.fetch(request("/api/orders/status", { method: "GET" }), env);
+  assert.equal(status.status, 200);
+  assert.deepEqual(await status.json(), { enabled: false });
+  const order = await worker.fetch(request("/api/orders", {
+    body: { name: "Test User", phone: "08012345678", address: "Ibafo, Lagos", state: "Lagos", adultConfirmed: true, items: [{ name: "Jollof Rice", category: "Rice", quantity: 1 }] },
+  }), env);
+  assert.equal(order.status, 503);
+});
+
+test("order preview rejects an order without adult confirmation", async () => {
+  const env = makeEnv({ ORDERS_ENABLED: "true" });
   const response = await worker.fetch(request("/api/orders/preview", {
     body: { name: "Test User", phone: "08012345678", address: "Ibafo, Lagos", state: "Lagos", adultConfirmed: false, items: [{ name: "Jollof Rice", category: "Rice", quantity: 1 }] },
   }), env);
