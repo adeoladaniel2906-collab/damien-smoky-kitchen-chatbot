@@ -21,6 +21,7 @@ interface Env {
   };
   DB: OrderDatabaseBinding;
   AUTH_RATE_LIMIT: { limit(input: { key: string }): Promise<{ success: boolean }> };
+  AUTH_EMAIL_RATE_LIMIT: { limit(input: { key: string }): Promise<{ success: boolean }> };
   STAFF_EMAIL?: string;
   STAFF_PASSWORD_HASH?: string;
 }
@@ -498,6 +499,8 @@ async function handleAuth(request: Request, env: Env, url: URL): Promise<Respons
   const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
   const password = typeof body.password === "string" ? body.password : "";
   if (!validEmail(email) || password.length < 12 || password.length > 128) return authResponse({ error: "Enter a valid email and a password between 12 and 128 characters." }, 400);
+  const emailLimit = await env.AUTH_EMAIL_RATE_LIMIT.limit({ key: await hashToken(email) });
+  if (!emailLimit.success) return authResponse({ error: "Too many attempts for this account. Please wait and try again." }, 429);
   if (path === "/api/auth/register") {
     if (body.adultConfirmed !== true) return authResponse({ error: "You must confirm you are 18 or older to create an account." }, 403);
     const name = typeof body.name === "string" ? body.name.trim() : "";
