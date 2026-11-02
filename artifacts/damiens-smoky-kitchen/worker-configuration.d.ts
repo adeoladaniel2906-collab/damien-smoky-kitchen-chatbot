@@ -7,6 +7,7 @@ interface OrderDatabaseStatement {
   first<T = Record<string, unknown>>(): Promise<T | null>;
   run(): Promise<unknown>;
   run(): Promise<unknown>;
+  run(): Promise<unknown>;
 }
 
 interface OrderDatabaseBinding {
