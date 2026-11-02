@@ -583,7 +583,8 @@ async function handleAuth(request: Request, env: Env, url: URL): Promise<Respons
   if (path === "/api/auth/staff/login") {
     const configuredEmail = (env.STAFF_EMAIL ?? "").trim().toLowerCase();
     const configuredHash = env.STAFF_PASSWORD_HASH ?? "";
-    const totpCode = typeof body.totpCode === "string" ? body.totpCode : "";\n    if (!configuredEmail || !configuredHash || email !== configuredEmail || !(await verifyPassword(password, configuredHash)) || !(await verifyTotp(env.STAFF_TOTP_SECRET, totpCode))) {
+    const totpCode = typeof body.totpCode === "string" ? body.totpCode : "";
+    if (!configuredEmail || !configuredHash || email !== configuredEmail || !(await verifyPassword(password, configuredHash)) || !(await verifyTotp(env.STAFF_TOTP_SECRET, totpCode))) {
       return authResponse({ error: "Staff credentials are incorrect or staff login has not been configured." }, 401);
     }
     const token = await issueSession(env, "staff", configuredEmail);
