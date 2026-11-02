@@ -466,7 +466,7 @@ async function verifyTotp(secret: string | undefined, code: string): Promise<num
   if (!/^\d{6}$/.test(code)) return null;
   const secretBytes = secret ? decodeBase32(secret) : null;
   if (!secretBytes || secretBytes.length < 20) return null;
-  const key = await crypto.subtle.importKey("raw", secretBytes, { name: "HMAC", hash: "SHA-1" }, false, ["sign"]);
+  const secretBuffer = new Uint8Array(new ArrayBuffer(secretBytes.byteLength));\n  secretBuffer.set(secretBytes);\n  const key = await crypto.subtle.importKey("raw", secretBuffer, { name: "HMAC", hash: "SHA-1" }, false, ["sign"]);
   const currentStep = BigInt(Math.floor(Date.now() / 30_000));
   for (const drift of [-1n, 0n, 1n]) {
     let counter = currentStep + drift;
