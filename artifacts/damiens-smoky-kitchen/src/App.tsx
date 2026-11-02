@@ -97,35 +97,55 @@ function App() {
 }
 
 function Home({ onBrowse, onAdd, basketCount }: { onBrowse: (query?: string) => void; onAdd: (item: CatalogItem) => void; basketCount: number }) {
-  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
-  useEffect(() => {
-    const preference = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const update = () => setPrefersReducedMotion(preference.matches);
-    update();
-    preference.addEventListener('change', update);
-    return () => preference.removeEventListener('change', update);
-  }, []);
   const featured = catalog.filter((item) => item.price !== null).slice(0, 8);
   const quickCategories = categories.slice(0, 8);
-  return <main>
-    <section className="mx-auto grid max-w-7xl gap-6 px-4 pb-9 pt-7 sm:px-6 lg:grid-cols-[1.5fr_.8fr] lg:pt-10">
-      <div className="relative min-h-[300px] overflow-hidden rounded-3xl bg-[#21382d] text-white sm:min-h-[370px]">
-        <img src={photoUrl} alt="Nigerian jollof rice with chicken and sauce, illustrative food photography" className="absolute inset-0 h-full w-full object-cover opacity-45"/><video className="hero-video absolute inset-0 h-full w-full object-cover opacity-45" autoPlay={!prefersReducedMotion} muted loop={!prefersReducedMotion} controls={prefersReducedMotion} playsInline preload="metadata" poster={photoUrl} aria-hidden="true"><source src="https://videos.pexels.com/video-files/27641728/12192259_1080_1920_30fps.mp4" type="video/mp4"/></video>
-        <div className="absolute inset-0 bg-gradient-to-r from-[#172c21]/90 via-[#172c21]/55 to-transparent"/>
-        <div className="relative z-10 max-w-xl p-7 sm:p-10 lg:p-12"><span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1.5 text-xs"><Clock3 size={14}/> Open daily · 9 AM–9 PM</span><h1 className="mt-5 text-4xl font-extrabold leading-[1.05] tracking-tight sm:text-6xl">Hot from the kitchen.<br/><span className="text-[#ffbd79]">Ready for your table.</span></h1><p className="mt-4 max-w-md text-sm leading-6 text-white/80">Find Nigerian favourites, check the listed prices, and build your basket.</p><button onClick={() => onBrowse()} className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#e96d2c] px-5 py-3 text-sm font-bold hover:bg-[#d65b1d]">Browse the menu <ArrowRight size={17}/></button><p className="mt-4 text-[11px] text-white/70">Illustrative media: <a href="https://unsplash.com/photos/a-table-topped-with-plates-of-food-and-a-bowl-of-rice-icciS_O3Gkk" target="_blank" rel="noreferrer" className="underline underline-offset-2">photo by Chibuzo Nwaneri / Unsplash</a> · <a href="https://www.pexels.com/video/a-person-is-cooking-food-on-a-grill-27641728/" target="_blank" rel="noreferrer" className="underline underline-offset-2">video by Kuiyibo Campos / Pexels</a></p></div>
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
-        <div className="flex flex-col justify-between rounded-3xl bg-[#f2dfbf] p-6"><span className="grid h-11 w-11 place-items-center rounded-xl bg-white/75 text-[#e96d2c]"><Truck size={21}/></span><div><p className="text-xs font-bold uppercase tracking-wider text-[#6b604f]">Delivery</p><h2 className="mt-2 text-2xl font-bold">Lagos only</h2><p className="mt-2 text-sm text-[#625849]">₦3,000 minimum. Fee varies by distance.</p><Link href="/delivery" className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-[#b64a1a]">Delivery details <ArrowRight size={15}/></Link></div></div>
-        <div className="flex flex-col justify-between rounded-3xl bg-[#e8eee6] p-6"><span className="grid h-11 w-11 place-items-center rounded-xl bg-white text-[#315541]"><MessageCircle size={21}/></span><div><p className="text-xs font-bold uppercase tracking-wider text-[#5e7264]">Need a hand?</p><h2 className="mt-2 text-2xl font-bold">Ask the kitchen</h2><p className="mt-2 text-sm text-[#52645a]">Get answers from restaurant information and the assistant.</p><Link href="/assistant" className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-[#315541]">Open assistant <ArrowRight size={15}/></Link></div></div>
+  return <main className="bg-[#f7f8f4]">
+    <section className="mx-auto max-w-7xl px-4 pb-5 pt-5 sm:px-6">
+      <div className="overflow-hidden rounded-[2rem] bg-[#ffc94a]">
+        <div className="grid min-h-[360px] lg:grid-cols-[1.05fr_.95fr]">
+          <div className="flex flex-col justify-center p-7 sm:p-10 lg:p-14">
+            <span className="w-fit rounded-full bg-white/70 px-3 py-1.5 text-xs font-bold text-[#26372c]">DAM IEN'S SMOKY KITCHEN · IBAFO</span>
+            <h1 className="mt-5 max-w-xl text-4xl font-extrabold leading-[1.02] tracking-tight text-[#202a23] sm:text-6xl">Your next favourite meal is closer.</h1>
+            <p className="mt-4 max-w-md text-base leading-7 text-[#39463b]">Nigerian favourites, freshly prepared. Explore the menu, add your picks and review your basket in a few taps.</p>
+            <div className="mt-7 flex flex-wrap gap-3">
+              <button onClick={() => onBrowse()} className="inline-flex items-center gap-2 rounded-full bg-[#26372c] px-6 py-3.5 text-sm font-bold text-white transition hover:bg-[#3c5543]">Explore the menu <ArrowRight size={17}/></button>
+              <Link href="/delivery" className="inline-flex items-center gap-2 rounded-full border border-[#26372c]/25 bg-white/55 px-6 py-3.5 text-sm font-bold text-[#26372c] hover:bg-white/80">Delivery information</Link>
+            </div>
+            <div className="mt-8 flex flex-wrap gap-x-5 gap-y-2 text-xs font-semibold text-[#39463b]"><span className="inline-flex items-center gap-1.5"><Clock3 size={14}/> Daily, 9 AM–9 PM</span><span className="inline-flex items-center gap-1.5"><Truck size={14}/> Lagos delivery</span><span className="inline-flex items-center gap-1.5"><MapPin size={14}/> Ibafo, Ogun State</span></div>
+          </div>
+          <div className="relative min-h-[260px] lg:min-h-full">
+            <img src={photoUrl} alt="Freshly prepared Nigerian food served at a table" className="absolute inset-0 h-full w-full object-cover"/>
+            <div className="absolute inset-0 bg-gradient-to-t from-[#172c21]/25 to-transparent"/>
+            <div className="absolute bottom-5 left-5 rounded-2xl bg-white/95 px-4 py-3 shadow-lg backdrop-blur-sm sm:bottom-7 sm:left-7"><p className="text-[10px] font-bold uppercase tracking-widest text-[#68786e]">Made with care</p><p className="mt-1 text-sm font-extrabold text-[#26372c]">Good food. No guesswork.</p></div>
+          </div>
+        </div>
       </div>
     </section>
-    <section className="mx-auto max-w-7xl px-4 py-7 sm:px-6"><div className="flex items-end justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-widest text-[#e96d2c]">Find your favourite</p><h2 className="mt-2 text-2xl font-bold sm:text-3xl">Browse by category</h2></div><Link href="/menu" className="text-sm font-semibold text-[#b64a1a]">All menu <ArrowRight className="ml-1 inline" size={15}/></Link></div><div className="mt-5 flex gap-3 overflow-x-auto pb-2">{quickCategories.map((category, index) => <button key={category} onClick={() => onBrowse(category)} className="min-w-32 rounded-2xl border border-[#e8e2d6] bg-white px-4 py-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#e96d2c]"><span className="grid h-9 w-9 place-items-center rounded-xl bg-[#fff0e5] text-[#e96d2c]"><Utensils size={17}/></span><span className="mt-3 block text-sm font-semibold">{category}</span></button>)}</div></section>
-    <section className="mx-auto max-w-7xl px-4 py-7 sm:px-6"><div className="flex items-end justify-between"><div><p className="text-xs font-bold uppercase tracking-widest text-[#e96d2c]">Straight from the menu</p><h2 className="mt-2 text-2xl font-bold sm:text-3xl">Popular picks</h2></div><span className="text-xs text-[#69766e]">{basketCount} in your basket</span></div><div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{featured.map((item) => <ProductCard key={item.id} item={item} onAdd={() => onAdd(item)}/>)}</div><Link href="/menu" className="mx-auto mt-7 flex w-fit items-center gap-2 rounded-xl border border-[#d9d4c9] px-5 py-3 text-sm font-semibold hover:border-[#e96d2c]">See the full menu <ArrowRight size={16}/></Link></section>
+    <section className="mx-auto max-w-7xl px-4 py-7 sm:px-6">
+      <div className="flex items-end justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-widest text-[#71816f]">What are you craving?</p><h2 className="mt-1 text-2xl font-extrabold tracking-tight text-[#26372c] sm:text-3xl">Explore categories</h2></div><Link href="/menu" className="text-sm font-bold text-[#526a50] hover:underline">View all</Link></div>
+      <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">{quickCategories.map((category) => <button key={category} onClick={() => onBrowse(category)} className="group rounded-2xl border border-[#e7e9e2] bg-white px-3 py-4 text-left transition hover:-translate-y-1 hover:border-[#ffc94a] hover:shadow-md"><span className="grid h-10 w-10 place-items-center rounded-full bg-[#fff3c9] text-[#4d6048] transition group-hover:bg-[#ffc94a]"><Utensils size={18}/></span><span className="mt-3 block text-sm font-bold text-[#29382d]">{category}</span><span className="mt-1 block text-[11px] text-[#7a857b]">Explore dishes</span></button>)}</div>
+    </section>
+    <section className="mx-auto max-w-7xl px-4 py-7 sm:px-6">
+      <div className="flex items-end justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-widest text-[#71816f]">Picked from our kitchen</p><h2 className="mt-1 text-2xl font-extrabold tracking-tight text-[#26372c] sm:text-3xl">Popular right now</h2><p className="mt-1 text-sm text-[#7a857b]">Restaurant menu prices, clearly displayed.</p></div><span className="rounded-full bg-[#e9eee5] px-3 py-2 text-xs font-bold text-[#526a50]">{basketCount} in your basket</span></div>
+      <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{featured.map((item) => <ProductCard key={item.id} item={item} onAdd={() => onAdd(item)}/>)}</div>
+      <Link href="/menu" className="mx-auto mt-8 flex w-fit items-center gap-2 rounded-full bg-[#26372c] px-6 py-3.5 text-sm font-bold text-white transition hover:bg-[#3c5543]">Browse the full menu <ArrowRight size={16}/></Link>
+    </section>
+    <section className="mx-auto max-w-7xl px-4 pb-10 pt-5 sm:px-6"><div className="grid gap-4 md:grid-cols-2"><Link href="/delivery" className="flex items-center justify-between gap-4 rounded-3xl bg-[#e8eee6] p-6 transition hover:bg-[#dfe8dc]"><div><span className="text-xs font-bold uppercase tracking-widest text-[#71816f]">At your door</span><h2 className="mt-2 text-xl font-extrabold text-[#26372c]">Delivery across Lagos</h2><p className="mt-1 text-sm text-[#596b5d]">₦3,000 minimum order · Fee depends on distance</p></div><Truck size={30} className="shrink-0 text-[#526a50]"/></Link><Link href="/assistant" className="flex items-center justify-between gap-4 rounded-3xl bg-[#fff0cf] p-6 transition hover:bg-[#ffe7ad]"><div><span className="text-xs font-bold uppercase tracking-widest text-[#8a6c36]">Need a recommendation?</span><h2 className="mt-2 text-xl font-extrabold text-[#26372c]">Ask the kitchen</h2><p className="mt-1 text-sm text-[#756347]">Get help with menu and restaurant questions</p></div><MessageCircle size={30} className="shrink-0 text-[#8a6c36]"/></Link></div></section>
   </main>;
 }
 
 function ProductCard({ item, onAdd }: { item: CatalogItem; onAdd: () => void }) {
-  return <article className="flex min-h-40 flex-col justify-between rounded-2xl border border-[#e8e2d6] bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"><div><span className="text-[10px] font-semibold uppercase tracking-wider text-[#7b887f]">{item.category}</span><h3 className="mt-2 font-bold leading-snug">{item.name}</h3></div><div className="mt-5 flex items-center justify-between"><strong className="text-sm">{item.price === null ? 'Ask for price' : money(item.price)}</strong>{item.price !== null && <button onClick={onAdd} aria-label={`Add ${item.name}`} className="grid h-9 w-9 place-items-center rounded-xl bg-[#e96d2c] text-white hover:bg-[#d65b1d]"><Plus size={18}/></button>}</div></article>;
+  const foodPhotos = [
+    "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&w=900&q=85",
+    "https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?auto=format&fit=crop&w=900&q=85",
+    "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=900&q=85",
+    "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=900&q=85"
+  ];
+  const photoIndex = Math.abs(item.name.split("").reduce((sum, char) => sum + char.charCodeAt(0), 0)) % foodPhotos.length;
+  return <article className="group overflow-hidden rounded-3xl border border-[#e7e9e2] bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
+    <div className="relative h-40 overflow-hidden bg-[#f0f1eb]"><img src={foodPhotos[photoIndex]} alt={item.name} loading="lazy" className="h-full w-full object-cover transition duration-500 group-hover:scale-105"/><span className="absolute left-3 top-3 rounded-full bg-white/95 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-[#526a50]">{item.category}</span></div>
+    <div className="p-4"><h3 className="min-h-10 font-bold leading-snug text-[#29382d]">{item.name}</h3><div className="mt-4 flex items-center justify-between gap-3"><strong className="text-base text-[#26372c]">{item.price === null ? 'Ask for price' : money(item.price)}</strong>{item.price !== null && <button onClick={onAdd} aria-label={`Add ${item.name} to basket`} className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#ffc94a] text-[#26372c] transition hover:bg-[#f4b923]"><Plus size={19}/></button>}</div></div>
+  </article>;
 }
 
 function MenuPage({ search, setSearch, add, basket }: { search: string; setSearch: (value: string) => void; add: (item: CatalogItem) => void; basket: BasketLine[] }) {
