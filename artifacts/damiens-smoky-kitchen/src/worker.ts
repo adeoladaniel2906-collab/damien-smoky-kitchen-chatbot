@@ -24,6 +24,7 @@ interface Env {
   AUTH_EMAIL_RATE_LIMIT: { limit(input: { key: string }): Promise<{ success: boolean }> };
   STAFF_EMAIL?: string;
   STAFF_PASSWORD_HASH?: string;
+  STAFF_TOTP_SECRET?: string;
   CUSTOMER_AUTH_ENABLED?: string;
   STAFF_AUTH_ENABLED?: string;
 }
@@ -433,15 +434,64 @@ async function currentSession(request: Request, env: Env): Promise<SessionRow | 
   if (!token || token.length > 128) return null;
   const session = await env.DB.prepare("SELECT role, user_id, expires_at FROM auth_sessions WHERE token_hash = ? AND expires_at > ?")
     .bind(await hashToken(token), Math.floor(Date.now() / 1000)).first<SessionRow>();
-  if (session?.role === "staff" && (env.STAFF_AUTH_ENABLED !== "true" || session.user_id !== (env.STAFF_EMAIL ?? "").trim().toLowerCase())) return null;
+  if (session?.role === "staff" && (env.STAFF_AUTH_ENABLED !== "true" || !hasValidTotpSecret(env.STAFF_TOTP_SECRET) || session.user_id !== (env.STAFF_EMAIL ?? "").trim().toLowerCase())) return null;
   if (session?.role === "customer" && env.CUSTOMER_AUTH_ENABLED !== "true") return null;
   return session;
 }
+const BASE32_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+
+function decodeBase32(value: string): Uint8Array | null {
+  const normalized = value.toUpperCase().replace(/=+$/g, "").replace(/\\s/g, "");
+  if (!normalized || normalized.length > 128 || !/^[A-Z2-7]+$/.test(normalized)) return null;
+  let buffer = 0;
+  let bits = 0;
+  const output: number[] = [];
+  for (const character of normalized) {
+    buffer = (buffer << 5) | BASE32_ALPHABET.indexOf(character);
+    bits += 5;
+    if (bits >= 8) {
+      bits -= 8;
+      output.push((buffer >> bits) & 0xff);
+    }
+  }
+  return Uint8Array.from(output);
+}
+
+function hasValidTotpSecret(value: string | undefined): boolean {
+  const decoded = value ? decodeBase32(value) : null;
+  return Boolean(decoded && decoded.length >= 20);
+}
+
+async function verifyTotp(secret: string | undefined, code: string): Promise<boolean> {
+  if (!/^\\d{6}$/.test(code)) return false;
+  const secretBytes = secret ? decodeBase32(secret) : null;
+  if (!secretBytes || secretBytes.length < 20) return false;
+  const key = await crypto.subtle.importKey("raw", secretBytes, { name: "HMAC", hash: "SHA-1" }, false, ["sign"]);
+  const currentStep = BigInt(Math.floor(Date.now() / 30_000));
+  for (const drift of [-1n, 0n, 1n]) {
+    let counter = currentStep + drift;
+    if (counter < 0n) continue;
+    const message = new Uint8Array(8);
+    for (let index = 7; index >= 0; index--) {
+      message[index] = Number(counter & 0xffn);
+      counter >>= 8n;
+    }
+    const digest = new Uint8Array(await crypto.subtle.sign("HMAC", key, message));
+    const offset = digest[digest.length - 1] & 0x0f;
+    const binary = ((digest[offset] & 0x7f) << 24) | (digest[offset + 1] << 16) | (digest[offset + 2] << 8) | digest[offset + 3];
+    const expected = String(binary % 1_000_000).padStart(6, "0");
+    let mismatch = 0;
+    for (let index = 0; index < 6; index++) mismatch |= expected.charCodeAt(index) ^ code.charCodeAt(index);
+    if (mismatch === 0) return true;
+  }
+  return false;
+}
+
 function validEmail(value: string): boolean { return value.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value); }
 async function handleAuth(request: Request, env: Env, url: URL): Promise<Response> {
   const path = url.pathname;
   const customerAuthEnabled = env.CUSTOMER_AUTH_ENABLED === "true" && Boolean(env.DB) && Boolean(env.AUTH_RATE_LIMIT) && Boolean(env.AUTH_EMAIL_RATE_LIMIT);
-  const staffAuthEnabled = env.STAFF_AUTH_ENABLED === "true" && Boolean(env.STAFF_EMAIL?.trim()) && Boolean(env.STAFF_PASSWORD_HASH) && Boolean(env.DB) && Boolean(env.AUTH_RATE_LIMIT) && Boolean(env.AUTH_EMAIL_RATE_LIMIT);
+  const staffAuthEnabled = env.STAFF_AUTH_ENABLED === "true" && Boolean(env.STAFF_EMAIL?.trim()) && Boolean(env.STAFF_PASSWORD_HASH) && hasValidTotpSecret(env.STAFF_TOTP_SECRET) && Boolean(env.DB) && Boolean(env.AUTH_RATE_LIMIT) && Boolean(env.AUTH_EMAIL_RATE_LIMIT);
   if (path === "/api/auth/status" && request.method === "GET") return authResponse({ customerEnabled: customerAuthEnabled, staffEnabled: staffAuthEnabled });
   if ((path === "/api/auth/register" || path === "/api/auth/login") && !customerAuthEnabled) return authResponse({ error: "Customer accounts are temporarily unavailable while secure sign-in is being configured. You can still place a guest order." }, 503);
   if (path === "/api/auth/staff/login" && !staffAuthEnabled) return authResponse({ error: "Staff sign-in is not enabled yet. Contact the site administrator." }, 503);
@@ -533,7 +583,7 @@ async function handleAuth(request: Request, env: Env, url: URL): Promise<Respons
   if (path === "/api/auth/staff/login") {
     const configuredEmail = (env.STAFF_EMAIL ?? "").trim().toLowerCase();
     const configuredHash = env.STAFF_PASSWORD_HASH ?? "";
-    if (!configuredEmail || !configuredHash || email !== configuredEmail || !(await verifyPassword(password, configuredHash))) {
+    const totpCode = typeof body.totpCode === "string" ? body.totpCode : "";\n    if (!configuredEmail || !configuredHash || email !== configuredEmail || !(await verifyPassword(password, configuredHash)) || !(await verifyTotp(env.STAFF_TOTP_SECRET, totpCode))) {
       return authResponse({ error: "Staff credentials are incorrect or staff login has not been configured." }, 401);
     }
     const token = await issueSession(env, "staff", configuredEmail);
