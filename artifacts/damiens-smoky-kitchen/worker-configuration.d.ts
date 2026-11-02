@@ -5,6 +5,7 @@
 interface OrderDatabaseStatement {
   bind(...values: Array<string | number | null>): OrderDatabaseStatement;
   first<T = Record<string, unknown>>(): Promise<T | null>;
+  run(): Promise<unknown>;
 }
 
 interface OrderDatabaseBinding {
@@ -17,5 +18,8 @@ interface Env {
   ASSETS: Fetcher;
   CHAT_RATE_LIMIT: RateLimit;
   ORDER_RATE_LIMIT: RateLimit;
+  AUTH_RATE_LIMIT: RateLimit;
+  STAFF_EMAIL?: string;
+  STAFF_PASSWORD_HASH?: string;
   DB: OrderDatabaseBinding;
 }
