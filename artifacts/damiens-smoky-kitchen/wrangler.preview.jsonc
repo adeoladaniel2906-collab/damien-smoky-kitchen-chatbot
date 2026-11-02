@@ -3,6 +3,11 @@
   "name": "damien-smoky-kitchen-preview",
   "main": "./src/worker.ts",
   "compatibility_date": "2026-09-24",
+  "vars": {
+    "ORDERS_ENABLED": "false",
+    "CUSTOMER_AUTH_ENABLED": "false",
+    "STAFF_AUTH_ENABLED": "false"
+  },
   "workers_dev": true,
   "preview_urls": true,
   "observability": {
