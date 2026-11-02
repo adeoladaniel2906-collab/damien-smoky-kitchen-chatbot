@@ -19,7 +19,7 @@ interface Env {
   ORDER_RATE_LIMIT: {
     limit(input: { key: string }): Promise<{ success: boolean }>;
   };
-  DB: D1Database;
+  DB: OrderDatabaseBinding;
 }
 
 type ChatMessage = {
