@@ -88,3 +88,6 @@ pnpm exec wrangler d1 migrations apply damien-smoky-kitchen-orders-preview --con
 ```
 
 Customer account email ownership is not verified in this first implementation. Do not use account email as a high-assurance identity until an email verification or password-reset workflow is added. The staff portal currently verifies staff identity only; order-management actions are not exposed until separately implemented and protected.
+
+
+**Free-plan runtime check required:** Cloudflare documents a 10 ms CPU-time limit per HTTP request on Workers Free. PBKDF2 password verification is intentionally expensive; do not enable customer or staff login in production until the deployed preview proves registration and login stay within the Free CPU limit. If it exceeds the limit, do not weaken the password hash to force it through; use a suitable managed authentication service or a plan/runtime that supports the required CPU budget.
