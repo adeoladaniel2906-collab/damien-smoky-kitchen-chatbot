@@ -10,6 +10,15 @@
     "issues": { "enabled": true }
   },
 
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "damien-smoky-kitchen-orders",
+      "database_id": "1db6849c-2db7-476d-9f73-7b7bde7b81fd",
+      "migrations_dir": "migrations"
+    }
+  ],
+
   "ratelimits": [
     {
       "name": "CHAT_RATE_LIMIT",
@@ -23,6 +32,13 @@
   },
 
   "previews": {
+    "d1_databases": [
+      {
+        "binding": "DB",
+        "database_name": "damien-smoky-kitchen-orders-preview",
+        "database_id": "106a3a8d-f4eb-4151-aac5-34ca245982e6"
+      }
+    ],
     "ratelimits": [
       {
         "name": "CHAT_RATE_LIMIT",
