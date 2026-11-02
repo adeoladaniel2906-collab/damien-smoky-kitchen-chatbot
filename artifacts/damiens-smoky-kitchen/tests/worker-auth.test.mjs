@@ -109,6 +109,21 @@ function sessionCookie(response) {
   return raw.split(";", 1)[0];
 }
 
+test("authentication stays disabled unless explicit server-side feature flags are enabled", async () => {
+  const env = makeEnv({ CUSTOMER_AUTH_ENABLED: "false", STAFF_AUTH_ENABLED: "false" });
+  const status = await worker.fetch(request("/api/auth/status", { method: "GET" }), env);
+  assert.equal(status.status, 200);
+  assert.deepEqual(await status.json(), { customerEnabled: false, staffEnabled: false });
+  const registration = await worker.fetch(request("/api/auth/register", {
+    body: { name: "Test User", email: "disabled@example.com", phone: "08012345678", password: "LongEnoughPassword1!", adultConfirmed: true },
+  }), env);
+  assert.equal(registration.status, 503);
+  const staff = await worker.fetch(request("/api/auth/staff/login", {
+    body: { email: "staff@example.com", password: "StaffPassword!2026" },
+  }), env);
+  assert.equal(staff.status, 503);
+});
+
 test("registration rejects cross-origin requests", async () => {
   const env = makeEnv();
   const response = await worker.fetch(request("/api/auth/register", {
