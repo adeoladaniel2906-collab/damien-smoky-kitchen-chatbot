@@ -462,10 +462,10 @@ function hasValidTotpSecret(value: string | undefined): boolean {
   return Boolean(decoded && decoded.length >= 20);
 }
 
-async function verifyTotp(secret: string | undefined, code: string): Promise<boolean> {
-  if (!/^\d{6}$/.test(code)) return false;
+async function verifyTotp(secret: string | undefined, code: string): Promise<number | null> {
+  if (!/^\d{6}$/.test(code)) return null;
   const secretBytes = secret ? decodeBase32(secret) : null;
-  if (!secretBytes || secretBytes.length < 20) return false;
+  if (!secretBytes || secretBytes.length < 20) return null;
   const key = await crypto.subtle.importKey("raw", secretBytes, { name: "HMAC", hash: "SHA-1" }, false, ["sign"]);
   const currentStep = BigInt(Math.floor(Date.now() / 30_000));
   for (const drift of [-1n, 0n, 1n]) {
@@ -482,9 +482,9 @@ async function verifyTotp(secret: string | undefined, code: string): Promise<boo
     const expected = String(binary % 1_000_000).padStart(6, "0");
     let mismatch = 0;
     for (let index = 0; index < 6; index++) mismatch |= expected.charCodeAt(index) ^ code.charCodeAt(index);
-    if (mismatch === 0) return true;
+    if (mismatch === 0) return Number(currentStep + drift);
   }
-  return false;
+  return null;
 }
 
 function validEmail(value: string): boolean { return value.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value); }
@@ -584,9 +584,15 @@ async function handleAuth(request: Request, env: Env, url: URL): Promise<Respons
     const configuredEmail = (env.STAFF_EMAIL ?? "").trim().toLowerCase();
     const configuredHash = env.STAFF_PASSWORD_HASH ?? "";
     const totpCode = typeof body.totpCode === "string" ? body.totpCode : "";
-    if (!configuredEmail || !configuredHash || email !== configuredEmail || !(await verifyPassword(password, configuredHash)) || !(await verifyTotp(env.STAFF_TOTP_SECRET, totpCode))) {
+    if (!configuredEmail || !configuredHash || email !== configuredEmail || !(await verifyPassword(password, configuredHash))) {
       return authResponse({ error: "Staff credentials are incorrect or staff login has not been configured." }, 401);
     }
+    const acceptedStep = await verifyTotp(env.STAFF_TOTP_SECRET, totpCode);
+    if (acceptedStep === null) return authResponse({ error: "Staff credentials are incorrect or staff login has not been configured." }, 401);
+    await env.DB.prepare("INSERT OR IGNORE INTO staff_totp_state (user_id, last_accepted_step) VALUES (?, -1)").bind(configuredEmail).run();
+    const replayCheck = await env.DB.prepare("UPDATE staff_totp_state SET last_accepted_step = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE user_id = ? AND last_accepted_step < ?")
+      .bind(acceptedStep, configuredEmail, acceptedStep).run() as { meta?: { changes?: number } };
+    if (replayCheck.meta?.changes !== 1) return authResponse({ error: "Staff credentials are incorrect or staff login has not been configured." }, 401);
     const token = await issueSession(env, "staff", configuredEmail);
     return authResponse({ ok: true, role: "staff" }, 200, setSessionCookie(token));
   }
