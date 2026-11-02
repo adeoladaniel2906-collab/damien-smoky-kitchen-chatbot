@@ -25,6 +25,9 @@ jobs:
       - run: pnpm run typecheck
       - run: pnpm --filter @workspace/damiens-smoky-kitchen test
       - run: pnpm run build
+      - name: Validate preview Worker configuration
+        working-directory: artifacts/damiens-smoky-kitchen
+        run: pnpm exec wrangler deploy --dry-run --config wrangler.preview.jsonc
       - name: Deploy isolated preview Worker
         working-directory: artifacts/damiens-smoky-kitchen
         env:
