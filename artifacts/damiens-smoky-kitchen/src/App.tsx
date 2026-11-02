@@ -272,6 +272,7 @@ function StaffLoginPage() {
   const [, setLocation] = useLocation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [totpCode, setTotpCode] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [staffEnabled, setStaffEnabled] = useState(false);
@@ -288,17 +289,18 @@ function StaffLoginPage() {
     if (busy || !staffEnabled) return;
     setBusy(true); setError("");
     try {
-      const response = await fetch("/api/auth/staff/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password }) });
+      const response = await fetch("/api/auth/staff/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password, totpCode }) });
       const result = await response.json() as { error?: string };
       if (!response.ok) throw new Error(result.error ?? "Staff login failed.");
       setLocation("/staff");
     } catch (caught) { setError(caught instanceof Error ? caught.message : "Staff login failed."); }
     finally { setBusy(false); }
   };
-  return <AuthShell title="Staff sign in" subtitle="Private access for authorised restaurant staff. Customer accounts cannot access this area.">
-    {statusLoading ? <p className="mt-6 text-sm text-[#69766e]">Checking staff access…</p> : !staffEnabled ? <div className="mt-6 rounded-2xl bg-[#e8eee6] p-4 text-sm leading-6 text-[#52645a]"><strong className="block text-[#21382d]">Staff sign-in is not enabled yet.</strong><span className="mt-2 block">The administrator must configure the staff credential secret and confirm the Worker can support the required password-hashing workload. No staff password is collected or stored by this page until then.</span></div> : <form onSubmit={submit} className="mt-7 space-y-4">
+  return <AuthShell title="Staff sign in" subtitle="Private access for authorised restaurant staff. A six-digit authenticator code is required in addition to your password.">
+    {statusLoading ? <p className="mt-6 text-sm text-[#69766e]">Checking staff access…</p> : !staffEnabled ? <div className="mt-6 rounded-2xl bg-[#e8eee6] p-4 text-sm leading-6 text-[#52645a]"><strong className="block text-[#21382d]">Staff sign-in is not enabled yet.</strong><span className="mt-2 block">The administrator must configure the staff password and authenticator secret, then benchmark the Worker password-hashing workload before access can be enabled.</span></div> : <form onSubmit={submit} className="mt-7 space-y-4">
       <label className="block text-xs font-semibold">Authorised staff email<input required type="email" autoComplete="username" value={email} onChange={e => setEmail(e.target.value)} className="mt-1.5 w-full rounded-xl border border-[#e5dfd3] bg-[#fbf8f1] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#e96d2c]"/></label>
       <label className="block text-xs font-semibold">Password<input required type="password" autoComplete="current-password" minLength={12} maxLength={128} value={password} onChange={e => setPassword(e.target.value)} className="mt-1.5 w-full rounded-xl border border-[#e5dfd3] bg-[#fbf8f1] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#e96d2c]"/></label>
+      <label className="block text-xs font-semibold">Authenticator code<input required type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={totpCode} onChange={e => setTotpCode(e.target.value.replace(/\\D/g, "").slice(0, 6))} placeholder="6-digit code" className="mt-1.5 w-full rounded-xl border border-[#e5dfd3] bg-[#fbf8f1] px-3 py-3 text-sm tracking-[0.25em] outline-none focus:ring-2 focus:ring-[#e96d2c]"/><span className="mt-1 block text-[11px] font-normal text-[#7b887f]">Open your authenticator app to get the current code.</span></label>
       {error && <p role="alert" className="rounded-xl bg-[#fff0e5] p-3 text-xs leading-5 text-[#8b401d]">{error}</p>}
       <button disabled={busy} className="w-full rounded-xl bg-[#21382d] px-4 py-3.5 text-sm font-bold text-white disabled:opacity-60">{busy ? "Verifying…" : "Sign in to staff portal"}</button>
     </form>}
