@@ -70,6 +70,7 @@ function App() {
   }, [basket]);
 
   const count = basket.reduce((total, line) => total + line.quantity, 0);
+  const isStaffArea = location.startsWith("/staff");
   const add = (item: CatalogItem) => setBasket((current) => {
     const existing = current.find((line) => line.item.id === item.id);
     return existing
@@ -86,7 +87,7 @@ function App() {
   };
 
   return <div className="min-h-screen bg-[#fbf8f1] text-[#21382d]">
-    <header className="sticky top-0 z-40 border-b border-[#e6e1d6] bg-[#fbf8f1]/95 backdrop-blur">
+    {!isStaffArea && <header className="sticky top-0 z-40 border-b border-[#e6e1d6] bg-[#fbf8f1]/95 backdrop-blur">
       <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-3 sm:px-6">
         <Link href="/" className="flex shrink-0 items-center gap-2" aria-label="Damien's Smoky Kitchen home">
           <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#e96d2c] text-white"><Flame size={21}/></span>
@@ -98,11 +99,11 @@ function App() {
         <form onSubmit={(event) => { event.preventDefault(); openMenu(search); }} className="flex min-w-0 flex-1 items-center gap-2 rounded-xl bg-[#f0ece2] px-3 py-2.5">
           <Search size={18} className="shrink-0 text-[#68786e]"/><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search dishes and drinks" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-[#89948c]" aria-label="Search dishes and drinks"/><button className="hidden text-xs font-semibold text-[#e96d2c] sm:block">Search</button>
         </form>
-        <nav className="hidden items-center gap-5 lg:flex"><Link href="/login" className="text-sm hover:text-[#e96d2c]">Log in</Link><Link href="/create-account" className="text-sm hover:text-[#e96d2c]">Create account</Link><Link href="/staff-login" className="text-sm hover:text-[#e96d2c]">Staff</Link><Link href="/menu" className={location === '/menu' ? 'text-sm font-semibold text-[#e96d2c]' : 'text-sm hover:text-[#e96d2c]'}>Menu</Link><Link href="/delivery" className="text-sm hover:text-[#e96d2c]">Delivery</Link><Link href="/assistant" className="text-sm hover:text-[#e96d2c]">Ask the kitchen</Link></nav>
+        <nav className="hidden items-center gap-5 lg:flex"><Link href="/login" className="text-sm hover:text-[#e96d2c]">Log in</Link><Link href="/create-account" className="text-sm hover:text-[#e96d2c]">Create account</Link><Link href="/menu" className={location === '/menu' ? 'text-sm font-semibold text-[#e96d2c]' : 'text-sm hover:text-[#e96d2c]'}>Menu</Link><Link href="/delivery" className="text-sm hover:text-[#e96d2c]">Delivery</Link><Link href="/assistant" className="text-sm hover:text-[#e96d2c]">Ask the kitchen</Link></nav>
         <Link href="/checkout" className="relative grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#21382d] text-white hover:bg-[#315541]" aria-label={`Basket, ${count} items`}><ShoppingBag size={19}/>{count > 0 && <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-[#e96d2c] px-1 text-[10px] font-bold">{count}</span>}</Link>
       </div>
-      <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 border-t border-[#ece7dc] px-4 py-2.5 text-xs lg:hidden"><Link href="/login">Log in</Link><Link href="/create-account">Create account</Link><Link href="/staff-login">Staff</Link><Link href="/menu">Menu</Link><Link href="/delivery">Delivery</Link><Link href="/assistant">Kitchen assistant</Link></nav>
-    </header>
+      <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 border-t border-[#ece7dc] px-4 py-2.5 text-xs lg:hidden"><Link href="/login">Log in</Link><Link href="/create-account">Create account</Link><Link href="/menu">Menu</Link><Link href="/delivery">Delivery</Link><Link href="/assistant">Kitchen assistant</Link></nav>
+    </header>}
 
     <Switch>
       <Route path="/"><Home onBrowse={openMenu} onAdd={add} basketCount={count}/></Route>
@@ -112,6 +113,7 @@ function App() {
       <Route path="/checkout"><CheckoutPage basket={basket} change={change} remove={remove} clear={() => setBasket([])}/></Route>
       <Route path="/create-account"><CustomerAuthPage mode="register"/></Route>
       <Route path="/login"><CustomerAuthPage mode="login"/></Route>
+      <Route path="/staff/login"><StaffLoginPage/></Route>
       <Route path="/staff-login"><StaffLoginPage/></Route>
       <Route path="/account"><CustomerAccountPage/></Route>
       <Route path="/staff"><StaffPortalPage/></Route>
@@ -121,8 +123,8 @@ function App() {
       <Route><NotFound/></Route>
     </Switch>
 
-    <footer className="mt-16 bg-[#21382d] text-white"><div className="mx-auto grid max-w-7xl gap-8 px-5 py-10 sm:grid-cols-3 sm:px-6"><div><div className="flex items-center gap-2 font-bold"><Flame size={18} className="text-[#f29a53]"/> Damien's Smoky Kitchen</div><p className="mt-3 max-w-xs text-sm leading-6 text-white/70">Nigerian dishes, made in Ibafo. Browse the menu and review your basket online.</p></div><div><p className="text-sm font-semibold">Visit and hours</p><p className="mt-3 text-sm leading-6 text-white/70">The Motorcycle Drive, Papa Olonrisa<br/>Ibafo, Ogun State<br/>Daily, 9:00 AM–9:00 PM</p></div><div><p className="text-sm font-semibold">Ordering information</p><p className="mt-3 text-sm leading-6 text-white/70">Lagos State delivery only<br/>Minimum delivery order: ₦3,000<br/>Fee depends on distance</p></div></div><div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 border-t border-white/15 px-5 py-4 text-xs text-white/65"><span>© {new Date().getFullYear()} Damien's Smoky Kitchen</span><Link href="/privacy" className="underline underline-offset-4">Privacy</Link><Link href="/terms" className="underline underline-offset-4">Terms</Link><Link href="/cookies" className="underline underline-offset-4">Cookie notice</Link><button type="button" onClick={() => window.dispatchEvent(new Event("dsk:open-cookie-settings"))} className="underline underline-offset-4">Manage cookies</button></div></footer>
-    <CookieConsent/>
+    {!isStaffArea && <footer className="mt-16 bg-[#21382d] text-white"><div className="mx-auto grid max-w-7xl gap-8 px-5 py-10 sm:grid-cols-3 sm:px-6"><div><div className="flex items-center gap-2 font-bold"><Flame size={18} className="text-[#f29a53]"/> Damien's Smoky Kitchen</div><p className="mt-3 max-w-xs text-sm leading-6 text-white/70">Nigerian dishes, made in Ibafo. Browse the menu and review your basket online.</p></div><div><p className="text-sm font-semibold">Visit and hours</p><p className="mt-3 text-sm leading-6 text-white/70">The Motorcycle Drive, Papa Olonrisa<br/>Ibafo, Ogun State<br/>Daily, 9:00 AM–9:00 PM</p></div><div><p className="text-sm font-semibold">Ordering information</p><p className="mt-3 text-sm leading-6 text-white/70">Lagos State delivery only<br/>Minimum delivery order: ₦3,000<br/>Fee depends on distance</p></div></div><div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 border-t border-white/15 px-5 py-4 text-xs text-white/65"><span>© {new Date().getFullYear()} Damien's Smoky Kitchen</span><Link href="/privacy" className="underline underline-offset-4">Privacy</Link><Link href="/terms" className="underline underline-offset-4">Terms</Link><Link href="/cookies" className="underline underline-offset-4">Cookie notice</Link><button type="button" onClick={() => window.dispatchEvent(new Event("dsk:open-cookie-settings"))} className="underline underline-offset-4">Manage cookies</button></div></footer>}
+    {!isStaffArea && <CookieConsent/>}
   </div>;
 }
 
@@ -355,7 +357,6 @@ function CustomerAuthPage({ mode }: { mode: "register" | "login" }) {
       </form>
       <p className="mt-6 text-center text-xs text-[#69766e]">{register ? "Already have an account?" : "New to Damien's Smoky Kitchen?"} <Link href={register ? "/login" : "/create-account"} className="font-bold text-[#b64a1a]">{register ? "Log in" : "Create account"}</Link></p>
     </>}
-    <p className="mt-3 text-center text-xs"><Link href="/staff-login" className="text-[#69766e] underline underline-offset-4">Staff login</Link></p>
   </AuthShell>;
 }
 
@@ -387,7 +388,7 @@ function StaffLoginPage() {
     } catch (caught) { setError(caught instanceof Error ? caught.message : "Staff login failed."); }
     finally { setBusy(false); }
   };
-  return <AuthShell title="Staff sign in" subtitle="Private access for authorised restaurant staff. A six-digit authenticator code is required in addition to your password.">
+  return <AuthShell title="Administrator & staff sign in" subtitle="Private staff access. Use your authorised account password and six-digit authenticator code.">
     {statusLoading ? <p className="mt-6 text-sm text-[#69766e]">Checking staff access…</p> : !staffEnabled ? <div className="mt-6 rounded-2xl bg-[#e8eee6] p-4 text-sm leading-6 text-[#52645a]"><strong className="block text-[#21382d]">Staff sign-in is not enabled yet.</strong><span className="mt-2 block">The administrator must configure the staff password and authenticator secret, then benchmark the Worker password-hashing workload before access can be enabled.</span></div> : <form onSubmit={submit} className="mt-7 space-y-4">
       <label className="block text-xs font-semibold">Authorised staff email<input required type="email" autoComplete="username" value={email} onChange={e => setEmail(e.target.value)} className="mt-1.5 w-full rounded-xl border border-[#e5dfd3] bg-[#fbf8f1] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#e96d2c]"/></label>
       <label className="block text-xs font-semibold">Password<input required type="password" autoComplete="current-password" minLength={12} maxLength={128} value={password} onChange={e => setPassword(e.target.value)} className="mt-1.5 w-full rounded-xl border border-[#e5dfd3] bg-[#fbf8f1] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#e96d2c]"/></label>
@@ -463,7 +464,7 @@ function StaffPortalPage() {
       const result = await response.json();
       if (result.role !== "staff") throw new Error("Staff access required.");
       if (active) { setEmail(result.user.email); await load(); }
-    }).catch(() => { if (active) setLocation("/staff-login"); }).finally(() => { if (active) setLoading(false); });
+    }).catch(() => { if (active) setLocation("/staff/login"); }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [setLocation]);
   const logout = async () => { await fetch("/api/auth/logout", { method:"POST", credentials:"same-origin" }); setLocation("/staff-login"); };
