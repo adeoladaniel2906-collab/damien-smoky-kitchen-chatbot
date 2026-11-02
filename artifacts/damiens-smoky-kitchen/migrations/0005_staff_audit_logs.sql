@@ -6,3 +6,6 @@ CREATE TABLE IF NOT EXISTS staff_audit_logs (
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 CREATE INDEX IF NOT EXISTS idx_staff_audit_logs_created_at ON staff_audit_logs(created_at DESC);
+
+CREATE TRIGGER IF NOT EXISTS staff_audit_logs_no_update BEFORE UPDATE ON staff_audit_logs BEGIN SELECT RAISE(ABORT, 'staff audit logs are append-only'); END;
+CREATE TRIGGER IF NOT EXISTS staff_audit_logs_no_delete BEFORE DELETE ON staff_audit_logs BEGIN SELECT RAISE(ABORT, 'staff audit logs are append-only'); END;
