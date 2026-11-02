@@ -376,7 +376,9 @@ async function hashToken(value: string): Promise<string> {
 }
 async function derivePassword(password: string, salt: Uint8Array): Promise<Uint8Array> {
   const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveBits"]);
-  return new Uint8Array(await crypto.subtle.deriveBits({ name: "PBKDF2", salt, iterations: PBKDF2_ITERATIONS, hash: "SHA-256" }, key, 256));
+  const saltBuffer = new Uint8Array(new ArrayBuffer(salt.byteLength));
+  saltBuffer.set(salt);
+  return new Uint8Array(await crypto.subtle.deriveBits({ name: "PBKDF2", salt: saltBuffer, iterations: PBKDF2_ITERATIONS, hash: "SHA-256" }, key, 256));
 }
 async function makePasswordHash(password: string): Promise<string> {
   const salt = crypto.getRandomValues(new Uint8Array(16));
