@@ -8,15 +8,16 @@
     "redact_query_string": true,
     "logs": {
       "enabled": true,
-      "head_sampling_rate": 0.1
-    },
-    "traces": {
-      "enabled": true,
       "head_sampling_rate": 0.1,
       "invocation_logs": false,
       "persist": true
     },
     "traces": {
+      "enabled": true,
+      "head_sampling_rate": 0.05,
+      "persist": false
+    },
+    "issues": {
       "enabled": true
     }
   },
@@ -115,7 +116,9 @@
       "redact_query_string": true,
       "logs": {
         "enabled": true,
-        "head_sampling_rate": 1
+        "head_sampling_rate": 0.1,
+        "invocation_logs": false,
+        "persist": true
       },
       "traces": {
         "enabled": true,
