@@ -571,6 +571,7 @@ async function handleAuth(request: Request, env: Env, url: URL): Promise<Respons
     if (!customer || !(await verifyPassword(password, customer.password_hash))) return authResponse({ error: "The password is incorrect." }, 401);
     try {
       await env.DB.batch([
+        env.DB.prepare("DELETE FROM google_identities WHERE customer_id = ?").bind(session.user_id),
         env.DB.prepare("DELETE FROM auth_sessions WHERE role = 'customer' AND user_id = ?").bind(session.user_id),
         env.DB.prepare("DELETE FROM customer_accounts WHERE id = ?").bind(session.user_id),
       ]);
