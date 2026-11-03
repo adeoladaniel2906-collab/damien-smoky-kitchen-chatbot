@@ -490,13 +490,6 @@ body { background: #f7f8f4; color: #26372c; }
   50% { width: 78%; }
   100% { width: 18%; transform: translateX(465%); }
 }
-@keyframes dsk-overlay-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-  65% { opacity: 1; transform: scale(1.12) rotate(4deg); }
-  100% { transform: scale(1) rotate(0); }
-}
 @media (prefers-reduced-motion: reduce) {
   .dsk-auth-card, .dsk-loading-bar, .dsk-offline-card {
     animation: none !important;
