@@ -40,7 +40,7 @@ test("customer sign-in returns to an existing route, not the removed account pag
 
 test("the initial HTML shows a branded loading fallback before the app JavaScript loads", async () => {
   const html = await read("../index.html");
-  assert.match(html, /id="root">[\\s\\S]*role="status"/);
+  assert.match(html, /id="root">[\s\S]*role="status"/);
   assert.match(html, /Getting the kitchen ready/);
   assert.match(html, /aria-busy="true"/);
 });
