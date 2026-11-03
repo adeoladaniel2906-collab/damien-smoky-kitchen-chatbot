@@ -6,13 +6,21 @@ import { restaurantKnowledge, type MenuItem } from '@/chatbot/knowledge';
 import { CookieConsent } from '@/components/CookieConsent';
 import { CookiePolicyPage, PrivacyPolicyPage, TermsPage } from '@/pages/LegalPages';
 
-type CatalogItem = MenuItem & { id: string };
+type CatalogItem = MenuItem & { id: string; displayCategory: string; dietaryLabel?: 'Vegan' };
 type BasketLine = { item: CatalogItem; quantity: number };
 type ChatMessage = { role: 'user' | 'assistant'; content: string };
 
-const catalog: CatalogItem[] = [...restaurantKnowledge.menu, ...restaurantKnowledge.drinksMenu, ...restaurantKnowledge.veganMenu]
-  .map((item) => ({ ...item, id: `${item.category}:${item.name}:${item.price ?? 'ask'}` }));
-const categories = Array.from(new Set(catalog.map((item) => item.category)));
+const displayCategory = (category: string) => category.startsWith('Vegan ') ? category.slice('Vegan '.length) : category;
+// The regular menu already contains the complete drinks list. Do not append drinksMenu again.
+// Keep the original category in each item ID so saved baskets continue to resolve.
+const catalog: CatalogItem[] = [...restaurantKnowledge.menu, ...restaurantKnowledge.veganMenu]
+  .map((item) => ({
+    ...item,
+    id: `${item.category}:${item.name}:${item.price ?? 'ask'}`,
+    displayCategory: displayCategory(item.category),
+    dietaryLabel: item.category.startsWith('Vegan ') ? 'Vegan' as const : undefined,
+  }));
+const categories = Array.from(new Set(catalog.map((item) => item.displayCategory)));
 const photoUrl = 'https://images.unsplash.com/photo-1638436684761-7e59f8a9072f?auto=format&fit=crop&fm=jpg&ixlib=rb-4.1.0&q=80&w=1600';
 
 function money(value: number) {
@@ -96,6 +104,7 @@ function App() {
     }
   });
   const [search, setSearch] = useState('');
+  const [menuCategory, setMenuCategory] = useState('All');
 
   useEffect(() => {
     localStorage.setItem('damien-basket-v1', JSON.stringify(basket.map(({ item, quantity }) => ({ id: item.id, quantity }))));
@@ -114,7 +123,13 @@ function App() {
     .filter((line) => line.quantity > 0));
   const remove = (id: string) => setBasket((current) => current.filter((line) => line.item.id !== id));
   const openMenu = (query = '') => {
-    setSearch(query);
+    if (categories.includes(query)) {
+      setMenuCategory(query);
+      setSearch('');
+    } else {
+      setMenuCategory('All');
+      setSearch(query);
+    }
     setLocation('/menu');
   };
   const handleSignOut = async () => {
@@ -151,7 +166,7 @@ function App() {
 
     <Switch>
       <Route path="/"><Home onBrowse={openMenu} onAdd={add} basketCount={count}/></Route>
-      <Route path="/menu"><MenuPage search={search} setSearch={setSearch} add={add} basket={basket}/></Route>
+      <Route path="/menu"><MenuPage search={search} setSearch={setSearch} add={add} basket={basket} activeCategory={menuCategory} setActiveCategory={setMenuCategory}/></Route>
       <Route path="/delivery"><DeliveryPage/></Route>
       <Route path="/assistant"><AssistantPage/></Route>
       <Route path="/checkout"><CheckoutPage basket={basket} change={change} remove={remove} clear={() => setBasket([])}/></Route>
@@ -203,7 +218,7 @@ function OfflinePage({ onRetry }: { onRetry: () => void }) {
 
 function Home({ onBrowse, onAdd, basketCount }: { onBrowse: (query?: string) => void; onAdd: (item: CatalogItem) => void; basketCount: number }) {
   const featured = catalog.filter((item) => item.price !== null).slice(0, 8);
-  const quickCategories = categories.slice(0, 8);
+  const quickCategories = categories;
   return <main className="bg-[#f7f8f4]">
     <section className="mx-auto max-w-7xl px-4 pb-5 pt-5 sm:px-6">
       <div className="overflow-hidden rounded-[2rem] bg-[#ffc94a]">
@@ -228,7 +243,7 @@ function Home({ onBrowse, onAdd, basketCount }: { onBrowse: (query?: string) => 
     </section>
     <section className="mx-auto max-w-7xl px-4 py-7 sm:px-6">
       <div className="flex items-end justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-widest text-[#71816f]">What are you craving?</p><h2 className="mt-1 text-2xl font-extrabold tracking-tight text-[#26372c] sm:text-3xl">Explore categories</h2></div><Link href="/menu" className="text-sm font-bold text-[#526a50] hover:underline">View all</Link></div>
-      <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">{quickCategories.map((category) => <button key={category} onClick={() => onBrowse(category)} className="group rounded-2xl border border-[#e7e9e2] bg-white px-3 py-4 text-left transition hover:-translate-y-1 hover:border-[#ffc94a] hover:shadow-md"><span className="grid h-10 w-10 place-items-center rounded-full bg-[#fff3c9] text-[#4d6048] transition group-hover:bg-[#ffc94a]"><Utensils size={18}/></span><span className="mt-3 block text-sm font-bold text-[#29382d]">{category}</span><span className="mt-1 block text-[11px] text-[#7a857b]">Explore dishes</span></button>)}</div>
+      <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-9">{quickCategories.map((category) => <button key={category} onClick={() => onBrowse(category)} className="group rounded-2xl border border-[#e7e9e2] bg-white px-3 py-4 text-left transition hover:-translate-y-1 hover:border-[#ffc94a] hover:shadow-md"><span className="grid h-10 w-10 place-items-center rounded-full bg-[#fff3c9] text-[#4d6048] transition group-hover:bg-[#ffc94a]"><Utensils size={18}/></span><span className="mt-3 block text-sm font-bold text-[#29382d]">{category}</span><span className="mt-1 block text-[11px] text-[#7a857b]">Explore dishes</span></button>)}</div>
     </section>
     <section className="mx-auto max-w-7xl px-4 py-7 sm:px-6">
       <div className="flex items-end justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-widest text-[#71816f]">Picked from our kitchen</p><h2 className="mt-1 text-2xl font-extrabold tracking-tight text-[#26372c] sm:text-3xl">Popular right now</h2><p className="mt-1 text-sm text-[#7a857b]">Restaurant menu prices, clearly displayed.</p></div><span className="rounded-full bg-[#e9eee5] px-3 py-2 text-xs font-bold text-[#526a50]">{basketCount} in your basket</span></div>
@@ -241,15 +256,19 @@ function Home({ onBrowse, onAdd, basketCount }: { onBrowse: (query?: string) => 
 
 function ProductCard({ item, onAdd }: { item: CatalogItem; onAdd: () => void }) {
   return <article className="group overflow-hidden rounded-3xl border border-[#e7e9e2] bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
-    <div className="relative h-40 overflow-hidden bg-[#f0f1eb]"><img src={menuPhoto(item)} alt={`${item.name} food photography`} loading="lazy" className="h-full w-full object-cover transition duration-500 group-hover:scale-105"/><span className="absolute left-3 top-3 rounded-full bg-white/95 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-[#526a50]">{item.category}</span></div>
+    <div className="relative h-40 overflow-hidden bg-[#f0f1eb]"><img src={menuPhoto(item)} alt={`${item.name} food photography`} loading="lazy" className="h-full w-full object-cover transition duration-500 group-hover:scale-105"/><span className="absolute left-3 top-3 rounded-full bg-white/95 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-[#526a50]">{item.displayCategory}</span></div>
     <div className="p-4"><h3 className="min-h-10 font-bold leading-snug text-[#29382d]">{item.name}</h3><div className="mt-4 flex items-center justify-between gap-3"><strong className="text-base text-[#26372c]">{item.price === null ? 'Ask for price' : money(item.price)}</strong>{item.price !== null && <button onClick={onAdd} aria-label={`Add ${item.name} to basket`} className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#ffc94a] text-[#26372c] transition hover:bg-[#f4b923]"><Plus size={19}/></button>}</div></div>
   </article>;
 }
 
-function MenuPage({ search, setSearch, add, basket }: { search: string; setSearch: (value: string) => void; add: (item: CatalogItem) => void; basket: BasketLine[] }) {
-  const [active, setActive] = useState('All');
+function MenuPage({ search, setSearch, add, basket, activeCategory, setActiveCategory }: { search: string; setSearch: (value: string) => void; add: (item: CatalogItem) => void; basket: BasketLine[]; activeCategory: string; setActiveCategory: (value: string) => void }) {
+  const active = activeCategory;
+  const setActive = setActiveCategory;
   const categoriesWithAll = ['All', ...categories];
-  const filtered = catalog.filter((item) => (active === 'All' || item.category === active) && `${item.name} ${item.category}`.toLowerCase().includes(search.toLowerCase()));
+  const filtered = catalog.filter((item) => (active === 'All' || item.displayCategory === active) && `${item.name} ${item.displayCategory} ${item.dietaryLabel ?? ''}`.toLowerCase().includes(search.toLowerCase()));
+  const displayedGroups = active === 'All'
+    ? categories.map((category) => ({ category, items: filtered.filter((item) => item.displayCategory === category) })).filter((group) => group.items.length > 0)
+    : [{ category: active, items: filtered }];
   const basketCount = basket.reduce((sum, line) => sum + line.quantity, 0);
   return <main className="mx-auto max-w-7xl bg-[#f7f8f4] px-4 py-8 sm:px-6">
     <div className="flex flex-wrap items-end justify-between gap-4">
@@ -260,10 +279,10 @@ function MenuPage({ search, setSearch, add, basket }: { search: string; setSearc
       <div className="flex gap-2 overflow-x-auto pb-1">{categoriesWithAll.map((category) => <button key={category} onClick={() => setActive(category)} className={active === category ? 'shrink-0 rounded-full bg-[#26372c] px-4 py-2.5 text-xs font-bold text-white' : 'shrink-0 rounded-full border border-[#dfe4dc] bg-white px-4 py-2.5 text-xs font-semibold text-[#526a50] transition hover:border-[#ffc94a]'}>{category}</button>)}</div>
     </div>
     <div className="mt-6 flex items-center justify-between gap-3"><p className="text-sm font-semibold text-[#526a50]">{filtered.length} menu items</p><p className="text-xs text-[#7a857b]">Prices in Nigerian naira</p></div>
-    <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{filtered.map((item) => <article key={item.id} className="group overflow-hidden rounded-3xl border border-[#e7e9e2] bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
-      <div className="relative h-44 overflow-hidden bg-[#eef0e9]"><img src={menuPhoto(item)} alt={`${item.name} food photography`} loading="lazy" className="h-full w-full object-cover transition duration-500 group-hover:scale-105"/><span className="absolute left-3 top-3 rounded-full bg-white/95 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[#526a50]">{item.category}</span></div>
-      <div className="p-4"><h2 className="min-h-10 font-bold leading-snug text-[#29382d]">{item.name}</h2><div className="mt-4 flex items-center justify-between gap-3"><strong className="text-base text-[#26372c]">{item.price === null ? 'Ask for price' : money(item.price)}</strong>{item.price !== null && <button onClick={() => add(item)} aria-label={`Add ${item.name} to basket`} className="inline-flex shrink-0 items-center gap-2 rounded-full bg-[#ffc94a] px-4 py-2.5 text-xs font-bold text-[#26372c] transition hover:bg-[#f4b923]"><Plus size={15}/> Add</button>}</div></div>
-    </article>)}</div>
+    <div className="mt-4 space-y-10">{displayedGroups.map((group) => <section key={group.category} aria-labelledby={`menu-group-${group.category.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`}><div className="mb-4 flex items-center justify-between gap-3"><h2 id={`menu-group-${group.category.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`} className="text-xl font-extrabold tracking-tight text-[#26372c]">{group.category}</h2><span className="text-xs font-semibold text-[#7a857b]">{group.items.length} items</span></div><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{group.items.map((item) => <article key={item.id} className="group overflow-hidden rounded-3xl border border-[#e7e9e2] bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
+      <div className="relative h-44 overflow-hidden bg-[#eef0e9]"><img src={menuPhoto(item)} alt={`${item.name} food photography`} loading="lazy" className="h-full w-full object-cover transition duration-500 group-hover:scale-105"/><div className="absolute left-3 top-3 flex gap-2"><span className="rounded-full bg-white/95 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[#526a50]">{item.displayCategory}</span>{item.dietaryLabel && <span className="rounded-full bg-[#e8eee6]/95 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[#526a50]">Vegan</span>}</div></div>
+      <div className="p-4"><h3 className="min-h-10 font-bold leading-snug text-[#29382d]">{item.name}</h3><div className="mt-4 flex items-center justify-between gap-3"><strong className="text-base text-[#26372c]">{item.price === null ? 'Ask for price' : money(item.price)}</strong>{item.price !== null && <button onClick={() => add(item)} aria-label={`Add ${item.name} to basket`} className="inline-flex shrink-0 items-center gap-2 rounded-full bg-[#ffc94a] px-4 py-2.5 text-xs font-bold text-[#26372c] transition hover:bg-[#f4b923]"><Plus size={15}/> Add</button>}</div></div>
+    </article>)}</div></section>)}</div>
     {filtered.length === 0 && <p className="rounded-2xl bg-white p-8 text-center text-sm text-[#69766e]">No menu items match that search.</p>}
     <aside className="fixed bottom-4 left-1/2 z-30 flex w-[min(92vw,560px)] -translate-x-1/2 items-center justify-between rounded-2xl bg-[#26372c] px-5 py-4 text-white shadow-xl"><span className="text-sm font-semibold">{basketCount} items in basket</span><Link href="/checkout" className="inline-flex items-center gap-2 rounded-xl bg-[#ffc94a] px-4 py-2.5 text-sm font-bold text-[#26372c]">Review basket <ArrowRight size={16}/></Link></aside>
   </main>;
