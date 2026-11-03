@@ -1,7 +1,7 @@
 import { type FormEvent, type ReactNode, useEffect, useState } from 'react';
 import { Link, Route, Switch, useLocation } from 'wouter';
 import { SignIn, SignUp, useAuth, useUser } from '@clerk/react';
-import { ArrowRight, ChevronDown, Clock3, Flame, MapPin, MessageCircle, Minus, Plus, Search, ShoppingBag, Trash2, Truck, Utensils } from 'lucide-react';
+import { ArrowRight, CheckCircle2, ChevronDown, Clock3, Flame, MapPin, MessageCircle, Minus, Plus, Search, ShoppingBag, Trash2, Truck, Utensils, WifiOff } from 'lucide-react';
 import { restaurantKnowledge, type MenuItem } from '@/chatbot/knowledge';
 import { CookieConsent } from '@/components/CookieConsent';
 import { CookiePolicyPage, PrivacyPolicyPage, TermsPage } from '@/pages/LegalPages';
@@ -51,6 +51,37 @@ const menuPhoto = (item: CatalogItem) => {
 
 function App() {
   const [location, setLocation] = useLocation();
+  const { isLoaded, isSignedIn, signOut } = useAuth();
+  const { isLoaded: isUserLoaded, user } = useUser();
+  const [isOnline, setIsOnline] = useState(() => typeof navigator === "undefined" ? true : navigator.onLine);
+  const [showWelcome, setShowWelcome] = useState(false);
+  const [welcomeName, setWelcomeName] = useState("there");
+
+  useEffect(() => {
+    const updateOnline = () => setIsOnline(navigator.onLine);
+    window.addEventListener("online", updateOnline);
+    window.addEventListener("offline", updateOnline);
+    return () => {
+      window.removeEventListener("online", updateOnline);
+      window.removeEventListener("offline", updateOnline);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isLoaded || (isSignedIn && !isUserLoaded)) return;
+    if (!isSignedIn) {
+      sessionStorage.removeItem("dsk-auth-welcome-shown");
+      setShowWelcome(false);
+      return;
+    }
+    if (sessionStorage.getItem("dsk-auth-welcome-shown") === "true") return;
+    sessionStorage.setItem("dsk-auth-welcome-shown", "true");
+    setWelcomeName(user?.firstName?.trim() || "there");
+    setShowWelcome(true);
+    const timeout = window.setTimeout(() => setShowWelcome(false), 2100);
+    return () => window.clearTimeout(timeout);
+  }, [isLoaded, isSignedIn, isUserLoaded, user?.firstName]);
+
   const [basket, setBasket] = useState<BasketLine[]>(() => {
     try {
       const saved = localStorage.getItem('damien-basket-v1');
@@ -86,6 +117,18 @@ function App() {
     setSearch(query);
     setLocation('/menu');
   };
+  const handleSignOut = async () => {
+    await signOut();
+    sessionStorage.removeItem("dsk-auth-welcome-shown");
+    setLocation("/login");
+  };
+
+  if (!isOnline) return <OfflinePage onRetry={() => window.location.reload()} />;
+  if (!isLoaded) return <AppLoadingScreen />;
+  // Staff has its own password + TOTP login. Every customer-facing route is Clerk-gated.
+  if (!isStaffArea && !isSignedIn) {
+    return <CustomerAuthPage mode={location === "/create-account" ? "register" : "login"} />;
+  }
 
   return <div className="min-h-screen bg-[#fbf8f1] text-[#21382d]">
     {!isStaffArea && <header className="sticky top-0 z-40 border-b border-[#e6e1d6] bg-[#fbf8f1]/95 backdrop-blur">
@@ -100,10 +143,10 @@ function App() {
         <form onSubmit={(event) => { event.preventDefault(); openMenu(search); }} className="flex min-w-0 flex-1 items-center gap-2 rounded-xl bg-[#f0ece2] px-3 py-2.5">
           <Search size={18} className="shrink-0 text-[#68786e]"/><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search dishes and drinks" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-[#89948c]" aria-label="Search dishes and drinks"/><button className="hidden text-xs font-semibold text-[#e96d2c] sm:block">Search</button>
         </form>
-        <nav className="hidden items-center gap-5 lg:flex"><Link href="/login" className="text-sm hover:text-[#e96d2c]">Log in</Link><Link href="/create-account" className="text-sm hover:text-[#e96d2c]">Create account</Link><Link href="/menu" className={location === '/menu' ? 'text-sm font-semibold text-[#e96d2c]' : 'text-sm hover:text-[#e96d2c]'}>Menu</Link><Link href="/delivery" className="text-sm hover:text-[#e96d2c]">Delivery</Link><Link href="/assistant" className="text-sm hover:text-[#e96d2c]">Ask the kitchen</Link></nav>
+        <nav className="hidden items-center gap-5 lg:flex"><Link href="/account" className="text-sm hover:text-[#e96d2c]">My account</Link><Link href="/menu" className={location === '/menu' ? 'text-sm font-semibold text-[#e96d2c]' : 'text-sm hover:text-[#e96d2c]'}>Menu</Link><Link href="/delivery" className="text-sm hover:text-[#e96d2c]">Delivery</Link><Link href="/assistant" className="text-sm hover:text-[#e96d2c]">Ask the kitchen</Link><button type="button" onClick={handleSignOut} className="text-sm font-semibold text-[#8a6254] hover:text-[#e96d2c]">Sign out</button></nav>
         <Link href="/checkout" className="relative grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#21382d] text-white hover:bg-[#315541]" aria-label={`Basket, ${count} items`}><ShoppingBag size={19}/>{count > 0 && <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-[#e96d2c] px-1 text-[10px] font-bold">{count}</span>}</Link>
       </div>
-      <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 border-t border-[#ece7dc] px-4 py-2.5 text-xs lg:hidden"><Link href="/login">Log in</Link><Link href="/create-account">Create account</Link><Link href="/menu">Menu</Link><Link href="/delivery">Delivery</Link><Link href="/assistant">Kitchen assistant</Link></nav>
+      <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 border-t border-[#ece7dc] px-4 py-2.5 text-xs lg:hidden"><Link href="/account">My account</Link><Link href="/menu">Menu</Link><Link href="/delivery">Delivery</Link><Link href="/assistant">Kitchen assistant</Link><button type="button" onClick={handleSignOut} className="font-semibold text-[#8a6254]">Sign out</button></nav>
     </header>}
 
     <Switch>
@@ -124,9 +167,39 @@ function App() {
       <Route><NotFound/></Route>
     </Switch>
 
-    {!isStaffArea && <footer className="mt-16 bg-[#21382d] text-white"><div className="mx-auto grid max-w-7xl gap-8 px-5 py-10 sm:grid-cols-3 sm:px-6"><div><div className="flex items-center gap-2 font-bold"><Flame size={18} className="text-[#f29a53]"/> Damien's Smoky Kitchen</div><p className="mt-3 max-w-xs text-sm leading-6 text-white/70">Nigerian dishes, made in Ibafo. Browse the menu and review your basket online.</p></div><div><p className="text-sm font-semibold">Visit and hours</p><p className="mt-3 text-sm leading-6 text-white/70">The Motorcycle Drive, Papa Olonrisa<br/>Ibafo, Ogun State<br/>Daily, 9:00 AM–9:00 PM</p></div><div><p className="text-sm font-semibold">Ordering information</p><p className="mt-3 text-sm leading-6 text-white/70">Lagos State delivery only<br/>Minimum delivery order: ₦3,000<br/>Fee depends on distance</p></div></div><div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 border-t border-white/15 px-5 py-4 text-xs text-white/65"><span>© {new Date().getFullYear()} Damien's Smoky Kitchen</span><Link href="/privacy" className="underline underline-offset-4">Privacy</Link><Link href="/terms" className="underline underline-offset-4">Terms</Link><Link href="/cookies" className="underline underline-offset-4">Cookie notice</Link><button type="button" onClick={() => window.dispatchEvent(new Event("dsk:open-cookie-settings"))} className="underline underline-offset-4">Manage cookies</button></div></footer>}
+    {!isStaffArea && <footer className="mt-16 bg-[#21382d] text-white"><div className="mx-auto grid max-w-7xl gap-8 px-5 py-10 sm:grid-cols-3 sm:px-6"><div><div className="flex items-center gap-2 font-bold"><Flame size={18} className="text-[#f29a53}"/> Damien's Smoky Kitchen</div><p className="mt-3 max-w-xs text-sm leading-6 text-white/70">Nigerian dishes, made in Ibafo. Browse the menu and review your basket online.</p></div><div><p className="text-sm font-semibold">Visit and hours</p><p className="mt-3 text-sm leading-6 text-white/70">The Motorcycle Drive, Papa Olonrisa<br/>Ibafo, Ogun State<br/>Daily, 9:00 AM–9:00 PM</p></div><div><p className="text-sm font-semibold">Ordering information</p><p className="mt-3 text-sm leading-6 text-white/70">Lagos State delivery only<br/>Minimum delivery order: ₦3,000<br/>Fee depends on distance</p></div></div><div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 border-t border-white/15 px-5 py-4 text-xs text-white/65"><span>© {new Date().getFullYear()} Damien's Smoky Kitchen</span><Link href="/privacy" className="underline underline-offset-4">Privacy</Link><Link href="/terms" className="underline underline-offset-4">Terms</Link><Link href="/cookies" className="underline underline-offset-4">Cookie notice</Link><button type="button" onClick={() => window.dispatchEvent(new Event("dsk:open-cookie-settings"))} className="underline underline-offset-4">Manage cookies</button></div></footer>}
     {!isStaffArea && <CookieConsent/>}
+    {showWelcome && !isStaffArea && <WelcomeOverlay name={welcomeName}/>}
   </div>;
+}
+
+function AppLoadingScreen() {
+  return <main className="flex min-h-screen items-center justify-center bg-[#fbf8f1] px-6 text-center">
+    <div className="dsk-auth-card"><span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-[#21382d] text-white"><Flame size={25}/></span><p className="mt-5 text-xs font-bold uppercase tracking-[0.2em] text-[#e96d2c]">Damien's Smoky Kitchen</p><p className="mt-3 text-sm text-[#69766e]">Preparing your secure sign-in…</p><span className="mx-auto mt-5 block h-1.5 w-28 overflow-hidden rounded-full bg-[#e8e2d6]"><span className="dsk-loading-bar block h-full rounded-full bg-[#e96d2c]"/></span></div>
+  </main>;
+}
+
+function WelcomeOverlay({ name }: { name: string }) {
+  return <div className="dsk-welcome-overlay" role="status" aria-live="polite">
+    <div className="dsk-welcome-card">
+      <span className="dsk-welcome-check"><CheckCircle2 size={44} strokeWidth={1.8}/></span>
+      <p className="mt-6 text-xs font-bold uppercase tracking-[0.2em] text-[#f3b17f]">Sign-in successful</p>
+      <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-white">Welcome, {name}!</h2>
+      <p className="mt-2 text-sm text-white/70">You're securely signed in. Your kitchen is ready.</p>
+    </div>
+  </div>;
+}
+
+function OfflinePage({ onRetry }: { onRetry: () => void }) {
+  return <main className="flex min-h-screen items-center justify-center bg-[#f7f8f4] px-5 py-12 text-center">
+    <section className="dsk-offline-card w-full max-w-md rounded-[2rem] border border-[#e7e9e2] bg-white p-8 shadow-xl sm:p-10">
+      <span className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-[#fff0e5] text-[#c35b2b]"><WifiOff size={28}/></span>
+      <p className="mt-6 text-xs font-bold uppercase tracking-[0.2em] text-[#e96d2c]">Connection interrupted</p>
+      <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-[#21382d]">The kitchen can't reach you.</h1>
+      <p className="mt-3 text-sm leading-6 text-[#69766e]">It looks like your internet connection is offline. Check your network and try again. Your account and basket have not been cleared.</p>
+      <button onClick={onRetry} className="mt-7 inline-flex items-center justify-center gap-2 rounded-xl bg-[#21382d] px-6 py-3.5 text-sm font-bold text-white transition hover:bg-[#315541]">Try again <ArrowRight size={16}/></button>
+    </section>
+  </main>;
 }
 
 function Home({ onBrowse, onAdd, basketCount }: { onBrowse: (query?: string) => void; onAdd: (item: CatalogItem) => void; basketCount: number }) {
@@ -324,24 +397,31 @@ function CustomerAuthPage({ mode }: { mode: "register" | "login" }) {
     return () => { active = false; };
   }, []);
 
-  return <AuthShell
-    title={register ? "Create your account" : "Welcome back"}
-    subtitle={register ? "Create a secure account to make future orders easier." : "Sign in to access your customer account."}
-  >
-    {statusLoading ? <p className="mt-6 text-sm text-[#69766e]">Checking secure sign-in availability…</p> : !authEnabled ? (
-      <div className="mt-6 rounded-2xl bg-[#e8eee6] p-4 text-sm leading-6 text-[#52645a]">
-        <strong className="block text-[#21382d]">Customer sign-in is temporarily unavailable.</strong>
-        <span className="mt-2 block">The secure sign-in service is not ready. You can still browse the menu while we complete the setup.</span>
-        <Link href="/menu" className="mt-4 inline-flex font-bold text-[#b64a1a] underline">Continue browsing</Link>
+  return <main className="dsk-auth-screen flex min-h-screen items-center justify-center px-4 py-10 sm:px-6">
+    <div className="w-full max-w-md">
+      <div className="mb-7 text-center">
+        <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-[#21382d] text-white shadow-lg"><Flame size={27}/></span>
+        <p className="mt-4 text-xs font-bold uppercase tracking-[0.22em] text-[#e96d2c]">Damien's Smoky Kitchen</p>
+        <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-[#21382d]">{register ? "Create your account" : "Welcome back"}</h1>
+        <p className="mt-2 text-sm leading-6 text-[#69766e]">{register ? "Create an account to enter the kitchen and manage your details." : "Sign in to continue to the menu and your customer account."}</p>
       </div>
-    ) : (
-      <div className="mt-6 flex justify-center">
-        {register
-          ? <SignUp routing="hash" signInUrl="/login" fallbackRedirectUrl="/account" />
-          : <SignIn routing="hash" signUpUrl="/create-account" fallbackRedirectUrl="/account" />}
-      </div>
-    )}
-  </AuthShell>;
+      <section className="dsk-auth-card rounded-[1.75rem] border border-[#e8e2d6] bg-white p-5 shadow-xl sm:p-7">
+        {statusLoading ? <div className="py-10 text-center text-sm text-[#69766e]">Checking secure sign-in…</div> : !authEnabled ? (
+          <div className="rounded-2xl bg-[#fff0e5] p-5 text-sm leading-6 text-[#8b401d]">
+            <strong className="block text-[#21382d]">Secure sign-in is temporarily unavailable.</strong>
+            <span className="mt-2 block">Please try again shortly. The menu stays private until your sign-in can be verified.</span>
+          </div>
+        ) : (
+          <div className="flex justify-center">
+            {register
+              ? <SignUp routing="hash" signInUrl="/login" fallbackRedirectUrl="/account" />
+              : <SignIn routing="hash" signUpUrl="/create-account" fallbackRedirectUrl="/account" />}
+          </div>
+        )}
+      </section>
+      <p className="mt-6 text-center text-xs leading-5 text-[#879188]">Your account protects your personal details and keeps your kitchen experience private.</p>
+    </div>
+  </main>;
 }
 
 function StaffLoginPage() {
@@ -579,7 +659,21 @@ function StaffPortalPage() {
 }
 
 function NotFound() {
-  return <main className="mx-auto max-w-2xl px-4 py-24 text-center"><h1 className="text-3xl font-extrabold">Page not found</h1><Link href="/" className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-[#b64a1a]">Back home <ArrowRight size={16}/></Link></main>;
+  return <main className="flex min-h-[70vh] items-center justify-center bg-[#f7f8f4] px-5 py-16 text-center">
+    <section className="w-full max-w-xl">
+      <div className="relative mx-auto grid h-36 w-36 place-items-center rounded-[2.5rem] bg-[#fff0cf]">
+        <span className="text-6xl font-black tracking-tighter text-[#21382d]">404</span>
+        <span className="absolute -right-2 -top-2 grid h-12 w-12 place-items-center rounded-2xl bg-[#e96d2c] text-white shadow-lg"><Flame size={23}/></span>
+      </div>
+      <p className="mt-8 text-xs font-bold uppercase tracking-[0.2em] text-[#e96d2c]">Wrong turn in the kitchen</p>
+      <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-[#21382d] sm:text-4xl">This page isn't on the menu.</h1>
+      <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-[#69766e]">The page may have moved, or the address may be incorrect. Let's get you back to something delicious.</p>
+      <div className="mt-7 flex flex-wrap justify-center gap-3">
+        <Link href="/" className="inline-flex items-center gap-2 rounded-xl bg-[#21382d] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#315541]"><ArrowRight size={16}/> Back to home</Link>
+        <Link href="/menu" className="inline-flex items-center gap-2 rounded-xl border border-[#d9d4c9] bg-white px-5 py-3 text-sm font-bold text-[#21382d] transition hover:border-[#e96d2c]">Explore the menu</Link>
+      </div>
+    </section>
+  </main>;
 }
 
 export default App;
