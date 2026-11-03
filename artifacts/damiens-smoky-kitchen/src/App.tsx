@@ -53,6 +53,16 @@ function App() {
   const [location, setLocation] = useLocation();
   const { isLoaded, isSignedIn, signOut } = useAuth();
   const [isOnline, setIsOnline] = useState(() => typeof navigator === "undefined" ? true : navigator.onLine);
+
+  useEffect(() => {
+    const updateOnline = () => setIsOnline(navigator.onLine);
+    window.addEventListener("online", updateOnline);
+    window.addEventListener("offline", updateOnline);
+    return () => {
+      window.removeEventListener("online", updateOnline);
+      window.removeEventListener("offline", updateOnline);
+    };
+  }, []);
   const [basket, setBasket] = useState<BasketLine[]>(() => {
     try {
       const saved = localStorage.getItem('damien-basket-v1');
