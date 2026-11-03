@@ -1,4 +1,4 @@
-import { type FormEvent, type ReactNode, useEffect, useRef, useState } from 'react';
+import { type FormEvent, type ReactNode, useEffect, useState } from 'react';
 import { Link, Route, Switch, useLocation } from 'wouter';
 import { SignIn, SignUp, useAuth, useUser } from '@clerk/react';
 import { ArrowRight, CheckCircle2, ChevronDown, Clock3, Flame, MapPin, MessageCircle, Minus, Plus, Search, ShoppingBag, Trash2, Truck, Utensils, WifiOff } from 'lucide-react';
@@ -52,7 +52,7 @@ const menuPhoto = (item: CatalogItem) => {
 function App() {
   const [location, setLocation] = useLocation();
   const { isLoaded, isSignedIn, signOut } = useAuth();
-  const { user } = useUser();
+  const { isLoaded: isUserLoaded, user } = useUser();
   const [isOnline, setIsOnline] = useState(() => typeof navigator === "undefined" ? true : navigator.onLine);
   const [showWelcome, setShowWelcome] = useState(false);
   const [welcomeName, setWelcomeName] = useState("there");
@@ -68,7 +68,7 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (!isLoaded) return;
+    if (!isLoaded || (isSignedIn && !isUserLoaded)) return;
     if (!isSignedIn) {
       sessionStorage.removeItem("dsk-auth-welcome-shown");
       setShowWelcome(false);
@@ -80,7 +80,7 @@ function App() {
     setShowWelcome(true);
     const timeout = window.setTimeout(() => setShowWelcome(false), 2100);
     return () => window.clearTimeout(timeout);
-  }, [isLoaded, isSignedIn, user?.firstName]);
+  }, [isLoaded, isSignedIn, isUserLoaded, user?.firstName]);
 
   const [basket, setBasket] = useState<BasketLine[]>(() => {
     try {
