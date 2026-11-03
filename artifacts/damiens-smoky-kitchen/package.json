@@ -72,5 +72,9 @@
     "wouter": "^3.3.5",
     "wrangler": "^4.136.3",
     "zod": "catalog:"
+  },
+  "dependencies": {
+    "@clerk/backend": "3.26.5",
+    "@clerk/react": "6.18.4"
   }
 }
