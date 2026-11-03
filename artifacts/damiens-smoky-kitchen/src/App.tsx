@@ -336,9 +336,9 @@ function AssistantPage({ basket }: { basket: BasketLine[] }) {
     setMessages(next);
     setInput('');
 
-    if (/\\b(basket|cart)\\b/i.test(question)) {
+    if (/\b(basket|cart)\b/i.test(question)) {
       const answer = basket.length
-        ? `Your basket currently has ${basket.reduce((total, line) => total + line.quantity, 0)} item(s):\\n\\n${basket.map(({ item, quantity }) => `• ${quantity} × ${item.name} (${item.price === null ? 'price to confirm' : money(item.price * quantity)})`).join('\\n')}\\n\\nSubtotal: ${money(basket.reduce((total, line) => total + (line.item.price ?? 0) * line.quantity, 0))}. Delivery is calculated separately.`
+        ? `Your basket currently has ${basket.reduce((total, line) => total + line.quantity, 0)} item(s):\n\n${basket.map(({ item, quantity }) => `• ${quantity} × ${item.name} (${item.price === null ? 'price to confirm' : money(item.price * quantity)})`).join('\n')}\n\nSubtotal: ${money(basket.reduce((total, line) => total + (line.item.price ?? 0) * line.quantity, 0))}. Delivery is calculated separately.`
         : 'Your basket is empty at the moment. You can browse the menu and add any dishes you would like to order.';
       setMessages([...next, { role: 'assistant', content: answer }]);
       return;
