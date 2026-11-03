@@ -169,7 +169,7 @@ function App() {
       <Route path="/"><Home onBrowse={openMenu} onAdd={add} basketCount={count}/></Route>
       <Route path="/menu"><MenuPage search={search} setSearch={setSearch} add={add} basket={basket} activeCategory={menuCategory} setActiveCategory={setMenuCategory}/></Route>
       <Route path="/delivery"><DeliveryPage/></Route>
-      <Route path="/assistant"><AssistantPage/></Route>
+      <Route path="/assistant"><AssistantPage basket={basket}/></Route>
       <Route path="/checkout"><CheckoutPage basket={basket} change={change} remove={remove} clear={() => setBasket([])}/></Route>
       <Route path="/create-account"><CustomerAuthPage mode="register"/></Route>
       <Route path="/login"><CustomerAuthPage mode="login"/></Route>
@@ -189,8 +189,34 @@ function App() {
 }
 
 function AppLoadingScreen() {
-  return <main className="flex min-h-screen items-center justify-center bg-[#fbf8f1] px-6 text-center">
-    <div className="dsk-auth-card"><span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-[#21382d] text-white"><Flame size={25}/></span><p className="mt-5 text-xs font-bold uppercase tracking-[0.2em] text-[#e96d2c]">Damien's Smoky Kitchen</p><p className="mt-3 text-sm text-[#69766e]">Preparing your secure sign-in…</p><span className="mx-auto mt-5 block h-1.5 w-28 overflow-hidden rounded-full bg-[#e8e2d6]"><span className="dsk-loading-bar block h-full rounded-full bg-[#e96d2c]"/></span></div>
+  return <main role="status" aria-live="polite" aria-busy="true" className="min-h-screen bg-[#f7f8f4] px-5 py-10 text-[#21382d] sm:px-8">
+    <div className="mx-auto w-full max-w-5xl">
+      <div className="flex items-center gap-3">
+        <span className="grid h-12 w-12 place-items-center rounded-2xl bg-[#21382d] text-white"><Flame size={23}/></span>
+        <div><p className="text-sm font-extrabold">Damien's Smoky Kitchen</p><p className="text-xs text-[#69766e]">Fresh Nigerian favourites</p></div>
+      </div>
+      <section className="mt-8 overflow-hidden rounded-[2rem] border border-[#eee8dc] bg-white p-5 shadow-sm sm:p-8">
+        <div className="grid gap-6 md:grid-cols-2 md:items-center">
+          <div className="space-y-4">
+            <div className="h-3 w-28 animate-pulse rounded-full bg-[#f0ece2]"/>
+            <div className="h-9 w-full max-w-sm animate-pulse rounded-xl bg-[#eee8dc]"/>
+            <div className="h-4 w-full max-w-md animate-pulse rounded-full bg-[#f0ece2]"/>
+            <div className="h-4 w-4/5 animate-pulse rounded-full bg-[#f0ece2]"/>
+            <div className="mt-5 h-11 w-36 animate-pulse rounded-full bg-[#e8eee6]"/>
+          </div>
+          <div className="h-44 animate-pulse rounded-2xl bg-[#f0ece2] sm:h-56"/>
+        </div>
+        <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {Array.from({ length: 4 }, (_, index) => <div key={index} className="rounded-2xl border border-[#eee8dc] p-3">
+            <div className="h-20 animate-pulse rounded-xl bg-[#f0ece2]"/>
+            <div className="mt-3 h-3 w-3/4 animate-pulse rounded-full bg-[#eee8dc]"/>
+            <div className="mt-2 h-3 w-1/2 animate-pulse rounded-full bg-[#f0ece2]"/>
+          </div>)}
+        </div>
+        <p className="mt-7 text-center text-sm text-[#69766e]">Getting the kitchen ready and checking your secure session…</p>
+        <div className="mx-auto mt-3 h-1.5 w-36 overflow-hidden rounded-full bg-[#eee8dc]"><span className="dsk-loading-bar block h-full rounded-full bg-[#e96d2c]"/></div>
+      </section>
+    </div>
   </main>;
 }
 
@@ -297,17 +323,27 @@ function InfoCard({ icon, title, children }: { icon: ReactNode; title: string; c
   return <article className="rounded-2xl border border-[#e8e2d6] bg-white p-5"><span className="text-[#e96d2c]">{icon}</span><h2 className="mt-3 font-bold">{title}</h2><p className="mt-2 text-sm leading-6 text-[#69766e]">{children}</p></article>;
 }
 
-function AssistantPage() {
-  const [messages, setMessages] = useState<ChatMessage[]>([{ role: 'assistant', content: 'Káàbọ̀! Ask about the menu, prices, opening hours, location, or delivery.' }]);
+function AssistantPage({ basket }: { basket: BasketLine[] }) {
+  const [messages, setMessages] = useState<ChatMessage[]>([{ role: 'assistant', content: 'Káàbọ̀! I can help you explore the menu, check prices, understand delivery and find something you will enjoy.' }]);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
-  const send = async (event: FormEvent) => {
-    event.preventDefault();
-    const question = input.trim();
+  const quickQuestions = ['Show me the Jollof menu', "What's in my basket?", 'What time do you close?', 'Where do you deliver?', 'Do you have vegan options?'];
+
+  const ask = async (rawQuestion: string) => {
+    const question = rawQuestion.trim();
     if (!question || busy) return;
     const next = [...messages, { role: 'user' as const, content: question }];
     setMessages(next);
     setInput('');
+
+    if (/\\b(basket|cart)\\b/i.test(question)) {
+      const answer = basket.length
+        ? `Your basket currently has ${basket.reduce((total, line) => total + line.quantity, 0)} item(s):\\n\\n${basket.map(({ item, quantity }) => `• ${quantity} × ${item.name} (${item.price === null ? 'price to confirm' : money(item.price * quantity)})`).join('\\n')}\\n\\nSubtotal: ${money(basket.reduce((total, line) => total + (line.item.price ?? 0) * line.quantity, 0))}. Delivery is calculated separately.`
+        : 'Your basket is empty at the moment. You can browse the menu and add any dishes you would like to order.';
+      setMessages([...next, { role: 'assistant', content: answer }]);
+      return;
+    }
+
     setBusy(true);
     try {
       const response = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: next.slice(-12) }) });
@@ -325,7 +361,39 @@ function AssistantPage() {
       setBusy(false);
     }
   };
-  return <main className="mx-auto grid max-w-6xl gap-8 px-4 py-8 sm:px-6 lg:grid-cols-[.8fr_1.2fr]"><section><p className="text-xs font-bold uppercase tracking-widest text-[#e96d2c]">Kitchen assistant</p><h1 className="mt-2 text-3xl font-extrabold">Ask about the food.</h1><p className="mt-4 text-sm leading-6 text-[#69766e]">Answers use the restaurant's menu and information. If a detail isn't listed, the assistant will say so instead of guessing.</p><div className="mt-6 rounded-2xl bg-[#e8eee6] p-5 text-sm leading-6"><strong>Quick questions</strong><div className="mt-3 flex flex-wrap gap-2">{['Show the menu', 'What time do you close?', 'Where do you deliver?'].map((text) => <button key={text} onClick={() => setInput(text)} className="rounded-full border border-[#cbd8cd] bg-white px-3 py-2 text-xs hover:border-[#e96d2c]">{text}</button>)}</div></div></section><section className="flex min-h-[540px] flex-col overflow-hidden rounded-3xl border border-[#e8e2d6] bg-white shadow-sm"><header className="flex items-center gap-3 border-b border-[#eee9df] p-4"><span className="grid h-10 w-10 place-items-center rounded-xl bg-[#21382d] text-white"><Flame size={19}/></span><span><strong className="block text-sm">Damien's kitchen</strong><small className="text-xs text-[#69766e]">Menu and restaurant help</small></span></header><div className="flex-1 space-y-3 overflow-y-auto bg-[#fbf8f1] p-4">{messages.map((message, index) => <div key={index} className={message.role === 'user' ? 'flex justify-end' : 'flex justify-start'}><p className={message.role === 'user' ? 'max-w-[85%] rounded-2xl rounded-br-sm bg-[#21382d] px-4 py-3 text-sm leading-6 text-white' : 'max-w-[85%] rounded-2xl rounded-bl-sm border border-[#e8e2d6] bg-white px-4 py-3 text-sm leading-6'}>{message.content}</p></div>)}{busy && <p className="text-xs text-[#69766e]">Checking the kitchen information…</p>}</div><form onSubmit={send} className="flex gap-2 border-t border-[#eee9df] p-3"><input value={input} maxLength={2000} onChange={(event) => setInput(event.target.value)} placeholder="Ask about dishes, prices or delivery" className="min-w-0 flex-1 rounded-xl bg-[#f0ece2] px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-[#e96d2c]"/><button disabled={busy || !input.trim()} className="rounded-xl bg-[#e96d2c] px-4 text-white disabled:opacity-50" aria-label="Send question"><ArrowRight size={18}/></button></form></section></main>;
+
+  const send = async (event: FormEvent) => {
+    event.preventDefault();
+    await ask(input);
+  };
+
+  return <main className="mx-auto grid max-w-6xl gap-8 px-4 py-8 sm:px-6 lg:grid-cols-[.8fr_1.2fr]">
+    <section>
+      <p className="text-xs font-bold uppercase tracking-widest text-[#e96d2c]">Kitchen assistant</p>
+      <h1 className="mt-2 text-3xl font-extrabold">Ask about the food.</h1>
+      <p className="mt-4 text-sm leading-6 text-[#69766e]">I can help with dishes, prices, your basket, opening hours and delivery. Answers use the restaurant's information, so I will say when a detail needs confirmation.</p>
+      <div className="mt-6 rounded-2xl bg-[#e8eee6] p-5 text-sm leading-6">
+        <strong>Try asking</strong>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {quickQuestions.map((text) => <button key={text} type="button" disabled={busy} onClick={() => void ask(text)} className="rounded-full border border-[#cbd8cd] bg-white px-3 py-2 text-xs transition hover:border-[#e96d2c] hover:bg-[#fffaf0] disabled:opacity-50">{text}</button>)}
+        </div>
+      </div>
+    </section>
+    <section className="flex min-h-[540px] flex-col overflow-hidden rounded-3xl border border-[#e8e2d6] bg-white shadow-sm">
+      <header className="flex items-center gap-3 border-b border-[#eee9df] p-4">
+        <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#21382d] text-white"><Flame size={19}/></span>
+        <span><strong className="block text-sm">Damien's kitchen</strong><small className="text-xs text-[#69766e]">Menu and restaurant help</small></span>
+      </header>
+      <div className="flex-1 space-y-3 overflow-y-auto bg-[#fbf8f1] p-4" aria-live="polite">
+        {messages.map((message, index) => <div key={index} className={message.role === 'user' ? 'flex justify-end' : 'flex justify-start'}><p className={message.role === 'user' ? 'max-w-[85%] whitespace-pre-line rounded-2xl rounded-br-sm bg-[#21382d] px-4 py-3 text-sm leading-6 text-white' : 'max-w-[85%] whitespace-pre-line rounded-2xl rounded-bl-sm border border-[#e8e2d6] bg-white px-4 py-3 text-sm leading-6'}>{message.content}</p></div>)}
+        {busy && <p className="text-xs text-[#69766e]" role="status">Checking the kitchen information…</p>}
+      </div>
+      <form onSubmit={send} className="flex gap-2 border-t border-[#eee9df] p-3">
+        <input value={input} maxLength={2000} onChange={(event) => setInput(event.target.value)} placeholder="Ask about dishes, prices or delivery" className="min-w-0 flex-1 rounded-xl bg-[#f0ece2] px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-[#e96d2c]"/>
+        <button disabled={busy || !input.trim()} className="rounded-xl bg-[#e96d2c] px-4 text-white disabled:opacity-50" aria-label="Send question"><ArrowRight size={18}/></button>
+      </form>
+    </section>
+  </main>;
 }
 
 function CheckoutPage({ basket, change, remove, clear }: { basket: BasketLine[]; change: (id: string, delta: number) => void; remove: (id: string) => void; clear: () => void }) {
