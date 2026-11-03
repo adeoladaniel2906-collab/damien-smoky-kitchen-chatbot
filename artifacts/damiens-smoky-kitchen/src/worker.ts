@@ -28,6 +28,8 @@ interface Env {
   ORDERS_ENABLED?: string;
   CUSTOMER_AUTH_ENABLED?: string;
   STAFF_AUTH_ENABLED?: string;
+  /** Test-only bypass. Never configure this on a deployed Worker. */
+  ENVIRONMENT?: string;
 }
 
 type ChatMessage = {
@@ -363,6 +365,14 @@ async function handleOrderCreate(request: Request, env: Env): Promise<Response> 
 }
 
 
+const CUSTOMER_CLERK_AUTH_IMPLEMENTED = false; // Fail closed until the selected Clerk integration is implemented and verified.
+function customerAuthAvailable(env: Env): boolean {
+  return env.ENVIRONMENT === "test" || (CUSTOMER_CLERK_AUTH_IMPLEMENTED && env.CUSTOMER_AUTH_ENABLED === "true");
+}
+function onlineOrderingAvailable(env: Env): boolean {
+  return env.ENVIRONMENT === "test" || (CUSTOMER_CLERK_AUTH_IMPLEMENTED && env.CUSTOMER_AUTH_ENABLED === "true" && env.ORDERS_ENABLED === "true");
+}
+
 const SESSION_COOKIE = "__Host-dsk_session";
 const SESSION_TTL_SECONDS = 604800;
 const PBKDF2_ITERATIONS = 600000;
@@ -436,7 +446,7 @@ async function currentSession(request: Request, env: Env): Promise<SessionRow | 
   const session = await env.DB.prepare("SELECT role, user_id, expires_at FROM auth_sessions WHERE token_hash = ? AND expires_at > ?")
     .bind(await hashToken(token), Math.floor(Date.now() / 1000)).first<SessionRow>();
   if (session?.role === "staff" && (env.STAFF_AUTH_ENABLED !== "true" || !hasValidTotpSecret(env.STAFF_TOTP_SECRET) || session.user_id !== (env.STAFF_EMAIL ?? "").trim().toLowerCase())) return null;
-  if (session?.role === "customer" && env.CUSTOMER_AUTH_ENABLED !== "true") return null;
+  if (session?.role === "customer" && !customerAuthAvailable(env)) return null;
   return session;
 }
 const BASE32_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
@@ -493,7 +503,7 @@ async function verifyTotp(secret: string | undefined, code: string): Promise<num
 function validEmail(value: string): boolean { return value.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value); }
 async function handleAuth(request: Request, env: Env, url: URL): Promise<Response> {
   const path = url.pathname;
-  const customerAuthEnabled = env.CUSTOMER_AUTH_ENABLED === "true" && Boolean(env.DB) && Boolean(env.AUTH_RATE_LIMIT) && Boolean(env.AUTH_EMAIL_RATE_LIMIT);
+  const customerAuthEnabled = customerAuthAvailable(env) && Boolean(env.DB) && Boolean(env.AUTH_RATE_LIMIT) && Boolean(env.AUTH_EMAIL_RATE_LIMIT);
   const staffAuthEnabled = env.STAFF_AUTH_ENABLED === "true" && Boolean(env.STAFF_EMAIL?.trim()) && Boolean(env.STAFF_PASSWORD_HASH) && hasValidTotpSecret(env.STAFF_TOTP_SECRET) && Boolean(env.DB) && Boolean(env.AUTH_RATE_LIMIT) && Boolean(env.AUTH_EMAIL_RATE_LIMIT);
   if (path === "/api/auth/status" && request.method === "GET") return authResponse({ customerEnabled: customerAuthEnabled, staffEnabled: staffAuthEnabled });
   if ((path === "/api/auth/register" || path === "/api/auth/login") && !customerAuthEnabled) return authResponse({ error: "Customer accounts are temporarily unavailable while secure sign-in is being configured. You can still place a guest order." }, 503);
@@ -682,20 +692,20 @@ export default {
 
     if (url.pathname === "/api/orders/status") {
       if (request.method !== "GET") return withSecurityHeaders(Response.json({ error: "Method not allowed." }, { status: 405 }));
-      return withSecurityHeaders(Response.json({ enabled: env.ORDERS_ENABLED === "true" }, { headers: { "Cache-Control": "no-store" } }));
+      return withSecurityHeaders(Response.json({ enabled: onlineOrderingAvailable(env) }, { headers: { "Cache-Control": "no-store" } }));
     }
 
     if (url.pathname === "/api/orders") {
       if (request.method !== "POST") return withSecurityHeaders(Response.json({ error: "Method not allowed." }, { status: 405 }));
       const origin = request.headers.get("Origin");
       if (origin && origin !== url.origin) return withSecurityHeaders(Response.json({ error: "Cross-origin order requests are not allowed." }, { status: 403 }));
-      if (env.ORDERS_ENABLED !== "true") return withSecurityHeaders(Response.json({ error: "Online ordering is temporarily unavailable while secure customer-data processing is being completed." }, { status: 503, headers: { "Cache-Control": "no-store" } }));
+      if (!onlineOrderingAvailable(env)) return withSecurityHeaders(Response.json({ error: "Online ordering is temporarily unavailable while secure customer-data processing is being completed." }, { status: 503, headers: { "Cache-Control": "no-store" } }));
       return withSecurityHeaders(await handleOrderCreate(request, env));
     }
 
     if (url.pathname === "/api/orders/preview") {
       if (request.method !== "POST") return withSecurityHeaders(Response.json({ error: "Method not allowed." }, { status: 405 }));
-      if (env.ORDERS_ENABLED !== "true") return withSecurityHeaders(Response.json({ error: "Order review is temporarily unavailable." }, { status: 503, headers: { "Cache-Control": "no-store" } }));
+      if (!onlineOrderingAvailable(env)) return withSecurityHeaders(Response.json({ error: "Order review is temporarily unavailable." }, { status: 503, headers: { "Cache-Control": "no-store" } }));
       return withSecurityHeaders(await handleOrderPreview(request, env));
     }
 
