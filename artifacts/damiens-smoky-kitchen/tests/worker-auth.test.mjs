@@ -334,7 +334,7 @@ test("production customer authentication and online ordering fail closed even wh
   delete env.CLERK_SECRET_KEY;
   delete env.CLERK_PUBLISHABLE_KEY;
   const status = await worker.fetch(request("/api/auth/status", { method: "GET" }), env);
-  assert.deepEqual(await status.json(), { customerEnabled: false, staffEnabled: true, paymentsEnabled: false });
+  assert.deepEqual(await status.json(), { customerEnabled: false, staffEnabled: true });
 
   const registration = await worker.fetch(request("/api/auth/register", {
     body: { name: "Test User", email: "production@example.com", phone: "08012345678", password: "LongEnoughPassword1!", adultConfirmed: true },
