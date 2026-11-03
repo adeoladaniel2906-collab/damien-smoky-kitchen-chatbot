@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHmac, pbkdf2Sync } from "node:crypto";
-import worker, { TEST_AUTH_BYPASS } from "../src/worker.ts";
+import worker, { TEST_AUTH_BYPASS, TEST_CLERK_CLIENT } from "../src/worker.ts";
 
 const b64url = (value) => Buffer.from(value).toString("base64url");
 const STAFF_TOTP_SECRET = "JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP";
@@ -36,6 +36,14 @@ class FakeStatement {
   bind(...params) { this.params = params; return this; }
   async first() {
     const p = this.params;
+    if (this.sql.includes("SELECT id, name, email, phone FROM customer_accounts WHERE clerk_user_id")) {
+      const row = [...this.db.accounts.values()].find(account => account.clerk_user_id === p[0]);
+      return row ? { id: row.id, name: row.name, email: row.email, phone: row.phone } : null;
+    }
+    if (this.sql.includes("SELECT id, clerk_user_id FROM customer_accounts WHERE email")) {
+      const row = [...this.db.accounts.values()].find(account => account.email === p[0]);
+      return row ? { id: row.id, clerk_user_id: row.clerk_user_id ?? null } : null;
+    }
     if (this.sql.includes("SELECT id FROM customer_accounts WHERE email")) {
       const row = [...this.db.accounts.values()].find(account => account.email === p[0]);
       return row ? { id: row.id } : null;
@@ -62,9 +70,18 @@ class FakeStatement {
   async run() {
     const p = this.params;
     if (this.sql.startsWith("INSERT INTO customer_accounts")) {
-      const [id, name, email, phone, password_hash] = p;
-      if ([...this.db.accounts.values()].some(account => account.email === email)) throw new Error("UNIQUE constraint failed");
-      this.db.accounts.set(id, { id, name, email, phone, password_hash });
+      const [id, name, email, phone, password_hash, clerk_user_id] = p;
+      if ([...this.db.accounts.values()].some(account => account.email === email || (clerk_user_id && account.clerk_user_id === clerk_user_id))) throw new Error("UNIQUE constraint failed");
+      this.db.accounts.set(id, { id, name, email, phone, password_hash, clerk_user_id: clerk_user_id ?? null });
+    } else if (this.sql.startsWith("UPDATE customer_accounts SET clerk_user_id")) {
+      const [clerk_user_id, id] = p;
+      const row = this.db.accounts.get(id);
+      if (row && !row.clerk_user_id) row.clerk_user_id = clerk_user_id;
+      return { success: true, meta: { changes: row && row.clerk_user_id === clerk_user_id ? 1 : 0 } };
+    } else if (this.sql.startsWith("UPDATE customer_accounts SET phone")) {
+      const [phone, id] = p;
+      const row = this.db.accounts.get(id);
+      if (row) row.phone = phone;
     } else if (this.sql.startsWith("INSERT INTO auth_sessions")) {
       const [token_hash, role, user_id, expires_at] = p;
       this.db.sessions.set(token_hash, { token_hash, role, user_id, expires_at });
@@ -111,9 +128,34 @@ function staffHash(password) {
 }
 
 function makeEnv(overrides = {}) {
+  const clerkUsers = {
+    user_clerk_one: {
+      id: "user_clerk_one", firstName: "Customer", lastName: "One", primaryEmailAddressId: "email_one",
+      emailAddresses: [{ id: "email_one", emailAddress: "one@example.com", verification: { status: "verified" } }],
+    },
+    user_clerk_two: {
+      id: "user_clerk_two", firstName: "Customer", lastName: "Two", primaryEmailAddressId: "email_two",
+      emailAddresses: [{ id: "email_two", emailAddress: "two@example.com", verification: { status: "verified" } }],
+    },
+    user_clerk_unverified: {
+      id: "user_clerk_unverified", firstName: "Unverified", lastName: "Customer", primaryEmailAddressId: "email_unverified",
+      emailAddresses: [{ id: "email_unverified", emailAddress: "unverified@example.com", verification: { status: "unverified" } }],
+    },
+  };
+  const clerkTestClient = {
+    authenticateRequest: async request => {
+      const token = request.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
+      const userId = token === "clerk-one-token" ? "user_clerk_one" : token === "clerk-two-token" ? "user_clerk_two" : token === "clerk-unverified-token" ? "user_clerk_unverified" : null;
+      return { isAuthenticated: Boolean(userId), toAuth: () => ({ userId }) };
+    },
+    users: { getUser: async userId => clerkUsers[userId] },
+  };
   return {
     DB: new FakeDatabase(),
     [TEST_AUTH_BYPASS]: true,
+    [TEST_CLERK_CLIENT]: clerkTestClient,
+    CLERK_SECRET_KEY: "sk_test_worker-only-placeholder",
+    CLERK_PUBLISHABLE_KEY: "pk_test_frontend-placeholder",
     AUTH_RATE_LIMIT: { limit: async () => ({ success: true }) },
     AUTH_EMAIL_RATE_LIMIT: { limit: async () => ({ success: true }) },
     CHAT_RATE_LIMIT: { limit: async () => ({ success: true }) },
@@ -130,11 +172,12 @@ function makeEnv(overrides = {}) {
   };
 }
 
-function request(path, { method = "POST", body, origin = "https://restaurant.example", cookie } = {}) {
+function request(path, { method = "POST", body, origin = "https://restaurant.example", cookie, authorization } = {}) {
   const headers = new Headers();
   if (origin !== null) headers.set("Origin", origin);
   if (body !== undefined) headers.set("Content-Type", "application/json");
   if (cookie) headers.set("Cookie", cookie);
+  if (authorization) headers.set("Authorization", authorization);
   return new Request("https://restaurant.example" + path, {
     method,
     headers,
@@ -160,51 +203,18 @@ test("authentication stays disabled unless explicit server-side feature flags ar
   const registration = await worker.fetch(request("/api/auth/register", {
     body: { name: "Test User", email: "disabled@example.com", phone: "08012345678", password: "LongEnoughPassword1!", adultConfirmed: true },
   }), env);
-  assert.equal(registration.status, 503);
+  assert.equal(registration.status, 410);
   const staff = await worker.fetch(request("/api/auth/staff/login", {
     body: { email: "staff@example.com", password: "StaffPassword!2026" },
   }), env);
   assert.equal(staff.status, 503);
 });
 
-test("registration rejects cross-origin requests", async () => {
-  const env = makeEnv();
-  const response = await worker.fetch(request("/api/auth/register", {
-    body: { name: "Test User", email: "test@example.com", phone: "08012345678", password: "LongEnoughPassword1!", adultConfirmed: true },
-    origin: "https://attacker.example",
-  }), env);
-  assert.equal(response.status, 403);
-  assert.equal(env.DB.accounts.size, 0);
-});
 
-test("registration requires adult confirmation", async () => {
-  const env = makeEnv();
-  const response = await worker.fetch(request("/api/auth/register", {
-    body: { name: "Test User", email: "test@example.com", phone: "08012345678", password: "LongEnoughPassword1!" },
-  }), env);
-  assert.equal(response.status, 403);
-  assert.equal(env.DB.accounts.size, 0);
-});
 
-test("registration stores a password hash and issues a secure session", async () => {
-  const env = makeEnv();
-  const response = await worker.fetch(request("/api/auth/register", {
-    body: { name: "Test User", email: "test@example.com", phone: "08012345678", password: "LongEnoughPassword1!", adultConfirmed: true },
-  }), env);
-  assert.equal(response.status, 201);
-  assert.equal(env.DB.accounts.size, 1);
-  const account = [...env.DB.accounts.values()][0];
-  assert.notEqual(account.password_hash, "LongEnoughPassword1!");
-  assert.match(account.password_hash, /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/);
-  assert.equal(response.headers.get("Cache-Control"), "no-store");
-  const cookie = sessionCookie(response);
-  const me = await worker.fetch(request("/api/auth/me", { method: "GET", cookie }), env);
-  assert.equal(me.status, 200);
-  const profile = await me.json();
-  assert.equal(profile.role, "customer");
-  assert.equal(profile.user.email, "test@example.com");
-  assert.equal("password_hash" in profile.user, false);
-});
+
+
+
 
 test("customer credentials cannot authenticate as staff", async () => {
   const env = makeEnv();
@@ -254,32 +264,28 @@ test("staff login accepts a valid TOTP once and rejects replay of the same code"
   assert.equal(env.DB.sessions.size, 1);
 });
 
-test("logout revokes the server-side session", async () => {
+
+
+
+
+test("staff logout revokes the server-side staff session", async () => {
   const env = makeEnv();
-  const register = await worker.fetch(request("/api/auth/register", {
-    body: { name: "Test User", email: "logout@example.com", phone: "08012345678", password: "LongEnoughPassword1!", adultConfirmed: true },
+  const login = await worker.fetch(request("/api/auth/staff/login", {
+    body: { email: "staff@example.com", password: "StaffPassword!2026", totpCode: makeTotpCode(STAFF_TOTP_SECRET) },
   }), env);
-  const cookie = sessionCookie(register);
+  assert.equal(login.status, 200);
+  const cookie = sessionCookie(login);
   const logout = await worker.fetch(request("/api/auth/logout", { cookie }), env);
   assert.equal(logout.status, 200);
   const me = await worker.fetch(request("/api/auth/me", { method: "GET", cookie }), env);
   assert.equal(me.status, 401);
 });
 
-test("account deletion requires the current password and revokes sessions", async () => {
+test("legacy password account deletion cannot bypass Clerk account management", async () => {
   const env = makeEnv();
-  const register = await worker.fetch(request("/api/auth/register", {
-    body: { name: "Test User", email: "delete@example.com", phone: "08012345678", password: "LongEnoughPassword1!", adultConfirmed: true },
-  }), env);
-  const cookie = sessionCookie(register);
-  const denied = await worker.fetch(request("/api/auth/delete-account", { cookie, body: { password: "WrongPassword123!" } }), env);
-  assert.equal(denied.status, 401);
-  assert.equal(env.DB.accounts.size, 1);
-  const deleted = await worker.fetch(request("/api/auth/delete-account", { cookie, body: { password: "LongEnoughPassword1!" } }), env);
-  assert.equal(deleted.status, 200);
+  const response = await worker.fetch(request("/api/auth/delete-account", { body: { password: "LongEnoughPassword1!" } }), env);
+  assert.equal(response.status, 501);
   assert.equal(env.DB.accounts.size, 0);
-  assert.equal(env.DB.sessions.size, 0);
-  assert.match(deleted.headers.get("Set-Cookie"), /Max-Age=0/);
 });
 
 test("live order collection is disabled by default and does not request customer details", async () => {
@@ -308,13 +314,16 @@ test("production customer authentication and online ordering fail closed even wh
     ORDERS_ENABLED: "true",
   });
   delete env[TEST_AUTH_BYPASS]; // Simulate Cloudflare: bindings cannot supply symbol-keyed test hooks.
+  delete env[TEST_CLERK_CLIENT];
+  delete env.CLERK_SECRET_KEY;
+  delete env.CLERK_PUBLISHABLE_KEY;
   const status = await worker.fetch(request("/api/auth/status", { method: "GET" }), env);
   assert.deepEqual(await status.json(), { customerEnabled: false, staffEnabled: true });
 
   const registration = await worker.fetch(request("/api/auth/register", {
     body: { name: "Test User", email: "production@example.com", phone: "08012345678", password: "LongEnoughPassword1!", adultConfirmed: true },
   }), env);
-  assert.equal(registration.status, 503);
+  assert.equal(registration.status, 410);
   assert.equal(env.DB.accounts.size, 0);
 
   const orderStatus = await worker.fetch(request("/api/orders/status", { method: "GET" }), env);
@@ -328,44 +337,75 @@ test("production customer authentication and online ordering fail closed even wh
 });
 
 
-test("customer profile endpoint returns only the authenticated customer's own record", async () => {
+
+
+test("Clerk profile sync requires a verified session and keeps customer records isolated", async () => {
   const env = makeEnv();
-  const first = await worker.fetch(request("/api/auth/register", {
-    body: { name: "Customer One", email: "one@example.com", phone: "08012345678", password: "LongEnoughPassword1!", adultConfirmed: true },
+  const firstSetup = await worker.fetch(request("/api/auth/profile", {
+    authorization: "Bearer clerk-one-token",
+    body: { phone: "08012345678", adultConfirmed: true },
   }), env);
-  const second = await worker.fetch(request("/api/auth/register", {
-    body: { name: "Customer Two", email: "two@example.com", phone: "08087654321", password: "LongEnoughPassword2!", adultConfirmed: true },
+  assert.equal(firstSetup.status, 201);
+  const secondSetup = await worker.fetch(request("/api/auth/profile", {
+    authorization: "Bearer clerk-two-token",
+    body: { phone: "08087654321", adultConfirmed: true },
   }), env);
-  const firstCookie = sessionCookie(first);
-  const secondCookie = sessionCookie(second);
+  assert.equal(secondSetup.status, 201);
 
-  const ownProfile = await worker.fetch(request("/api/auth/me?userId=attacker-controlled", { method: "GET", cookie: firstCookie }), env);
-  assert.equal(ownProfile.status, 200);
-  const ownData = await ownProfile.json();
-  assert.equal(ownData.user.email, "one@example.com");
-  assert.equal(ownData.user.name, "Customer One");
-  assert.notEqual(ownData.user.email, "two@example.com");
+  const firstProfile = await worker.fetch(request("/api/auth/me?userId=attacker-controlled", {
+    method: "GET", authorization: "Bearer clerk-one-token",
+  }), env);
+  assert.equal(firstProfile.status, 200);
+  const firstData = await firstProfile.json();
+  assert.equal(firstData.user.email, "one@example.com");
+  assert.equal(firstData.user.name, "Customer One");
+  assert.notEqual(firstData.user.email, "two@example.com");
 
-  const secondProfile = await worker.fetch(request("/api/auth/me", { method: "GET", cookie: secondCookie }), env);
+  const secondProfile = await worker.fetch(request("/api/auth/me", {
+    method: "GET", authorization: "Bearer clerk-two-token",
+  }), env);
   assert.equal(secondProfile.status, 200);
   assert.equal((await secondProfile.json()).user.email, "two@example.com");
 });
 
-test("customer sessions and unauthenticated requests cannot read staff orders or audit logs", async () => {
+test("Clerk profile creation rejects unverified email addresses and missing age confirmation", async () => {
   const env = makeEnv();
-  const registration = await worker.fetch(request("/api/auth/register", {
-    body: { name: "Customer One", email: "staff-boundary@example.com", phone: "08012345678", password: "LongEnoughPassword1!", adultConfirmed: true },
+  const unverified = await worker.fetch(request("/api/auth/profile", {
+    authorization: "Bearer clerk-unverified-token",
+    body: { phone: "08012345678", adultConfirmed: true },
   }), env);
-  const customerCookie = sessionCookie(registration);
+  assert.equal(unverified.status, 401);
+  const missingConfirmation = await worker.fetch(request("/api/auth/profile", {
+    authorization: "Bearer clerk-one-token",
+    body: { phone: "08012345678", adultConfirmed: false },
+  }), env);
+  assert.equal(missingConfirmation.status, 403);
+  assert.equal(env.DB.accounts.size, 0);
+});
 
-  for (const cookie of [undefined, customerCookie]) {
-    const orders = await worker.fetch(request("/api/staff/orders", { method: "GET", cookie }), env);
-    const logs = await worker.fetch(request("/api/staff/logs", { method: "GET", cookie }), env);
+test("Clerk profile synchronization rejects cross-origin requests", async () => {
+  const env = makeEnv();
+  const response = await worker.fetch(request("/api/auth/profile", {
+    authorization: "Bearer clerk-one-token",
+    body: { phone: "08012345678", adultConfirmed: true },
+    origin: "https://attacker.example",
+  }), env);
+  assert.equal(response.status, 403);
+  assert.equal(env.DB.accounts.size, 0);
+});
+
+
+
+
+test("Clerk customer tokens and unauthenticated requests cannot read staff orders or audit logs", async () => {
+  const env = makeEnv();
+  for (const authorization of [undefined, "Bearer clerk-one-token"]) {
+    const orders = await worker.fetch(request("/api/staff/orders", { method: "GET", authorization }), env);
+    const logs = await worker.fetch(request("/api/staff/logs", { method: "GET", authorization }), env);
     assert.equal(orders.status, 401);
     assert.equal(logs.status, 401);
   }
 });
-
 
 test("valid staff password and TOTP session can read staff operations endpoints", async () => {
   const env = makeEnv();

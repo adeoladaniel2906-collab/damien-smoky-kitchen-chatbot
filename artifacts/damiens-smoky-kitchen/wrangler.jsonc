@@ -5,8 +5,9 @@
   "compatibility_date": "2026-09-24",
   "vars": {
     "ORDERS_ENABLED": "false",
-    "CUSTOMER_AUTH_ENABLED": "false",
-    "STAFF_AUTH_ENABLED": "false"
+    "CUSTOMER_AUTH_ENABLED": "true",
+    "STAFF_AUTH_ENABLED": "true",
+    "CLERK_PUBLISHABLE_KEY": "pk_test_d2lyZWQtbW9uaXRvci0zNDY0LmNsZXJrLmFjY291bnRzLmRldiQ"
   },
   "observability": {
     "enabled": true,
@@ -72,6 +73,12 @@
     "binding": "AI"
   },
   "previews": {
+    "vars": {
+      "ORDERS_ENABLED": "false",
+      "CUSTOMER_AUTH_ENABLED": "true",
+      "STAFF_AUTH_ENABLED": "true",
+      "CLERK_PUBLISHABLE_KEY": "pk_test_d2lyZWQtbW9uaXRvci0zNDY0LmNsZXJrLmFjY291bnRzLmRldiQ"
+    },
     "d1_databases": [
       {
         "binding": "DB",

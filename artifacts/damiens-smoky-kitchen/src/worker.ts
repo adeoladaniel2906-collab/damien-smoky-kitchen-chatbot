@@ -1,9 +1,27 @@
+import { createClerkClient } from "@clerk/backend";
 import { officialMenuContext, restaurantKnowledge } from "./chatbot/knowledge.ts";
 import { getChatbotReply, getManualReply } from "./chatbot/reply.ts";
 
 type WorkerMessage = {
   role: "system" | "user" | "assistant";
   content: string;
+};
+
+export const TEST_CLERK_CLIENT = Symbol("test-clerk-client");
+type ClerkEmailAddress = { id: string; emailAddress: string; verification?: { status?: string } | null };
+type ClerkUserRecord = {
+  id: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  primaryEmailAddressId?: string | null;
+  emailAddresses: ClerkEmailAddress[];
+};
+type ClerkClientLike = {
+  authenticateRequest(request: Request, options: { authorizedParties: string[] }): Promise<{
+    isAuthenticated: boolean;
+    toAuth(): { userId: string | null };
+  }>;
+  users: { getUser(userId: string): Promise<ClerkUserRecord> };
 };
 
 interface Env {
@@ -26,6 +44,9 @@ interface Env {
   STAFF_EMAIL?: string;
   STAFF_PASSWORD_HASH?: string;
   STAFF_TOTP_SECRET?: string;
+  CLERK_SECRET_KEY?: string;
+  CLERK_PUBLISHABLE_KEY?: string;
+  [TEST_CLERK_CLIENT]?: ClerkClientLike;
   ORDERS_ENABLED?: string;
   CUSTOMER_AUTH_ENABLED?: string;
   STAFF_AUTH_ENABLED?: string;
@@ -365,9 +386,10 @@ async function handleOrderCreate(request: Request, env: Env): Promise<Response> 
 
 
 export const TEST_AUTH_BYPASS = Symbol("test-auth-bypass");
-const CUSTOMER_CLERK_AUTH_IMPLEMENTED = false; // Fail closed until the selected Clerk integration is implemented and verified.
 function customerAuthAvailable(env: Env): boolean {
-  return env.CUSTOMER_AUTH_ENABLED === "true" && (env[TEST_AUTH_BYPASS] === true || CUSTOMER_CLERK_AUTH_IMPLEMENTED);
+  const hasClerkConfig = Boolean(env.CLERK_SECRET_KEY?.startsWith("sk_") && env.CLERK_PUBLISHABLE_KEY?.startsWith("pk_"));
+  const hasTestClient = env[TEST_AUTH_BYPASS] === true && Boolean(env[TEST_CLERK_CLIENT]);
+  return env.CUSTOMER_AUTH_ENABLED === "true" && (hasClerkConfig || hasTestClient);
 }
 function onlineOrderingAvailable(env: Env): boolean {
   return env.ORDERS_ENABLED === "true" && customerAuthAvailable(env);
@@ -446,7 +468,7 @@ async function currentSession(request: Request, env: Env): Promise<SessionRow | 
   const session = await env.DB.prepare("SELECT role, user_id, expires_at FROM auth_sessions WHERE token_hash = ? AND expires_at > ?")
     .bind(await hashToken(token), Math.floor(Date.now() / 1000)).first<SessionRow>();
   if (session?.role === "staff" && (env.STAFF_AUTH_ENABLED !== "true" || !hasValidTotpSecret(env.STAFF_TOTP_SECRET) || session.user_id !== (env.STAFF_EMAIL ?? "").trim().toLowerCase())) return null;
-  if (session?.role === "customer" && !customerAuthAvailable(env)) return null;
+  if (session?.role === "customer") return null; // Legacy password sessions are no longer accepted.
   return session;
 }
 const BASE32_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
@@ -501,35 +523,114 @@ async function verifyTotp(secret: string | undefined, code: string): Promise<num
 }
 
 function validEmail(value: string): boolean { return value.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value); }
+type CustomerProfile = { id: string; name: string; email: string; phone: string };
+type ClerkIdentity = { client: ClerkClientLike; userId: string; user: ClerkUserRecord; email: string; name: string };
+
+async function getClerkIdentity(request: Request, env: Env, url: URL): Promise<ClerkIdentity | null> {
+  const client = env[TEST_CLERK_CLIENT] ?? (createClerkClient({
+    secretKey: env.CLERK_SECRET_KEY!,
+    publishableKey: env.CLERK_PUBLISHABLE_KEY!,
+  }) as unknown as ClerkClientLike);
+  const state = await client.authenticateRequest(request, { authorizedParties: [url.origin] });
+  if (!state.isAuthenticated) return null;
+  const userId = state.toAuth().userId;
+  if (!userId) return null;
+  const user = await client.users.getUser(userId);
+  const primary = user.emailAddresses.find((address) => address.id === user.primaryEmailAddressId);
+  if (!primary || primary.verification?.status !== "verified") return null;
+  const email = primary.emailAddress.trim().toLowerCase();
+  if (!validEmail(email)) return null;
+  const name = [user.firstName, user.lastName].filter(Boolean).join(" ").trim() || email.split("@")[0];
+  return { client, userId, user, email, name: name.slice(0, 100) };
+}
+
+async function getCustomerProfileByClerkId(env: Env, clerkUserId: string): Promise<CustomerProfile | null> {
+  return env.DB.prepare("SELECT id, name, email, phone FROM customer_accounts WHERE clerk_user_id = ?")
+    .bind(clerkUserId).first<CustomerProfile>();
+}
+
+async function syncCustomerProfile(
+  env: Env,
+  identity: ClerkIdentity,
+  phone: string,
+  adultConfirmed: boolean,
+): Promise<{ profile?: CustomerProfile; created?: boolean; error?: string; status?: number }> {
+  if (!/^[+\d\s()\-]{8,24}$/.test(phone) || phone.replace(/\D/g, "").length < 8) {
+    return { error: "Enter a valid phone number.", status: 400 };
+  }
+
+  const linked = await getCustomerProfileByClerkId(env, identity.userId);
+  if (linked) {
+    await env.DB.prepare("UPDATE customer_accounts SET phone = ? WHERE id = ?").bind(phone.trim(), linked.id).run();
+    const updated = await getCustomerProfileByClerkId(env, identity.userId);
+    return updated ? { profile: updated, created: false } : { error: "We could not load your customer profile.", status: 503 };
+  }
+
+  const existingByEmail = await env.DB.prepare("SELECT id, clerk_user_id FROM customer_accounts WHERE email = ?")
+    .bind(identity.email).first<{ id: string; clerk_user_id: string | null }>();
+  if (existingByEmail) {
+    if (existingByEmail.clerk_user_id && existingByEmail.clerk_user_id !== identity.userId) {
+      return { error: "This email is already linked to another customer identity. Contact the restaurant for help.", status: 409 };
+    }
+    if (!existingByEmail.clerk_user_id) {
+      const linkedResult = await env.DB.prepare("UPDATE customer_accounts SET clerk_user_id = ? WHERE id = ? AND clerk_user_id IS NULL")
+        .bind(identity.userId, existingByEmail.id).run() as { meta?: { changes?: number } };
+      if (linkedResult.meta?.changes !== 1) {
+        const retry = await getCustomerProfileByClerkId(env, identity.userId);
+        if (!retry) return { error: "This customer account could not be linked safely. Contact the restaurant.", status: 409 };
+      }
+    }
+    await env.DB.prepare("UPDATE customer_accounts SET phone = ? WHERE id = ?").bind(phone.trim(), existingByEmail.id).run();
+    const profile = await getCustomerProfileByClerkId(env, identity.userId);
+    return profile ? { profile, created: false } : { error: "We could not load your customer profile.", status: 503 };
+  }
+
+  if (!adultConfirmed) return { error: "Confirm that you are 18 or older before creating your customer profile.", status: 403 };
+  const id = crypto.randomUUID();
+  const passwordSentinel = "clerk-only:" + crypto.randomUUID();
+  try {
+    await env.DB.prepare(
+      "INSERT INTO customer_accounts (id, name, email, phone, password_hash, clerk_user_id) VALUES (?, ?, ?, ?, ?, ?)",
+    ).bind(id, identity.name, identity.email, phone.trim(), passwordSentinel, identity.userId).run();
+  } catch {
+    const duplicate = await getCustomerProfileByClerkId(env, identity.userId);
+    if (duplicate) return { profile: duplicate, created: false };
+    return { error: "We could not create your customer profile. Please retry or contact the restaurant.", status: 409 };
+  }
+  const profile = await getCustomerProfileByClerkId(env, identity.userId);
+  return profile ? { profile, created: true } : { error: "We could not load your new customer profile.", status: 503 };
+}
+
 async function handleAuth(request: Request, env: Env, url: URL): Promise<Response> {
   const path = url.pathname;
-  const customerAuthEnabled = customerAuthAvailable(env) && Boolean(env.DB) && Boolean(env.AUTH_RATE_LIMIT) && Boolean(env.AUTH_EMAIL_RATE_LIMIT);
-  const staffAuthEnabled = env.STAFF_AUTH_ENABLED === "true" && Boolean(env.STAFF_EMAIL?.trim()) && Boolean(env.STAFF_PASSWORD_HASH) && hasValidTotpSecret(env.STAFF_TOTP_SECRET) && Boolean(env.DB) && Boolean(env.AUTH_RATE_LIMIT) && Boolean(env.AUTH_EMAIL_RATE_LIMIT);
-  if (path === "/api/auth/status" && request.method === "GET") return authResponse({ customerEnabled: customerAuthEnabled, staffEnabled: staffAuthEnabled });
-  if ((path === "/api/auth/register" || path === "/api/auth/login") && !customerAuthEnabled) return authResponse({ error: "Customer accounts are temporarily unavailable while secure sign-in is being configured. You can still place a guest order." }, 503);
-  if (path === "/api/auth/staff/login" && !staffAuthEnabled) return authResponse({ error: "Staff sign-in is not enabled yet. Contact the site administrator." }, 503);
+  const customerEnabled = customerAuthAvailable(env) && Boolean(env.DB) && Boolean(env.AUTH_RATE_LIMIT) && Boolean(env.AUTH_EMAIL_RATE_LIMIT);
+  const staffEnabled = env.STAFF_AUTH_ENABLED === "true" && Boolean(env.STAFF_EMAIL?.trim()) && Boolean(env.STAFF_PASSWORD_HASH) && hasValidTotpSecret(env.STAFF_TOTP_SECRET) && Boolean(env.DB) && Boolean(env.AUTH_RATE_LIMIT) && Boolean(env.AUTH_EMAIL_RATE_LIMIT);
+
+  if (path === "/api/auth/status" && request.method === "GET") return authResponse({ customerEnabled, staffEnabled });
+
   if (path === "/api/auth/me" && request.method === "GET") {
-    const session = await currentSession(request, env);
-    if (!session) return authResponse({ authenticated: false }, 401);
-    if (session.role === "staff") return authResponse({ authenticated: true, role: "staff", user: { email: session.user_id } });
-    const customer = await env.DB.prepare("SELECT id, name, email, phone FROM customer_accounts WHERE id = ?")
-      .bind(session.user_id).first<{ id: string; name: string; email: string; phone: string }>();
-    return customer ? authResponse({ authenticated: true, role: "customer", user: customer }) : authResponse({ authenticated: false }, 401, clearSessionCookie());
+    const staffSession = await currentSession(request, env);
+    if (staffSession?.role === "staff") {
+      return authResponse({ authenticated: true, role: "staff", user: { email: staffSession.user_id } });
+    }
+    if (!customerEnabled) return authResponse({ error: "Customer sign-in is not configured yet." }, 503);
+    try {
+      const identity = await getClerkIdentity(request, env, url);
+      if (!identity) return authResponse({ authenticated: false }, 401);
+      const profile = await getCustomerProfileByClerkId(env, identity.userId);
+      if (!profile) return authResponse({ authenticated: true, role: "customer", needsProfile: true, user: { name: identity.name, email: identity.email, phone: "" } });
+      return authResponse({ authenticated: true, role: "customer", user: profile });
+    } catch {
+      console.error("Clerk identity lookup failed.");
+      return authResponse({ error: "We could not verify your customer session. Please retry." }, 503);
+    }
   }
-  if (path === "/api/auth/logout" && request.method === "POST") {
-    const origin = request.headers.get("Origin");
-    if (origin !== url.origin) return authResponse({ error: "Request origin is not allowed." }, 403);
-    const token = cookieValue(request, SESSION_COOKIE);
-    if (token) await env.DB.prepare("DELETE FROM auth_sessions WHERE token_hash = ?").bind(await hashToken(token)).run();
-    return authResponse({ ok: true }, 200, clearSessionCookie());
-  }
-  if (path === "/api/auth/delete-account" && request.method === "POST") {
-    const origin = request.headers.get("Origin");
-    if (origin !== url.origin) return authResponse({ error: "Request origin is not allowed." }, 403);
+
+  if (path === "/api/auth/profile" && request.method === "POST") {
+    if (request.headers.get("Origin") !== url.origin) return authResponse({ error: "Request origin is not allowed." }, 403);
+    if (!customerEnabled) return authResponse({ error: "Customer sign-in is not configured yet." }, 503);
     const limit = await env.AUTH_RATE_LIMIT.limit({ key: request.headers.get("CF-Connecting-IP") ?? "unknown" });
     if (!limit.success) return authResponse({ error: "Too many requests. Please wait and try again." }, 429);
-    const session = await currentSession(request, env);
-    if (!session || session.role !== "customer") return authResponse({ error: "Customer sign-in is required." }, 401);
     let body: Record<string, unknown>;
     try {
       const raw = await readLimitedBody(request);
@@ -537,28 +638,44 @@ async function handleAuth(request: Request, env: Env, url: URL): Promise<Respons
       const parsed: unknown = JSON.parse(raw);
       if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return authResponse({ error: "Invalid request." }, 400);
       body = parsed as Record<string, unknown>;
-    } catch { return authResponse({ error: "Invalid request." }, 400); }
-    const password = typeof body.password === "string" ? body.password : "";
-    if (password.length < 12 || password.length > 128) return authResponse({ error: "Enter your current password to confirm account deletion." }, 400);
-    const customer = await env.DB.prepare("SELECT password_hash FROM customer_accounts WHERE id = ?")
-      .bind(session.user_id).first<{ password_hash: string }>();
-    if (!customer || !(await verifyPassword(password, customer.password_hash))) return authResponse({ error: "The password is incorrect." }, 401);
-    try {
-      await env.DB.batch([
-        env.DB.prepare("DELETE FROM auth_sessions WHERE role = 'customer' AND user_id = ?").bind(session.user_id),
-        env.DB.prepare("DELETE FROM customer_accounts WHERE id = ?").bind(session.user_id),
-      ]);
-    } catch (error) {
-      console.error("Customer account deletion failed.");
-      return authResponse({ error: "We could not delete the account. Please contact the restaurant." }, 503);
+    } catch {
+      return authResponse({ error: "Invalid request." }, 400);
     }
+    const phone = typeof body.phone === "string" ? body.phone : "";
+    const adultConfirmed = body.adultConfirmed === true;
+    try {
+      const identity = await getClerkIdentity(request, env, url);
+      if (!identity) return authResponse({ error: "A verified Clerk sign-in is required." }, 401);
+      const result = await syncCustomerProfile(env, identity, phone, adultConfirmed);
+      if (!result.profile) return authResponse({ error: result.error ?? "Profile setup failed." }, result.status ?? 503);
+      return authResponse({ ok: true, created: result.created === true, user: result.profile }, result.created ? 201 : 200);
+    } catch {
+      console.error("Customer profile synchronization failed.");
+      return authResponse({ error: "We could not save your customer profile. Please retry." }, 503);
+    }
+  }
+
+  if (path === "/api/auth/logout" && request.method === "POST") {
+    if (request.headers.get("Origin") !== url.origin) return authResponse({ error: "Request origin is not allowed." }, 403);
+    const token = cookieValue(request, SESSION_COOKIE);
+    if (token) await env.DB.prepare("DELETE FROM auth_sessions WHERE token_hash = ?").bind(await hashToken(token)).run();
     return authResponse({ ok: true }, 200, clearSessionCookie());
   }
-  if (request.method !== "POST" || !["/api/auth/register", "/api/auth/login", "/api/auth/staff/login"].includes(path)) return authResponse({ error: "Not found." }, 404);
-  const origin = request.headers.get("Origin");
-  if (origin !== url.origin) return authResponse({ error: "Request origin is not allowed." }, 403);
+
+  if (path === "/api/auth/delete-account" && request.method === "POST") {
+    return authResponse({ error: "Account deletion must be completed through the verified Clerk account-management flow. Contact the restaurant for assistance." }, 501);
+  }
+
+  if (path === "/api/auth/register" || path === "/api/auth/login") {
+    return authResponse({ error: "Customer registration and login are handled by the secure Clerk sign-in pages." }, 410);
+  }
+
+  if (path !== "/api/auth/staff/login" || request.method !== "POST") return authResponse({ error: "Not found." }, 404);
+  if (!staffEnabled) return authResponse({ error: "Staff sign-in is not enabled yet. Contact the site administrator." }, 503);
+  if (request.headers.get("Origin") !== url.origin) return authResponse({ error: "Request origin is not allowed." }, 403);
   const limit = await env.AUTH_RATE_LIMIT.limit({ key: request.headers.get("CF-Connecting-IP") ?? "unknown" });
   if (!limit.success) return authResponse({ error: "Too many authentication attempts. Please wait and try again." }, 429);
+
   let body: Record<string, unknown>;
   try {
     const raw = await readLimitedBody(request);
@@ -566,54 +683,30 @@ async function handleAuth(request: Request, env: Env, url: URL): Promise<Respons
     const parsed: unknown = JSON.parse(raw);
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return authResponse({ error: "Invalid request." }, 400);
     body = parsed as Record<string, unknown>;
-  } catch { return authResponse({ error: "Invalid request." }, 400); }
+  } catch {
+    return authResponse({ error: "Invalid request." }, 400);
+  }
+
   const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
   const password = typeof body.password === "string" ? body.password : "";
   if (!validEmail(email) || password.length < 12 || password.length > 128) return authResponse({ error: "Enter a valid email and a password between 12 and 128 characters." }, 400);
   const emailLimit = await env.AUTH_EMAIL_RATE_LIMIT.limit({ key: await hashToken(email) });
   if (!emailLimit.success) return authResponse({ error: "Too many attempts for this account. Please wait and try again." }, 429);
-  if (path === "/api/auth/register") {
-    if (body.adultConfirmed !== true) return authResponse({ error: "You must confirm you are 18 or older to create an account." }, 403);
-    const name = typeof body.name === "string" ? body.name.trim() : "";
-    const phone = typeof body.phone === "string" ? body.phone.trim() : "";
-    if (!name || name.length > 100 || !/^[+\d\s()\-]{8,24}$/.test(phone) || phone.replace(/\D/g, "").length < 8) return authResponse({ error: "Enter your name and a valid phone number." }, 400);
-    const existing = await env.DB.prepare("SELECT id FROM customer_accounts WHERE email = ?").bind(email).first<{ id: string }>();
-    if (existing) return authResponse({ error: "An account with this email already exists. Please log in." }, 409);
-    const id = crypto.randomUUID();
-    const passwordHash = await makePasswordHash(password);
-    try {
-      await env.DB.prepare("INSERT INTO customer_accounts (id, name, email, phone, password_hash) VALUES (?, ?, ?, ?, ?)")
-        .bind(id, name, email, phone, passwordHash).run();
-    } catch (error) {
-      const duplicate = await env.DB.prepare("SELECT id FROM customer_accounts WHERE email = ?").bind(email).first<{ id: string }>();
-      if (duplicate) return authResponse({ error: "An account with this email already exists. Please log in." }, 409);
-      console.error("Customer registration failed.");
-      return authResponse({ error: "We could not create your account. Please try again." }, 503);
-    }
-    const token = await issueSession(env, "customer", id);
-    return authResponse({ ok: true, role: "customer" }, 201, setSessionCookie(token));
+
+  const configuredEmail = (env.STAFF_EMAIL ?? "").trim().toLowerCase();
+  const configuredHash = env.STAFF_PASSWORD_HASH ?? "";
+  const totpCode = typeof body.totpCode === "string" ? body.totpCode : "";
+  if (!configuredEmail || !configuredHash || email !== configuredEmail || !(await verifyPassword(password, configuredHash))) {
+    return authResponse({ error: "Staff credentials are incorrect or staff login has not been configured." }, 401);
   }
-  if (path === "/api/auth/staff/login") {
-    const configuredEmail = (env.STAFF_EMAIL ?? "").trim().toLowerCase();
-    const configuredHash = env.STAFF_PASSWORD_HASH ?? "";
-    const totpCode = typeof body.totpCode === "string" ? body.totpCode : "";
-    if (!configuredEmail || !configuredHash || email !== configuredEmail || !(await verifyPassword(password, configuredHash))) {
-      return authResponse({ error: "Staff credentials are incorrect or staff login has not been configured." }, 401);
-    }
-    const acceptedStep = await verifyTotp(env.STAFF_TOTP_SECRET, totpCode);
-    if (acceptedStep === null) return authResponse({ error: "Staff credentials are incorrect or staff login has not been configured." }, 401);
-    await env.DB.prepare("INSERT OR IGNORE INTO staff_totp_state (user_id, last_accepted_step) VALUES (?, -1)").bind(configuredEmail).run();
-    const replayCheck = await env.DB.prepare("UPDATE staff_totp_state SET last_accepted_step = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE user_id = ? AND last_accepted_step < ?")
-      .bind(acceptedStep, configuredEmail, acceptedStep).run() as { meta?: { changes?: number } };
-    if (replayCheck.meta?.changes !== 1) return authResponse({ error: "Staff credentials are incorrect or staff login has not been configured." }, 401);
-    const token = await issueSession(env, "staff", configuredEmail);
-    return authResponse({ ok: true, role: "staff" }, 200, setSessionCookie(token));
-  }
-  const customer = await env.DB.prepare("SELECT id, password_hash FROM customer_accounts WHERE email = ?")
-    .bind(email).first<{ id: string; password_hash: string }>();
-  if (!customer || !(await verifyPassword(password, customer.password_hash))) return authResponse({ error: "The email or password is incorrect." }, 401);
-  const token = await issueSession(env, "customer", customer.id);
-  return authResponse({ ok: true, role: "customer" }, 200, setSessionCookie(token));
+  const acceptedStep = await verifyTotp(env.STAFF_TOTP_SECRET, totpCode);
+  if (acceptedStep === null) return authResponse({ error: "Staff credentials are incorrect or staff login has not been configured." }, 401);
+  await env.DB.prepare("INSERT OR IGNORE INTO staff_totp_state (user_id, last_accepted_step) VALUES (?, -1)").bind(configuredEmail).run();
+  const replayCheck = await env.DB.prepare("UPDATE staff_totp_state SET last_accepted_step = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE user_id = ? AND last_accepted_step < ?")
+    .bind(acceptedStep, configuredEmail, acceptedStep).run() as { meta?: { changes?: number } };
+  if (replayCheck.meta?.changes !== 1) return authResponse({ error: "Staff credentials are incorrect or staff login has not been configured." }, 401);
+  const token = await issueSession(env, "staff", configuredEmail);
+  return authResponse({ ok: true, role: "staff" }, 200, setSessionCookie(token));
 }
 
 type StaffOrderRow = { id: string; customer_name: string; customer_phone: string; delivery_address: string; subtotal_ngn: number; delivery_fee_ngn: number | null; status: string; created_at: string; updated_at: string };
@@ -672,7 +765,7 @@ async function handleStaffOperations(request: Request, env: Env, url: URL): Prom
 function withSecurityHeaders(response: Response): Response {
   const headers = new Headers(response.headers);
   const securityHeaders: Record<string, string> = {
-    "Content-Security-Policy": "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https://images.unsplash.com; media-src 'self' https://videos.pexels.com; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self'",
+    "Content-Security-Policy": "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'; script-src 'self' https://wired-monitor-3464.clerk.accounts.dev https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://wired-monitor-3464.clerk.accounts.dev; img-src 'self' data: blob: https://images.unsplash.com https://img.clerk.com https://wired-monitor-3464.clerk.accounts.dev; media-src 'self' https://videos.pexels.com; font-src 'self' data: https://fonts.gstatic.com https://wired-monitor-3464.clerk.accounts.dev; connect-src 'self' https://wired-monitor-3464.clerk.accounts.dev https://api.clerk.com https://clerk-telemetry.com; frame-src https://wired-monitor-3464.clerk.accounts.dev https://challenges.cloudflare.com; worker-src 'self' blob:",
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
     "Referrer-Policy": "strict-origin-when-cross-origin",
