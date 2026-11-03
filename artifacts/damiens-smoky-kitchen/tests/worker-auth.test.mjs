@@ -292,7 +292,7 @@ test("live order collection is disabled by default and does not request customer
   const env = makeEnv();
   const status = await worker.fetch(request("/api/orders/status", { method: "GET" }), env);
   assert.equal(status.status, 200);
-  assert.deepEqual(await status.json(), { enabled: false });
+  assert.deepEqual(await status.json(), { enabled: false, paymentsEnabled: false });
   const order = await worker.fetch(request("/api/orders", {
     body: { name: "Test User", phone: "08012345678", address: "Ibafo, Lagos", state: "Lagos", adultConfirmed: true, items: [{ name: "Jollof Rice", category: "Rice", quantity: 1 }] },
   }), env);
@@ -334,7 +334,7 @@ test("production customer authentication and online ordering fail closed even wh
   delete env.CLERK_SECRET_KEY;
   delete env.CLERK_PUBLISHABLE_KEY;
   const status = await worker.fetch(request("/api/auth/status", { method: "GET" }), env);
-  assert.deepEqual(await status.json(), { customerEnabled: false, staffEnabled: true });
+  assert.deepEqual(await status.json(), { customerEnabled: false, staffEnabled: true, paymentsEnabled: false });
 
   const registration = await worker.fetch(request("/api/auth/register", {
     body: { name: "Test User", email: "production@example.com", phone: "08012345678", password: "LongEnoughPassword1!", adultConfirmed: true },
