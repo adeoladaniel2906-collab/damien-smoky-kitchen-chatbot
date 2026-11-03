@@ -13,6 +13,10 @@ if (Number.isNaN(port) || port <= 0) {
 const basePath = process.env.BASE_PATH ?? '/';
 
 export default defineConfig({
+  // Clerk publishable keys are designed for browser use; the secret key remains a Worker-only secret.
+  define: {
+    'import.meta.env.VITE_CLERK_PUBLISHABLE_KEY': JSON.stringify('pk_test_d2lyZWQtbW9uaXRvci0zNDY0LmNsZXJrLmFjY291bnRzLmRldiQ'),
+  },
   base: basePath,
   plugins: [react(), tailwindcss()],
   resolve: {
