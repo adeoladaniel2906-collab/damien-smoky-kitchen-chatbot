@@ -131,7 +131,8 @@ function makeEnv(overrides = {}) {
 }
 
 function request(path, { method = "POST", body, origin = "https://restaurant.example", cookie } = {}) {
-  const headers = new Headers({ Origin: origin });
+  const headers = new Headers();
+  if (origin !== null) headers.set("Origin", origin);
   if (body !== undefined) headers.set("Content-Type", "application/json");
   if (cookie) headers.set("Cookie", cookie);
   return new Request("https://restaurant.example" + path, {
@@ -394,4 +395,17 @@ test("valid staff password and TOTP session can read staff operations endpoints"
   assert.equal(logs.headers.get("Cache-Control"), "no-store");
   assert.deepEqual(await orders.json(), { orders: [] });
   assert.deepEqual(await logs.json(), { logs: [] });
+});
+
+
+test("order create and preview reject cross-origin and missing-Origin requests", async () => {
+  const env = makeEnv({ CUSTOMER_AUTH_ENABLED: "true", ORDERS_ENABLED: "true" });
+  const payload = { name: "Test User", phone: "08012345678", address: "Ibafo, Lagos", state: "Lagos", adultConfirmed: true, items: [{ name: "Jollof Rice", category: "Rice", quantity: 1 }] };
+
+  for (const origin of ["https://attacker.example", null]) {
+    const order = await worker.fetch(request("/api/orders", { body: payload, origin }), env);
+    const preview = await worker.fetch(request("/api/orders/preview", { body: payload, origin }), env);
+    assert.equal(order.status, 403);
+    assert.equal(preview.status, 403);
+  }
 });
