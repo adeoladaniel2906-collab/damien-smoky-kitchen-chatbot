@@ -1,0 +1,22 @@
+{
+  "id": "/",
+  "name": "Damien's Smoky Kitchen",
+  "short_name": "Damien's Kitchen",
+  "description": "Browse Nigerian food, explore the menu and manage your basket.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#fbf8f1",
+  "theme_color": "#21382d",
+  "categories": ["food", "shopping"],
+  "icons": [
+    {
+      "src": "/app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
