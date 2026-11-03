@@ -386,9 +386,10 @@ async function handleOrderCreate(request: Request, env: Env): Promise<Response> 
 
 
 export const TEST_AUTH_BYPASS = Symbol("test-auth-bypass");
-const CUSTOMER_CLERK_AUTH_IMPLEMENTED = false; // Fail closed until the selected Clerk integration is implemented and verified.
 function customerAuthAvailable(env: Env): boolean {
-  return env.CUSTOMER_AUTH_ENABLED === "true" && (env[TEST_AUTH_BYPASS] === true || CUSTOMER_CLERK_AUTH_IMPLEMENTED);
+  const hasClerkConfig = Boolean(env.CLERK_SECRET_KEY?.startsWith("sk_") && env.CLERK_PUBLISHABLE_KEY?.startsWith("pk_"));
+  const hasTestClient = env[TEST_AUTH_BYPASS] === true && Boolean(env[TEST_CLERK_CLIENT]);
+  return env.CUSTOMER_AUTH_ENABLED === "true" && (hasClerkConfig || hasTestClient);
 }
 function onlineOrderingAvailable(env: Env): boolean {
   return env.ORDERS_ENABLED === "true" && customerAuthAvailable(env);
@@ -524,15 +525,6 @@ async function verifyTotp(secret: string | undefined, code: string): Promise<num
 function validEmail(value: string): boolean { return value.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value); }
 type CustomerProfile = { id: string; name: string; email: string; phone: string };
 type ClerkIdentity = { client: ClerkClientLike; userId: string; user: ClerkUserRecord; email: string; name: string };
-
-function customerAuthAvailable(env: Env): boolean {
-  const hasClerkConfig = Boolean(env.CLERK_SECRET_KEY?.startsWith("sk_") && env.CLERK_PUBLISHABLE_KEY?.startsWith("pk_"));
-  const hasTestClient = env[TEST_AUTH_BYPASS] === true && Boolean(env[TEST_CLERK_CLIENT]);
-  return env.CUSTOMER_AUTH_ENABLED === "true" && (hasClerkConfig || hasTestClient);
-}
-function onlineOrderingAvailable(env: Env): boolean {
-  return env.ORDERS_ENABLED === "true" && customerAuthAvailable(env);
-}
 
 async function getClerkIdentity(request: Request, env: Env, url: URL): Promise<ClerkIdentity | null> {
   const client = env[TEST_CLERK_CLIENT] ?? (createClerkClient({
