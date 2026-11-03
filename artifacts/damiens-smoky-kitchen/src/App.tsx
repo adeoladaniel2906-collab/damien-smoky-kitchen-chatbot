@@ -1,5 +1,6 @@
 import { type FormEvent, type ReactNode, useEffect, useState } from 'react';
 import { Link, Route, Switch, useLocation } from 'wouter';
+import { SignIn, SignUp, useAuth, useUser } from '@clerk/react';
 import { ArrowRight, ChevronDown, Clock3, Flame, MapPin, MessageCircle, Minus, Plus, Search, ShoppingBag, Trash2, Truck, Utensils } from 'lucide-react';
 import { restaurantKnowledge, type MenuItem } from '@/chatbot/knowledge';
 import { CookieConsent } from '@/components/CookieConsent';
@@ -310,53 +311,36 @@ function AuthShell({ title, subtitle, children }: { title: string; subtitle: str
 }
 
 function CustomerAuthPage({ mode }: { mode: "register" | "login" }) {
-  const [, setLocation] = useLocation();
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [password, setPassword] = useState("");
-  const [adultConfirmed, setAdultConfirmed] = useState(false);
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
+  const register = mode === "register";
   const [authEnabled, setAuthEnabled] = useState(false);
   const [statusLoading, setStatusLoading] = useState(true);
-  const register = mode === "register";
   useEffect(() => {
     let active = true;
-    fetch("/api/auth/status", { cache: "no-store" }).then(response => response.json()).then(result => {
-      if (active) setAuthEnabled(result.customerEnabled === true);
-    }).catch(() => { if (active) setAuthEnabled(false); }).finally(() => { if (active) setStatusLoading(false); });
+    fetch("/api/auth/status", { cache: "no-store" })
+      .then(response => response.json())
+      .then(result => { if (active) setAuthEnabled(result.customerEnabled === true); })
+      .catch(() => { if (active) setAuthEnabled(false); })
+      .finally(() => { if (active) setStatusLoading(false); });
     return () => { active = false; };
   }, []);
-  const submit = async (event: FormEvent) => {
-    event.preventDefault();
-    if (busy || !authEnabled) return;
-    setBusy(true); setError("");
-    try {
-      const response = await fetch(register ? "/api/auth/register" : "/api/auth/login", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(register ? { name, email, phone, password, adultConfirmed } : { email, password }),
-      });
-      const result = await response.json() as { error?: string };
-      if (!response.ok) throw new Error(result.error ?? "We could not complete your request.");
-      setLocation("/account");
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "We could not complete your request.");
-    } finally { setBusy(false); }
-  };
-  return <AuthShell title={register ? "Create your account" : "Welcome back"} subtitle={register ? "Save your details for a simpler ordering experience." : "Log in to access your customer account."}>
-    {statusLoading ? <p className="mt-6 text-sm text-[#69766e]">Checking account availability…</p> : !authEnabled ? <div className="mt-6 rounded-2xl bg-[#e8eee6] p-4 text-sm leading-6 text-[#52645a]"><strong className="block text-[#21382d]">Customer accounts are not enabled yet.</strong><span className="mt-2 block">We are completing the secure sign-in and email-verification setup. You can still browse the menu and submit a guest order without creating an account.</span><Link href="/menu" className="mt-4 inline-flex font-bold text-[#b64a1a] underline">Continue as a guest</Link></div> : <>
-      <form onSubmit={submit} className="mt-7 space-y-4">
-        {register && <label className="block text-xs font-semibold">Full name<input required autoComplete="name" maxLength={100} value={name} onChange={e => setName(e.target.value)} className="mt-1.5 w-full rounded-xl border border-[#e5dfd3] bg-[#fbf8f1] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#e96d2c]"/></label>}
-        {register && <label className="flex items-start gap-2 text-xs leading-5 text-[#69766e]"><input type="checkbox" required checked={adultConfirmed} onChange={e => setAdultConfirmed(e.target.checked)} className="mt-1 accent-[#e96d2c]"/>I confirm I am 18 or older and have read the <Link href="/privacy" className="font-semibold underline">Privacy Notice</Link>. A parent/legal guardian must create an account or place an order for a child using their own details.</label>}
-        <label className="block text-xs font-semibold">Email address<input required type="email" autoComplete="email" maxLength={254} value={email} onChange={e => setEmail(e.target.value)} className="mt-1.5 w-full rounded-xl border border-[#e5dfd3] bg-[#fbf8f1] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#e96d2c]"/></label>
-        {register && <label className="block text-xs font-semibold">Phone number<input required type="tel" autoComplete="tel" maxLength={24} value={phone} onChange={e => setPhone(e.target.value)} className="mt-1.5 w-full rounded-xl border border-[#e5dfd3] bg-[#fbf8f1] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#e96d2c]"/></label>}
-        <label className="block text-xs font-semibold">Password<input required type="password" autoComplete={register ? "new-password" : "current-password"} minLength={12} maxLength={128} value={password} onChange={e => setPassword(e.target.value)} className="mt-1.5 w-full rounded-xl border border-[#e5dfd3] bg-[#fbf8f1] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#e96d2c]"/><span className="mt-1 block text-[11px] font-normal text-[#7b887f]">Use at least 12 characters.</span></label>
-        {error && <p role="alert" className="rounded-xl bg-[#fff0e5] p-3 text-xs leading-5 text-[#8b401d]">{error}</p>}
-        <button disabled={busy} className="w-full rounded-xl bg-[#21382d] px-4 py-3.5 text-sm font-bold text-white hover:bg-[#315541] disabled:opacity-60">{busy ? "Please wait…" : register ? "Create account" : "Log in"}</button>
-      </form>
-      <p className="mt-6 text-center text-xs text-[#69766e]">{register ? "Already have an account?" : "New to Damien's Smoky Kitchen?"} <Link href={register ? "/login" : "/create-account"} className="font-bold text-[#b64a1a]">{register ? "Log in" : "Create account"}</Link></p>
-    </>}
+
+  return <AuthShell
+    title={register ? "Create your account" : "Welcome back"}
+    subtitle={register ? "Create a secure account to make future orders easier." : "Sign in to access your customer account."}
+  >
+    {statusLoading ? <p className="mt-6 text-sm text-[#69766e]">Checking secure sign-in availability…</p> : !authEnabled ? (
+      <div className="mt-6 rounded-2xl bg-[#e8eee6] p-4 text-sm leading-6 text-[#52645a]">
+        <strong className="block text-[#21382d]">Customer sign-in is temporarily unavailable.</strong>
+        <span className="mt-2 block">The secure sign-in service is not ready. You can still browse the menu while we complete the setup.</span>
+        <Link href="/menu" className="mt-4 inline-flex font-bold text-[#b64a1a] underline">Continue browsing</Link>
+      </div>
+    ) : (
+      <div className="mt-6 flex justify-center">
+        {register
+          ? <SignUp routing="hash" signInUrl="/login" fallbackRedirectUrl="/account" />
+          : <SignIn routing="hash" signUpUrl="/create-account" fallbackRedirectUrl="/account" />}
+      </div>
+    )}
   </AuthShell>;
 }
 
@@ -402,37 +386,123 @@ function StaffLoginPage() {
 
 function CustomerAccountPage() {
   const [, setLocation] = useLocation();
-  const [user, setUser] = useState<{ name: string; email: string; phone: string } | null>(null);
+  const { isLoaded, isSignedIn, getToken, signOut } = useAuth();
+  const { user: clerkUser } = useUser();
+  const [profile, setProfile] = useState<{ name: string; email: string; phone: string } | null>(null);
+  const [needsProfile, setNeedsProfile] = useState(false);
+  const [phone, setPhone] = useState("");
+  const [adultConfirmed, setAdultConfirmed] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [deletePassword, setDeletePassword] = useState("");
-  const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
   useEffect(() => {
     let active = true;
-    fetch("/api/auth/me", { credentials: "same-origin" }).then(async response => {
-      if (!response.ok) throw new Error("Please log in to view your account.");
-      const result = await response.json();
-      if (result.role !== "customer") throw new Error("This page is for customer accounts.");
-      if (active) setUser(result.user);
-    }).catch(() => { if (active) setLocation("/login"); }).finally(() => { if (active) setLoading(false); });
+    if (!isLoaded) return () => { active = false; };
+    if (!isSignedIn) {
+      setLocation("/login");
+      setLoading(false);
+      return () => { active = false; };
+    }
+    (async () => {
+      try {
+        const token = await getToken();
+        if (!token) throw new Error("Your sign-in session could not be verified. Please sign in again.");
+        const response = await fetch("/api/auth/me", {
+          headers: { Authorization: "Bearer " + token },
+          credentials: "same-origin",
+          cache: "no-store",
+        });
+        const result = await response.json() as {
+          error?: string;
+          needsProfile?: boolean;
+          user?: { name: string; email: string; phone: string };
+        };
+        if (response.status === 401) throw new Error("Your sign-in session has expired. Please sign in again.");
+        if (!response.ok) throw new Error(result.error ?? "We could not load your customer profile.");
+        if (active) {
+          if (result.needsProfile) {
+            setNeedsProfile(true);
+            setPhone(clerkUser?.primaryPhoneNumber?.phoneNumber ?? "");
+          } else if (result.user) {
+            setProfile(result.user);
+            setPhone(result.user.phone);
+          }
+        }
+      } catch (caught) {
+        if (active) {
+          setError(caught instanceof Error ? caught.message : "We could not load your account.");
+          if (caught instanceof Error && caught.message.includes("sign in again")) setLocation("/login");
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
     return () => { active = false; };
-  }, [setLocation]);
-  const logout = async () => { await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" }); setLocation("/login"); };
-  const deleteAccount = async () => {
-    if (busy || !deletePassword) return;
-    if (!window.confirm("Permanently delete your customer account? This cannot be undone. Order records may be retained where required by law.")) return;
-    setBusy(true); setStatus("");
+  }, [isLoaded, isSignedIn, getToken, setLocation, clerkUser]);
+
+  const saveProfile = async (event: FormEvent) => {
+    event.preventDefault();
+    if (busy) return;
+    setBusy(true);
+    setError("");
     try {
-      const response = await fetch("/api/auth/delete-account", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "same-origin", body: JSON.stringify({ password: deletePassword }) });
-      const result = await response.json() as { error?: string };
-      if (!response.ok) throw new Error(result.error ?? "We could not delete your account.");
-      setLocation("/");
+      const token = await getToken();
+      if (!token) throw new Error("Your sign-in session has expired. Please sign in again.");
+      const response = await fetch("/api/auth/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+        credentials: "same-origin",
+        body: JSON.stringify({ phone, adultConfirmed }),
+      });
+      const result = await response.json() as { error?: string; user?: { name: string; email: string; phone: string } };
+      if (!response.ok || !result.user) throw new Error(result.error ?? "We could not save your profile.");
+      setProfile(result.user);
+      setNeedsProfile(false);
     } catch (caught) {
-      setStatus(caught instanceof Error ? caught.message : "We could not delete your account.");
-    } finally { setBusy(false); }
+      setError(caught instanceof Error ? caught.message : "We could not save your profile.");
+    } finally {
+      setBusy(false);
+    }
   };
-  return <AuthShell title="Your account" subtitle="Your customer profile. Order history will be connected in a later stage.">
-    {loading ? <p className="mt-6 text-sm text-[#69766e]">Loading your account…</p> : user && <div className="mt-6 space-y-3 text-sm"><p><strong>Name:</strong> {user.name}</p><p><strong>Email:</strong> {user.email}</p><p><strong>Phone:</strong> {user.phone}</p><button onClick={logout} className="mt-4 w-full rounded-xl border border-[#d9d4c9] px-4 py-3 text-sm font-semibold">Log out</button><div className="mt-6 border-t border-[#e8e2d6] pt-5"><h2 className="font-bold text-[#8b401d]">Delete account</h2><p className="mt-2 text-xs leading-5 text-[#69766e]">Enter your password to delete your account and sign out all sessions. Transaction records may be retained where the law requires them.</p><input type="password" autoComplete="current-password" minLength={12} maxLength={128} value={deletePassword} onChange={event => setDeletePassword(event.target.value)} placeholder="Current password" className="mt-3 w-full rounded-xl border border-[#e5dfd3] bg-[#fbf8f1] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#e96d2c]"/><button type="button" disabled={busy || !deletePassword} onClick={deleteAccount} className="mt-3 w-full rounded-xl border border-[#b64a1a] px-4 py-3 text-sm font-bold text-[#b64a1a] disabled:opacity-50">{busy ? "Deleting…" : "Permanently delete account"}</button>{status && <p role="alert" className="mt-3 rounded-xl bg-[#fff0e5] p-3 text-xs">{status}</p>}</div></div>}
+
+  const logout = async () => {
+    await signOut();
+    setLocation("/login");
+  };
+
+  return <AuthShell title="Your account" subtitle="Your customer profile is securely connected to your Clerk sign-in.">
+    {loading || !isLoaded ? <p className="mt-6 text-sm text-[#69766e]">Verifying your customer session…</p> : profile ? (
+      <div className="mt-6 space-y-3 text-sm">
+        <p><strong>Name:</strong> {profile.name}</p>
+        <p><strong>Email:</strong> {profile.email}</p>
+        <p><strong>Phone:</strong> {profile.phone}</p>
+        <button onClick={logout} className="mt-4 w-full rounded-xl border border-[#d9d4c9] px-4 py-3 text-sm font-semibold">Log out</button>
+        <p className="border-t border-[#e8e2d6] pt-4 text-xs leading-5 text-[#7b887f]">Order history will appear here after secure customer-owned ordering is enabled. To request account deletion, contact the restaurant.</p>
+      </div>
+    ) : needsProfile ? (
+      <form onSubmit={saveProfile} className="mt-6 space-y-4">
+        <div className="rounded-xl bg-[#f0f4ed] p-3 text-xs leading-5 text-[#52645a]">
+          Your Clerk sign-in is verified. Add a phone number to finish setting up your customer profile.
+        </div>
+        <label className="block text-xs font-semibold">Phone number
+          <input required type="tel" autoComplete="tel" minLength={8} maxLength={24} value={phone} onChange={event => setPhone(event.target.value)} className="mt-1.5 w-full rounded-xl border border-[#e5dfd3] bg-[#fbf8f1] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#e96d2c]" />
+        </label>
+        <label className="flex items-start gap-2 text-xs leading-5 text-[#69766e]">
+          <input type="checkbox" required checked={adultConfirmed} onChange={event => setAdultConfirmed(event.target.checked)} className="mt-1 accent-[#e96d2c]" />
+          I confirm I am 18 or older and have read the <Link href="/privacy" className="font-semibold underline">Privacy Notice</Link>. A parent or legal guardian must place an order for a child using their own details.
+        </label>
+        {error && <p role="alert" className="rounded-xl bg-[#fff0e5] p-3 text-xs leading-5 text-[#8b401d]">{error}</p>}
+        <button disabled={busy} className="w-full rounded-xl bg-[#21382d] px-4 py-3.5 text-sm font-bold text-white disabled:opacity-60">{busy ? "Saving profile…" : "Finish account setup"}</button>
+        <button type="button" onClick={logout} className="w-full rounded-xl border border-[#d9d4c9] px-4 py-3 text-sm font-semibold">Sign out</button>
+      </form>
+    ) : (
+      <div className="mt-6 space-y-3">
+        {error && <p role="alert" className="rounded-xl bg-[#fff0e5] p-3 text-xs leading-5 text-[#8b401d]">{error}</p>}
+        <p className="text-sm text-[#69766e]">We could not load your customer profile.</p>
+        <button onClick={logout} className="w-full rounded-xl border border-[#d9d4c9] px-4 py-3 text-sm font-semibold">Sign out</button>
+      </div>
+    )}
   </AuthShell>;
 }
 
