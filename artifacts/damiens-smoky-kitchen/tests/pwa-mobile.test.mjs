@@ -37,3 +37,20 @@ test("customer sign-in returns to an existing route, not the removed account pag
   assert.match(app, /fallbackRedirectUrl="\/"/);
   assert.doesNotMatch(app, /fallbackRedirectUrl="\/account"/);
 });
+
+test("the initial HTML shows a branded loading fallback before the app JavaScript loads", async () => {
+  const html = await read("../index.html");
+  assert.match(html, /id="root">[\\s\\S]*role="status"/);
+  assert.match(html, /Getting the kitchen ready/);
+  assert.match(html, /aria-busy="true"/);
+});
+
+test("the kitchen assistant offers one-tap prompts and answers basket questions from the live basket", async () => {
+  const app = await read("../src/App.tsx");
+  assert.match(app, /Show me the Jollof menu/);
+  assert.match(app, /What's in my basket\?/);
+  assert.match(app, /onClick=\{\(\) => void ask\(text\)\}/);
+  assert.match(app, /Your basket is empty at the moment/);
+  assert.match(app, /Subtotal:/);
+  assert.match(app, /AssistantPage basket=\{basket\}/);
+});
