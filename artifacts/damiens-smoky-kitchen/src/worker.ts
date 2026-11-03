@@ -28,8 +28,6 @@ interface Env {
   ORDERS_ENABLED?: string;
   CUSTOMER_AUTH_ENABLED?: string;
   STAFF_AUTH_ENABLED?: string;
-  /** Test-only bypass. Never configure this on a deployed Worker. */
-  ENVIRONMENT?: string;
 }
 
 type ChatMessage = {
@@ -365,9 +363,10 @@ async function handleOrderCreate(request: Request, env: Env): Promise<Response> 
 }
 
 
+export const TEST_AUTH_BYPASS = Symbol("test-auth-bypass");
 const CUSTOMER_CLERK_AUTH_IMPLEMENTED = false; // Fail closed until the selected Clerk integration is implemented and verified.
 function customerAuthAvailable(env: Env): boolean {
-  return env.CUSTOMER_AUTH_ENABLED === "true" && (env.ENVIRONMENT === "test" || CUSTOMER_CLERK_AUTH_IMPLEMENTED);
+  return env.CUSTOMER_AUTH_ENABLED === "true" && (env[TEST_AUTH_BYPASS] === true || CUSTOMER_CLERK_AUTH_IMPLEMENTED);
 }
 function onlineOrderingAvailable(env: Env): boolean {
   return env.ORDERS_ENABLED === "true" && customerAuthAvailable(env);
