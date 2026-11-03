@@ -245,16 +245,16 @@ async function handleChat(request: Request, env: Env): Promise<Response> {
 type OrderLineInput = { name?: unknown; category?: unknown; quantity?: unknown };
 type OrderPreviewInput = { name?: unknown; phone?: unknown; address?: unknown; state?: unknown; adultConfirmed?: unknown; items?: unknown };
 
-async function handleOrderPreview(request: Request, env: Env): Promise<Response> {
+async function handleOrderPreview(request: Request, env: Env, customer: CustomerProfile): Promise<Response> {
   const contentLength = Number(request.headers.get("content-length") ?? "0");
   if (contentLength > MAX_BODY_BYTES) {
     return Response.json({ error: "Request body is too large." }, { status: 413 });
   }
 
   const clientKey = request.headers.get("CF-Connecting-IP") ?? "unknown";
-  const rate = await env.CHAT_RATE_LIMIT.limit({ key: clientKey });
+  const rate = await env.ORDER_RATE_LIMIT.limit({ key: "preview:" + clientKey });
   if (!rate.success) {
-    return Response.json({ error: "Too many requests. Please try again shortly." }, {
+    return Response.json({ error: "Too many order reviews. Please try again shortly." }, {
       status: 429,
       headers: { "Retry-After": "60", "Cache-Control": "no-store" },
     });
@@ -323,12 +323,12 @@ async function handleOrderPreview(request: Request, env: Env): Promise<Response>
 }
 
 
-async function handleOrderCreate(request: Request, env: Env): Promise<Response> {
+async function handleOrderCreate(request: Request, env: Env, customer: CustomerProfile): Promise<Response> {
   const clientKey = request.headers.get("CF-Connecting-IP") ?? "unknown";
   const rate = await env.ORDER_RATE_LIMIT.limit({ key: clientKey });
   if (!rate.success) return Response.json({ error: "Too many order attempts. Please try again shortly." }, { status: 429, headers: { "Retry-After": "60", "Cache-Control": "no-store" } });
 
-  const preview = await handleOrderPreview(request.clone(), env);
+  const preview = await handleOrderPreview(request.clone(), env, customer);
   if (!preview.ok) return preview;
 
   const idempotencyKey = request.headers.get("Idempotency-Key");
@@ -340,13 +340,26 @@ async function handleOrderCreate(request: Request, env: Env): Promise<Response> 
   try { body = JSON.parse(await request.text()) as OrderPreviewInput; }
   catch { return Response.json({ error: "Request body must be valid JSON." }, { status: 400 }); }
 
-  const existing = await env.DB.prepare("SELECT id, subtotal_ngn, status FROM orders WHERE idempotency_key = ?")
-    .bind(idempotencyKey).first<{ id: string; subtotal_ngn: number; status: string }>();
-  if (existing) return Response.json({
-    ok: true, orderSubmitted: true, duplicate: true, orderId: existing.id,
-    status: existing.status, subtotal: existing.subtotal_ngn,
-    message: "This order request was already received. The restaurant must confirm it.",
-  }, { headers: { "Cache-Control": "no-store" } });
+  const normalizedRequest = {
+    customerId: customer.id,
+    address: (body.address as string).trim(),
+    state: "Lagos",
+    items: (body.items as OrderLineInput[]).map((item) => ({ name: item.name, category: item.category, quantity: item.quantity })),
+  };
+  const requestHashBytes = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(normalizedRequest))));
+  const requestHash = Array.from(requestHashBytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+  const existing = await env.DB.prepare("SELECT id, customer_id, request_hash, subtotal_ngn, status FROM orders WHERE idempotency_key = ?")
+    .bind(idempotencyKey).first<{ id: string; customer_id: string | null; request_hash: string | null; subtotal_ngn: number; status: string }>();
+  if (existing) {
+    if (existing.customer_id !== customer.id || existing.request_hash !== requestHash) {
+      return Response.json({ error: "This order request key cannot be reused. Start a new order request." }, { status: 409, headers: { "Cache-Control": "no-store" } });
+    }
+    return Response.json({
+      ok: true, orderSubmitted: true, duplicate: true, orderId: existing.id,
+      status: existing.status, subtotal: existing.subtotal_ngn,
+      message: "This order request was already received. The restaurant must confirm it.",
+    }, { headers: { "Cache-Control": "no-store" } });
+  }
 
   const items = body.items as OrderLineInput[];
   const menu = [...restaurantKnowledge.menu, ...restaurantKnowledge.drinksMenu, ...restaurantKnowledge.veganMenu];
@@ -361,15 +374,15 @@ async function handleOrderCreate(request: Request, env: Env): Promise<Response> 
 
   try {
     await env.DB.batch([
-      env.DB.prepare("INSERT INTO orders (id, idempotency_key, customer_name, customer_phone, delivery_address, delivery_state, subtotal_ngn, status, adult_confirmed_at) VALUES (?, ?, ?, ?, ?, 'Lagos', ?, 'pending', ?)")
-        .bind(orderId, idempotencyKey, (body.name as string).trim(), (body.phone as string).trim(), (body.address as string).trim(), subtotal, new Date().toISOString()),
+      env.DB.prepare("INSERT INTO orders (id, idempotency_key, customer_id, request_hash, customer_name, customer_phone, delivery_address, delivery_state, subtotal_ngn, status, adult_confirmed_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'Lagos', ?, 'pending', ?)")
+        .bind(orderId, idempotencyKey, customer.id, requestHash, customer.name, customer.phone, (body.address as string).trim(), subtotal, new Date().toISOString()),
       ...lines.map((line) => env.DB.prepare("INSERT INTO order_items (order_id, item_name, category, quantity, unit_price_ngn, line_total_ngn) VALUES (?, ?, ?, ?, ?, ?)")
         .bind(orderId, line.name, line.category, line.quantity, line.unitPrice, line.lineTotal)),
     ]);
   } catch (error) {
-    const duplicate = await env.DB.prepare("SELECT id, subtotal_ngn, status FROM orders WHERE idempotency_key = ?")
-      .bind(idempotencyKey).first<{ id: string; subtotal_ngn: number; status: string }>();
-    if (duplicate) return Response.json({
+    const duplicate = await env.DB.prepare("SELECT id, customer_id, request_hash, subtotal_ngn, status FROM orders WHERE idempotency_key = ?")
+      .bind(idempotencyKey).first<{ id: string; customer_id: string | null; request_hash: string | null; subtotal_ngn: number; status: string }>();
+    if (duplicate?.customer_id === customer.id && duplicate.request_hash === requestHash) return Response.json({
       ok: true, orderSubmitted: true, duplicate: true, orderId: duplicate.id,
       status: duplicate.status, subtotal: duplicate.subtotal_ngn,
       message: "This order request was already received. The restaurant must confirm it.",
@@ -793,14 +806,30 @@ export default {
       const origin = request.headers.get("Origin");
       if (origin !== url.origin) return withSecurityHeaders(Response.json({ error: "Request origin is not allowed." }, { status: 403, headers: { "Cache-Control": "no-store" } }));
       if (!onlineOrderingAvailable(env)) return withSecurityHeaders(Response.json({ error: "Online ordering is temporarily unavailable while secure customer-data processing is being completed." }, { status: 503, headers: { "Cache-Control": "no-store" } }));
-      return withSecurityHeaders(await handleOrderCreate(request, env));
+      try {
+        const identity = await getClerkIdentity(request, env, url);
+        if (!identity) return withSecurityHeaders(Response.json({ error: "A verified customer sign-in is required." }, { status: 401, headers: { "Cache-Control": "no-store" } }));
+        const customer = await getCustomerProfileByClerkId(env, identity.userId);
+        if (!customer) return withSecurityHeaders(Response.json({ error: "Complete customer profile setup before placing an order." }, { status: 403, headers: { "Cache-Control": "no-store" } }));
+        return withSecurityHeaders(await handleOrderCreate(request, env, customer));
+      } catch {
+        return withSecurityHeaders(Response.json({ error: "We could not verify your customer session." }, { status: 503, headers: { "Cache-Control": "no-store" } }));
+      }
     }
 
     if (url.pathname === "/api/orders/preview") {
       if (request.method !== "POST") return withSecurityHeaders(Response.json({ error: "Method not allowed." }, { status: 405 }));
       if (request.headers.get("Origin") !== url.origin) return withSecurityHeaders(Response.json({ error: "Request origin is not allowed." }, { status: 403, headers: { "Cache-Control": "no-store" } }));
       if (!onlineOrderingAvailable(env)) return withSecurityHeaders(Response.json({ error: "Order review is temporarily unavailable." }, { status: 503, headers: { "Cache-Control": "no-store" } }));
-      return withSecurityHeaders(await handleOrderPreview(request, env));
+      try {
+        const identity = await getClerkIdentity(request, env, url);
+        if (!identity) return withSecurityHeaders(Response.json({ error: "A verified customer sign-in is required." }, { status: 401, headers: { "Cache-Control": "no-store" } }));
+        const customer = await getCustomerProfileByClerkId(env, identity.userId);
+        if (!customer) return withSecurityHeaders(Response.json({ error: "Complete customer profile setup before reviewing an order." }, { status: 403, headers: { "Cache-Control": "no-store" } }));
+        return withSecurityHeaders(await handleOrderPreview(request, env, customer));
+      } catch {
+        return withSecurityHeaders(Response.json({ error: "We could not verify your customer session." }, { status: 503, headers: { "Cache-Control": "no-store" } }));
+      }
     }
 
     if (url.pathname === "/api/chat") {
