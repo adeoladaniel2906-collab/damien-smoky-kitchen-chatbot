@@ -299,12 +299,28 @@ test("live order collection is disabled by default and does not request customer
   assert.equal(order.status, 503);
 });
 
-test("order preview rejects an order without adult confirmation", async () => {
+test("order preview requires an authenticated customer with a linked profile", async () => {
   const env = makeEnv({ ORDERS_ENABLED: "true" });
-  const response = await worker.fetch(request("/api/orders/preview", {
-    body: { name: "Test User", phone: "08012345678", address: "Ibafo, Lagos", state: "Lagos", adultConfirmed: false, items: [{ name: "Jollof Rice", category: "Rice", quantity: 1 }] },
+  const payload = { name: "Forged Name", phone: "08000000000", address: "Ibafo, Lagos", state: "Lagos", adultConfirmed: false, items: [{ name: "Jollof Rice", category: "Rice", quantity: 1 }] };
+
+  const anonymous = await worker.fetch(request("/api/orders/preview", { body: payload }), env);
+  assert.equal(anonymous.status, 401);
+
+  const noProfile = await worker.fetch(request("/api/orders/preview", {
+    authorization: "Bearer clerk-one-token", body: payload,
   }), env);
-  assert.equal(response.status, 400);
+  assert.equal(noProfile.status, 403);
+
+  const setup = await worker.fetch(request("/api/auth/profile", {
+    authorization: "Bearer clerk-one-token",
+    body: { phone: "08012345678", adultConfirmed: true },
+  }), env);
+  assert.equal(setup.status, 201);
+
+  const response = await worker.fetch(request("/api/orders/preview", {
+    authorization: "Bearer clerk-one-token", body: payload,
+  }), env);
+  assert.equal(response.status, 400, "authenticated customer reaches basket validation");
 });
 
 
