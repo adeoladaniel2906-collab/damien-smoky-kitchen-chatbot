@@ -147,7 +147,7 @@ function App() {
 
   return <div className="min-h-screen bg-[#fbf8f1] text-[#21382d]">
     {!isOnline && <div role="status" className="bg-[#fff0cf] px-4 py-2 text-center text-xs font-semibold text-[#6d5425]">You are offline. Previously loaded pages may remain available; sign-in and live services need an internet connection.</div>}
-    {!isStaffArea && <header className="sticky top-0 z-40 border-b border-[#e6e1d6] bg-[#fbf8f1]/95 backdrop-blur">
+    {!isStaffArea && <header className="dsk-app-header sticky top-0 z-40 border-b border-[#e6e1d6] bg-[#fbf8f1]/95 backdrop-blur">
       <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-3 sm:px-6">
         <Link href="/" className="flex shrink-0 items-center gap-2" aria-label="Damien's Smoky Kitchen home">
           <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#e96d2c] text-white"><Flame size={21}/></span>
