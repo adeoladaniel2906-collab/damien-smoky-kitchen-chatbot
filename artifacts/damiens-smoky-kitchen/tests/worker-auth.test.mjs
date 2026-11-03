@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHmac, pbkdf2Sync } from "node:crypto";
-import worker from "../src/worker.ts";
+import worker, { TEST_AUTH_BYPASS } from "../src/worker.ts";
 
 const b64url = (value) => Buffer.from(value).toString("base64url");
 const STAFF_TOTP_SECRET = "JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP";
@@ -112,7 +112,7 @@ function staffHash(password) {
 function makeEnv(overrides = {}) {
   return {
     DB: new FakeDatabase(),
-    ENVIRONMENT: "test",
+    [TEST_AUTH_BYPASS]: true,
     AUTH_RATE_LIMIT: { limit: async () => ({ success: true }) },
     AUTH_EMAIL_RATE_LIMIT: { limit: async () => ({ success: true }) },
     CHAT_RATE_LIMIT: { limit: async () => ({ success: true }) },
@@ -302,10 +302,10 @@ test("order preview rejects an order without adult confirmation", async () => {
 
 test("production customer authentication and online ordering fail closed even when dashboard flags are true", async () => {
   const env = makeEnv({
-    ENVIRONMENT: undefined,
     CUSTOMER_AUTH_ENABLED: "true",
     ORDERS_ENABLED: "true",
   });
+  delete env[TEST_AUTH_BYPASS]; // Simulate Cloudflare: bindings cannot supply symbol-keyed test hooks.
   const status = await worker.fetch(request("/api/auth/status", { method: "GET" }), env);
   assert.deepEqual(await status.json(), { customerEnabled: false, staffEnabled: true });
 
@@ -323,4 +323,43 @@ test("production customer authentication and online ordering fail closed even wh
   assert.equal(order.status, 503);
   const preview = await worker.fetch(request("/api/orders/preview", { body: payload }), env);
   assert.equal(preview.status, 503);
+});
+
+
+test("customer profile endpoint returns only the authenticated customer's own record", async () => {
+  const env = makeEnv();
+  const first = await worker.fetch(request("/api/auth/register", {
+    body: { name: "Customer One", email: "one@example.com", phone: "08012345678", password: "LongEnoughPassword1!", adultConfirmed: true },
+  }), env);
+  const second = await worker.fetch(request("/api/auth/register", {
+    body: { name: "Customer Two", email: "two@example.com", phone: "08087654321", password: "LongEnoughPassword2!", adultConfirmed: true },
+  }), env);
+  const firstCookie = sessionCookie(first);
+  const secondCookie = sessionCookie(second);
+
+  const ownProfile = await worker.fetch(request("/api/auth/me?userId=attacker-controlled", { method: "GET", cookie: firstCookie }), env);
+  assert.equal(ownProfile.status, 200);
+  const ownData = await ownProfile.json();
+  assert.equal(ownData.user.email, "one@example.com");
+  assert.equal(ownData.user.name, "Customer One");
+  assert.notEqual(ownData.user.email, "two@example.com");
+
+  const secondProfile = await worker.fetch(request("/api/auth/me", { method: "GET", cookie: secondCookie }), env);
+  assert.equal(secondProfile.status, 200);
+  assert.equal((await secondProfile.json()).user.email, "two@example.com");
+});
+
+test("customer sessions and unauthenticated requests cannot read staff orders or audit logs", async () => {
+  const env = makeEnv();
+  const registration = await worker.fetch(request("/api/auth/register", {
+    body: { name: "Customer One", email: "staff-boundary@example.com", phone: "08012345678", password: "LongEnoughPassword1!", adultConfirmed: true },
+  }), env);
+  const customerCookie = sessionCookie(registration);
+
+  for (const cookie of [undefined, customerCookie]) {
+    const orders = await worker.fetch(request("/api/staff/orders", { method: "GET", cookie }), env);
+    const logs = await worker.fetch(request("/api/staff/logs", { method: "GET", cookie }), env);
+    assert.equal(orders.status, 401);
+    assert.equal(logs.status, 401);
+  }
 });
