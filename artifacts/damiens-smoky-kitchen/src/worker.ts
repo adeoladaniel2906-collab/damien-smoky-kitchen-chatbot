@@ -353,7 +353,7 @@ async function handleOrderCreate(request: Request, env: Env): Promise<Response> 
       status: duplicate.status, subtotal: duplicate.subtotal_ngn,
       message: "This order request was already received. The restaurant must confirm it.",
     }, { headers: { "Cache-Control": "no-store" } });
-    console.error("Order persistence failed:", error);
+    console.error("Order persistence failed.");
     return Response.json({ error: "We could not safely save this order. Please try again or contact the restaurant." }, { status: 503, headers: { "Cache-Control": "no-store" } });
   }
 
@@ -549,7 +549,7 @@ async function handleAuth(request: Request, env: Env, url: URL): Promise<Respons
         env.DB.prepare("DELETE FROM customer_accounts WHERE id = ?").bind(session.user_id),
       ]);
     } catch (error) {
-      console.error("Customer account deletion failed:", error);
+      console.error("Customer account deletion failed.");
       return authResponse({ error: "We could not delete the account. Please contact the restaurant." }, 503);
     }
     return authResponse({ ok: true }, 200, clearSessionCookie());
@@ -587,7 +587,7 @@ async function handleAuth(request: Request, env: Env, url: URL): Promise<Respons
     } catch (error) {
       const duplicate = await env.DB.prepare("SELECT id FROM customer_accounts WHERE email = ?").bind(email).first<{ id: string }>();
       if (duplicate) return authResponse({ error: "An account with this email already exists. Please log in." }, 409);
-      console.error("Customer registration failed:", error);
+      console.error("Customer registration failed.");
       return authResponse({ error: "We could not create your account. Please try again." }, 503);
     }
     const token = await issueSession(env, "customer", id);
@@ -698,13 +698,14 @@ export default {
     if (url.pathname === "/api/orders") {
       if (request.method !== "POST") return withSecurityHeaders(Response.json({ error: "Method not allowed." }, { status: 405 }));
       const origin = request.headers.get("Origin");
-      if (origin && origin !== url.origin) return withSecurityHeaders(Response.json({ error: "Cross-origin order requests are not allowed." }, { status: 403 }));
+      if (origin !== url.origin) return withSecurityHeaders(Response.json({ error: "Request origin is not allowed." }, { status: 403, headers: { "Cache-Control": "no-store" } }));
       if (!onlineOrderingAvailable(env)) return withSecurityHeaders(Response.json({ error: "Online ordering is temporarily unavailable while secure customer-data processing is being completed." }, { status: 503, headers: { "Cache-Control": "no-store" } }));
       return withSecurityHeaders(await handleOrderCreate(request, env));
     }
 
     if (url.pathname === "/api/orders/preview") {
       if (request.method !== "POST") return withSecurityHeaders(Response.json({ error: "Method not allowed." }, { status: 405 }));
+      if (request.headers.get("Origin") !== url.origin) return withSecurityHeaders(Response.json({ error: "Request origin is not allowed." }, { status: 403, headers: { "Cache-Control": "no-store" } }));
       if (!onlineOrderingAvailable(env)) return withSecurityHeaders(Response.json({ error: "Order review is temporarily unavailable." }, { status: 503, headers: { "Cache-Control": "no-store" } }));
       return withSecurityHeaders(await handleOrderPreview(request, env));
     }
