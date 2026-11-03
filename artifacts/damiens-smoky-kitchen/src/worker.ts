@@ -890,6 +890,19 @@ async function handleStaffOperations(request: Request, env: Env, url: URL): Prom
     const result = await env.DB.prepare("SELECT id, actor, action, target_id, created_at FROM staff_audit_logs ORDER BY id DESC LIMIT 100").all<{ id: number; actor: string; action: string; target_id: string | null; created_at: string }>();
     return authResponse({ logs: result.results ?? [] });
   }
+  if (request.method === "PATCH" && /^\/api\/staff\/orders\/[0-9a-f-]{36}\/delivery-fee$/i.test(url.pathname)) {
+    if (request.headers.get("Origin") !== url.origin) return authResponse({ error: "Request origin is not allowed." }, 403);
+    const id = url.pathname.split("/")[4];
+    const body = await readJsonObject(request, 2048);
+    const fee = body?.deliveryFeeNgn;
+    if (!Number.isSafeInteger(fee) || Number(fee) < 0 || Number(fee) > 500000) return authResponse({ error: "Enter a valid delivery fee in naira." }, 400);
+    const update = await env.DB.prepare("UPDATE orders SET delivery_fee_ngn = ?, delivery_fee_confirmed_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ? AND status = 'pending' AND payment_status IN ('unpaid', 'failed')")
+      .bind(Number(fee), id).run() as { meta?: { changes?: number } };
+    if (update.meta?.changes !== 1) return authResponse({ error: "Delivery fee can only be confirmed for an unpaid pending order." }, 409);
+    await env.DB.prepare("INSERT INTO staff_audit_logs (actor, action, target_id) VALUES (?, ?, ?)")
+      .bind(session.user_id, "order.delivery_fee.confirmed:" + Number(fee), id).run();
+    return authResponse({ ok: true, deliveryFeeNgn: Number(fee), deliveryFeeConfirmed: true });
+  }
   if (request.method === "PATCH" && url.pathname.startsWith("/api/staff/orders/")) {
     if (request.headers.get("Origin") !== url.origin) return authResponse({ error: "Request origin is not allowed." }, 403);
     const id = decodeURIComponent(url.pathname.slice("/api/staff/orders/".length));
@@ -903,7 +916,7 @@ async function handleStaffOperations(request: Request, env: Env, url: URL): Prom
       body = parsed as Record<string, unknown>;
     } catch { return authResponse({ error: "Invalid request." }, 400); }
     const next = typeof body.status === "string" ? body.status : "";
-    const existing = await env.DB.prepare("SELECT status FROM orders WHERE id = ?").bind(id).first<{ status: string }>();
+    const existing = await env.DB.prepare("SELECT status, delivery_fee_confirmed_at FROM orders WHERE id = ?").bind(id).first<{ status: string; delivery_fee_confirmed_at: string | null }>();
     if (!existing) return authResponse({ error: "Order not found." }, 404);
     if (existing.status === next) return authResponse({ ok: true, status: next });
     const transitions: Record<string, string[]> = {
@@ -914,6 +927,7 @@ async function handleStaffOperations(request: Request, env: Env, url: URL): Prom
       completed: [],
       cancelled: []
     };
+    if (next === "accepted" && !existing.delivery_fee_confirmed_at) return authResponse({ error: "Confirm the delivery fee before accepting this order." }, 409);
     if (!Object.prototype.hasOwnProperty.call(transitions, existing.status) || !transitions[existing.status].includes(next)) return authResponse({ error: "This order status transition is not allowed." }, 409);
     await env.DB.batch([
       env.DB.prepare("UPDATE orders SET status = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?").bind(next, id),
@@ -945,9 +959,45 @@ export default {
     if (url.pathname.startsWith("/api/auth/")) return withSecurityHeaders(await handleAuth(request, env, url));
     if (url.pathname.startsWith("/api/staff/")) return withSecurityHeaders(await handleStaffOperations(request, env, url));
 
+    if (url.pathname === "/api/payments/paystack/webhook") {
+      if (request.method !== "POST") return withSecurityHeaders(Response.json({ error: "Method not allowed." }, { status: 405 }));
+      return withSecurityHeaders(await handlePaystackWebhook(request, env));
+    }
+
     if (url.pathname === "/api/orders/status") {
       if (request.method !== "GET") return withSecurityHeaders(Response.json({ error: "Method not allowed." }, { status: 405 }));
-      return withSecurityHeaders(Response.json({ enabled: onlineOrderingAvailable(env) }, { headers: { "Cache-Control": "no-store" } }));
+      return withSecurityHeaders(Response.json({ enabled: onlineOrderingAvailable(env), paymentsEnabled: paymentConfigurationAvailable(env) }, { headers: { "Cache-Control": "no-store" } }));
+    }
+
+    if (url.pathname === "/api/orders/mine" || /^\/api\/orders\/[0-9a-f-]{36}$/i.test(url.pathname)) {
+      if (request.method !== "GET") return withSecurityHeaders(Response.json({ error: "Method not allowed." }, { status: 405 }));
+      if (!customerAuthAvailable(env)) return withSecurityHeaders(Response.json({ error: "Customer sign-in is not configured." }, { status: 503, headers: { "Cache-Control": "no-store" } }));
+      try {
+        const identity = await getClerkIdentity(request, env, url);
+        if (!identity) return withSecurityHeaders(Response.json({ error: "A verified customer sign-in is required." }, { status: 401, headers: { "Cache-Control": "no-store" } }));
+        const customer = await getCustomerProfileByClerkId(env, identity.userId);
+        if (!customer) return withSecurityHeaders(Response.json({ error: "Customer profile not found." }, { status: 403, headers: { "Cache-Control": "no-store" } }));
+        return withSecurityHeaders(await handleCustomerOrderRead(env, url, customer));
+      } catch {
+        return withSecurityHeaders(Response.json({ error: "We could not verify your customer session." }, { status: 503, headers: { "Cache-Control": "no-store" } }));
+      }
+    }
+
+    const paymentRoute = url.pathname.match(/^\/api\/orders\/([0-9a-f-]{36})\/payment\/(initialize|verify)$/i);
+    if (paymentRoute) {
+      if (request.method !== "POST") return withSecurityHeaders(Response.json({ error: "Method not allowed." }, { status: 405 }));
+      if (request.headers.get("Origin") !== url.origin) return withSecurityHeaders(Response.json({ error: "Request origin is not allowed." }, { status: 403, headers: { "Cache-Control": "no-store" } }));
+      if (!customerAuthAvailable(env)) return withSecurityHeaders(Response.json({ error: "Customer sign-in is not configured." }, { status: 503, headers: { "Cache-Control": "no-store" } }));
+      try {
+        const identity = await getClerkIdentity(request, env, url);
+        if (!identity) return withSecurityHeaders(Response.json({ error: "A verified customer sign-in is required." }, { status: 401, headers: { "Cache-Control": "no-store" } }));
+        const customer = await getCustomerProfileByClerkId(env, identity.userId);
+        if (!customer) return withSecurityHeaders(Response.json({ error: "Customer profile not found." }, { status: 403, headers: { "Cache-Control": "no-store" } }));
+        const handler = paymentRoute[2] === "initialize" ? handlePaystackInitialize : handlePaystackVerify;
+        return withSecurityHeaders(await handler(request, env, customer, paymentRoute[1]));
+      } catch {
+        return withSecurityHeaders(Response.json({ error: "We could not safely process this payment request." }, { status: 503, headers: { "Cache-Control": "no-store" } }));
+      }
     }
 
     if (url.pathname === "/api/orders") {
