@@ -367,10 +367,10 @@ async function handleOrderCreate(request: Request, env: Env): Promise<Response> 
 
 const CUSTOMER_CLERK_AUTH_IMPLEMENTED = false; // Fail closed until the selected Clerk integration is implemented and verified.
 function customerAuthAvailable(env: Env): boolean {
-  return env.ENVIRONMENT === "test" || (CUSTOMER_CLERK_AUTH_IMPLEMENTED && env.CUSTOMER_AUTH_ENABLED === "true");
+  return env.CUSTOMER_AUTH_ENABLED === "true" && (env.ENVIRONMENT === "test" || CUSTOMER_CLERK_AUTH_IMPLEMENTED);
 }
 function onlineOrderingAvailable(env: Env): boolean {
-  return env.ENVIRONMENT === "test" || (CUSTOMER_CLERK_AUTH_IMPLEMENTED && env.CUSTOMER_AUTH_ENABLED === "true" && env.ORDERS_ENABLED === "true");
+  return env.ORDERS_ENABLED === "true" && customerAuthAvailable(env);
 }
 
 const SESSION_COOKIE = "__Host-dsk_session";
