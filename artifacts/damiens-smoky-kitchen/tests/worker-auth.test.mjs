@@ -58,6 +58,7 @@ class FakeStatement {
     }
     return null;
   }
+  async all() { return { results: [] }; }
   async run() {
     const p = this.params;
     if (this.sql.startsWith("INSERT INTO customer_accounts")) {
@@ -362,4 +363,35 @@ test("customer sessions and unauthenticated requests cannot read staff orders or
     assert.equal(orders.status, 401);
     assert.equal(logs.status, 401);
   }
+});
+
+
+test("valid staff password and TOTP session can read staff operations endpoints", async () => {
+  const env = makeEnv();
+  const login = await worker.fetch(request("/api/auth/staff/login", {
+    body: {
+      email: "staff@example.com",
+      password: "StaffPassword!2026",
+      totpCode: makeTotpCode(STAFF_TOTP_SECRET),
+    },
+  }), env);
+  assert.equal(login.status, 200);
+  const staffCookie = sessionCookie(login);
+
+  const identity = await worker.fetch(request("/api/auth/me", { method: "GET", cookie: staffCookie }), env);
+  assert.equal(identity.status, 200);
+  assert.deepEqual(await identity.json(), {
+    authenticated: true,
+    role: "staff",
+    user: { email: "staff@example.com" },
+  });
+
+  const orders = await worker.fetch(request("/api/staff/orders", { method: "GET", cookie: staffCookie }), env);
+  const logs = await worker.fetch(request("/api/staff/logs", { method: "GET", cookie: staffCookie }), env);
+  assert.equal(orders.status, 200);
+  assert.equal(logs.status, 200);
+  assert.equal(orders.headers.get("Cache-Control"), "no-store");
+  assert.equal(logs.headers.get("Cache-Control"), "no-store");
+  assert.deepEqual(await orders.json(), { orders: [] });
+  assert.deepEqual(await logs.json(), { logs: [] });
 });
