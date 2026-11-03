@@ -112,6 +112,7 @@ function staffHash(password) {
 function makeEnv(overrides = {}) {
   return {
     DB: new FakeDatabase(),
+    ENVIRONMENT: "test",
     AUTH_RATE_LIMIT: { limit: async () => ({ success: true }) },
     AUTH_EMAIL_RATE_LIMIT: { limit: async () => ({ success: true }) },
     CHAT_RATE_LIMIT: { limit: async () => ({ success: true }) },
@@ -296,4 +297,30 @@ test("order preview rejects an order without adult confirmation", async () => {
     body: { name: "Test User", phone: "08012345678", address: "Ibafo, Lagos", state: "Lagos", adultConfirmed: false, items: [{ name: "Jollof Rice", category: "Rice", quantity: 1 }] },
   }), env);
   assert.equal(response.status, 400);
+});
+
+
+test("production customer authentication and online ordering fail closed even when dashboard flags are true", async () => {
+  const env = makeEnv({
+    ENVIRONMENT: undefined,
+    CUSTOMER_AUTH_ENABLED: "true",
+    ORDERS_ENABLED: "true",
+  });
+  const status = await worker.fetch(request("/api/auth/status", { method: "GET" }), env);
+  assert.deepEqual(await status.json(), { customerEnabled: false, staffEnabled: true });
+
+  const registration = await worker.fetch(request("/api/auth/register", {
+    body: { name: "Test User", email: "production@example.com", phone: "08012345678", password: "LongEnoughPassword1!", adultConfirmed: true },
+  }), env);
+  assert.equal(registration.status, 503);
+  assert.equal(env.DB.accounts.size, 0);
+
+  const orderStatus = await worker.fetch(request("/api/orders/status", { method: "GET" }), env);
+  assert.deepEqual(await orderStatus.json(), { enabled: false });
+
+  const payload = { name: "Test User", phone: "08012345678", address: "Ibafo, Lagos", state: "Lagos", adultConfirmed: true, items: [{ name: "Jollof Rice", category: "Rice", quantity: 1 }] };
+  const order = await worker.fetch(request("/api/orders", { body: payload }), env);
+  assert.equal(order.status, 503);
+  const preview = await worker.fetch(request("/api/orders/preview", { body: payload }), env);
+  assert.equal(preview.status, 503);
 });
