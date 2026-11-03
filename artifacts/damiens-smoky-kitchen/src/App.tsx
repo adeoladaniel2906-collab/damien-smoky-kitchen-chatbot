@@ -138,7 +138,7 @@ function App() {
     setLocation("/login");
   };
 
-  if (!isOnline) return <OfflinePage onRetry={() => window.location.reload()} />;
+  if (!isOnline && !isLoaded) return <OfflinePage onRetry={() => window.location.reload()} />;
   if (!isLoaded) return <AppLoadingScreen />;
   // Staff has its own password + TOTP login. Every customer-facing route is Clerk-gated.
   if (!isStaffArea && !isSignedIn) {
@@ -146,6 +146,7 @@ function App() {
   }
 
   return <div className="min-h-screen bg-[#fbf8f1] text-[#21382d]">
+    {!isOnline && <div role="status" className="bg-[#fff0cf] px-4 py-2 text-center text-xs font-semibold text-[#6d5425]">You are offline. Previously loaded pages may remain available; sign-in and live services need an internet connection.</div>}
     {!isStaffArea && <header className="sticky top-0 z-40 border-b border-[#e6e1d6] bg-[#fbf8f1]/95 backdrop-blur">
       <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-3 sm:px-6">
         <Link href="/" className="flex shrink-0 items-center gap-2" aria-label="Damien's Smoky Kitchen home">
@@ -421,7 +422,7 @@ function CustomerAuthPage({ mode }: { mode: "register" | "login" }) {
         <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-[#21382d] text-white shadow-lg"><Flame size={27}/></span>
         <p className="mt-4 text-xs font-bold uppercase tracking-[0.22em] text-[#e96d2c]">Damien's Smoky Kitchen</p>
         <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-[#21382d]">{register ? "Create your account" : "Welcome back"}</h1>
-        <p className="mt-2 text-sm leading-6 text-[#69766e]">{register ? "Create an account to enter the kitchen and manage your details." : "Sign in to continue to the menu and your customer account."}</p>
+        <p className="mt-2 text-sm leading-6 text-[#69766e]">{register ? "Create an account to enter the kitchen and manage your details." : "Sign in to continue to the menu."}</p>
       </div>
       <section className="dsk-auth-card rounded-[1.75rem] border border-[#e8e2d6] bg-white p-5 shadow-xl sm:p-7">
         {statusLoading ? <div className="py-10 text-center text-sm text-[#69766e]">Checking secure sign-in…</div> : !authEnabled ? (
@@ -432,8 +433,8 @@ function CustomerAuthPage({ mode }: { mode: "register" | "login" }) {
         ) : (
           <div className="flex justify-center">
             {register
-              ? <SignUp routing="hash" signInUrl="/login" fallbackRedirectUrl="/account" />
-              : <SignIn routing="hash" signUpUrl="/create-account" fallbackRedirectUrl="/account" />}
+              ? <SignUp routing="hash" signInUrl="/login" fallbackRedirectUrl="/" />
+              : <SignIn routing="hash" signUpUrl="/create-account" fallbackRedirectUrl="/" />}
           </div>
         )}
       </section>
