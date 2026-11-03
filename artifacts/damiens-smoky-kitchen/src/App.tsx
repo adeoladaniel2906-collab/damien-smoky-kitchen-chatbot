@@ -1,7 +1,7 @@
 import { type FormEvent, type ReactNode, useEffect, useState } from 'react';
 import { Link, Route, Switch, useLocation } from 'wouter';
 import { SignIn, SignUp, useAuth, useUser } from '@clerk/react';
-import { ArrowRight, CheckCircle2, ChevronDown, Clock3, Flame, MapPin, MessageCircle, Minus, Plus, Search, ShoppingBag, Trash2, Truck, Utensils, WifiOff } from 'lucide-react';
+import { ArrowRight, ChevronDown, Clock3, Flame, MapPin, MessageCircle, Minus, Plus, Search, ShoppingBag, Trash2, Truck, Utensils, WifiOff } from 'lucide-react';
 import { restaurantKnowledge, type MenuItem } from '@/chatbot/knowledge';
 import { CookieConsent } from '@/components/CookieConsent';
 import { CookiePolicyPage, PrivacyPolicyPage, TermsPage } from '@/pages/LegalPages';
@@ -52,36 +52,7 @@ const menuPhoto = (item: CatalogItem) => {
 function App() {
   const [location, setLocation] = useLocation();
   const { isLoaded, isSignedIn, signOut } = useAuth();
-  const { isLoaded: isUserLoaded, user } = useUser();
   const [isOnline, setIsOnline] = useState(() => typeof navigator === "undefined" ? true : navigator.onLine);
-  const [showWelcome, setShowWelcome] = useState(false);
-  const [welcomeName, setWelcomeName] = useState("there");
-
-  useEffect(() => {
-    const updateOnline = () => setIsOnline(navigator.onLine);
-    window.addEventListener("online", updateOnline);
-    window.addEventListener("offline", updateOnline);
-    return () => {
-      window.removeEventListener("online", updateOnline);
-      window.removeEventListener("offline", updateOnline);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!isLoaded || (isSignedIn && !isUserLoaded)) return;
-    if (!isSignedIn) {
-      sessionStorage.removeItem("dsk-auth-welcome-shown");
-      setShowWelcome(false);
-      return;
-    }
-    if (sessionStorage.getItem("dsk-auth-welcome-shown") === "true") return;
-    sessionStorage.setItem("dsk-auth-welcome-shown", "true");
-    setWelcomeName(user?.firstName?.trim() || "there");
-    setShowWelcome(true);
-    const timeout = window.setTimeout(() => setShowWelcome(false), 2100);
-    return () => window.clearTimeout(timeout);
-  }, [isLoaded, isSignedIn, isUserLoaded, user?.firstName]);
-
   const [basket, setBasket] = useState<BasketLine[]>(() => {
     try {
       const saved = localStorage.getItem('damien-basket-v1');
@@ -119,7 +90,6 @@ function App() {
   };
   const handleSignOut = async () => {
     await signOut();
-    sessionStorage.removeItem("dsk-auth-welcome-shown");
     setLocation("/login");
   };
 
@@ -169,7 +139,6 @@ function App() {
 
     {!isStaffArea && <footer className="mt-16 bg-[#21382d] text-white"><div className="mx-auto grid max-w-7xl gap-8 px-5 py-10 sm:grid-cols-3 sm:px-6"><div><div className="flex items-center gap-2 font-bold"><Flame size={18} className="text-[#f29a53}"/> Damien's Smoky Kitchen</div><p className="mt-3 max-w-xs text-sm leading-6 text-white/70">Nigerian dishes, made in Ibafo. Browse the menu and review your basket online.</p></div><div><p className="text-sm font-semibold">Visit and hours</p><p className="mt-3 text-sm leading-6 text-white/70">The Motorcycle Drive, Papa Olonrisa<br/>Ibafo, Ogun State<br/>Daily, 9:00 AM–9:00 PM</p></div><div><p className="text-sm font-semibold">Ordering information</p><p className="mt-3 text-sm leading-6 text-white/70">Lagos State delivery only<br/>Minimum delivery order: ₦3,000<br/>Fee depends on distance</p></div></div><div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 border-t border-white/15 px-5 py-4 text-xs text-white/65"><span>© {new Date().getFullYear()} Damien's Smoky Kitchen</span><Link href="/privacy" className="underline underline-offset-4">Privacy</Link><Link href="/terms" className="underline underline-offset-4">Terms</Link><Link href="/cookies" className="underline underline-offset-4">Cookie notice</Link><button type="button" onClick={() => window.dispatchEvent(new Event("dsk:open-cookie-settings"))} className="underline underline-offset-4">Manage cookies</button></div></footer>}
     {!isStaffArea && <CookieConsent/>}
-    {showWelcome && !isStaffArea && <WelcomeOverlay name={welcomeName}/>}
   </div>;
 }
 
@@ -177,17 +146,6 @@ function AppLoadingScreen() {
   return <main className="flex min-h-screen items-center justify-center bg-[#fbf8f1] px-6 text-center">
     <div className="dsk-auth-card"><span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-[#21382d] text-white"><Flame size={25}/></span><p className="mt-5 text-xs font-bold uppercase tracking-[0.2em] text-[#e96d2c]">Damien's Smoky Kitchen</p><p className="mt-3 text-sm text-[#69766e]">Preparing your secure sign-in…</p><span className="mx-auto mt-5 block h-1.5 w-28 overflow-hidden rounded-full bg-[#e8e2d6]"><span className="dsk-loading-bar block h-full rounded-full bg-[#e96d2c]"/></span></div>
   </main>;
-}
-
-function WelcomeOverlay({ name }: { name: string }) {
-  return <div className="dsk-welcome-overlay" role="status" aria-live="polite">
-    <div className="dsk-welcome-card">
-      <span className="dsk-welcome-check"><CheckCircle2 size={44} strokeWidth={1.8}/></span>
-      <p className="mt-6 text-xs font-bold uppercase tracking-[0.2em] text-[#f3b17f]">Sign-in successful</p>
-      <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-white">Welcome, {name}!</h2>
-      <p className="mt-2 text-sm text-white/70">You're securely signed in. Your kitchen is ready.</p>
-    </div>
-  </div>;
 }
 
 function OfflinePage({ onRetry }: { onRetry: () => void }) {
