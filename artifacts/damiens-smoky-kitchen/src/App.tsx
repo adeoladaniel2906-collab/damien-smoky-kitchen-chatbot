@@ -1,6 +1,6 @@
 import { type FormEvent, type ReactNode, useEffect, useState } from 'react';
 import { Link, Route, Switch, useLocation } from 'wouter';
-import { SignIn, SignUp, useAuth, useUser } from '@clerk/react';
+import { SignIn, SignUp, useAuth } from '@clerk/react';
 import { ArrowRight, ChevronDown, Clock3, Flame, MapPin, MessageCircle, Minus, Plus, Search, ShoppingBag, Trash2, Truck, Utensils, WifiOff } from 'lucide-react';
 import { restaurantKnowledge, type MenuItem } from '@/chatbot/knowledge';
 import { CookieConsent } from '@/components/CookieConsent';
@@ -123,10 +123,10 @@ function App() {
         <form onSubmit={(event) => { event.preventDefault(); openMenu(search); }} className="flex min-w-0 flex-1 items-center gap-2 rounded-xl bg-[#f0ece2] px-3 py-2.5">
           <Search size={18} className="shrink-0 text-[#68786e]"/><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search dishes and drinks" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-[#89948c]" aria-label="Search dishes and drinks"/><button className="hidden text-xs font-semibold text-[#e96d2c] sm:block">Search</button>
         </form>
-        <nav className="hidden items-center gap-5 lg:flex"><Link href="/account" className="text-sm hover:text-[#e96d2c]">My account</Link><Link href="/menu" className={location === '/menu' ? 'text-sm font-semibold text-[#e96d2c]' : 'text-sm hover:text-[#e96d2c]'}>Menu</Link><Link href="/delivery" className="text-sm hover:text-[#e96d2c]">Delivery</Link><Link href="/assistant" className="text-sm hover:text-[#e96d2c]">Ask the kitchen</Link><button type="button" onClick={handleSignOut} className="text-sm font-semibold text-[#8a6254] hover:text-[#e96d2c]">Sign out</button></nav>
+        <nav className="hidden items-center gap-5 lg:flex"><Link href="/menu" className={location === '/menu' ? 'text-sm font-semibold text-[#e96d2c]' : 'text-sm hover:text-[#e96d2c]'}>Menu</Link><Link href="/delivery" className="text-sm hover:text-[#e96d2c]">Delivery</Link><Link href="/assistant" className="text-sm hover:text-[#e96d2c]">Ask the kitchen</Link><button type="button" onClick={handleSignOut} className="text-sm font-semibold text-[#8a6254] hover:text-[#e96d2c]">Sign out</button></nav>
         <Link href="/checkout" className="relative grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#21382d] text-white hover:bg-[#315541]" aria-label={`Basket, ${count} items`}><ShoppingBag size={19}/>{count > 0 && <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-[#e96d2c] px-1 text-[10px] font-bold">{count}</span>}</Link>
       </div>
-      <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 border-t border-[#ece7dc] px-4 py-2.5 text-xs lg:hidden"><Link href="/account">My account</Link><Link href="/menu">Menu</Link><Link href="/delivery">Delivery</Link><Link href="/assistant">Kitchen assistant</Link><button type="button" onClick={handleSignOut} className="font-semibold text-[#8a6254]">Sign out</button></nav>
+      <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 border-t border-[#ece7dc] px-4 py-2.5 text-xs lg:hidden"><Link href="/menu">Menu</Link><Link href="/delivery">Delivery</Link><Link href="/assistant">Kitchen assistant</Link><button type="button" onClick={handleSignOut} className="font-semibold text-[#8a6254]">Sign out</button></nav>
     </header>}
 
     <Switch>
@@ -139,7 +139,6 @@ function App() {
       <Route path="/login"><CustomerAuthPage mode="login"/></Route>
       <Route path="/staff/login"><StaffLoginPage/></Route>
       <Route path="/staff-login"><StaffLoginPage/></Route>
-      <Route path="/account"><CustomerAccountPage/></Route>
       <Route path="/staff"><StaffPortalPage/></Route>
       <Route path="/privacy"><PrivacyPolicyPage/></Route>
       <Route path="/terms"><TermsPage/></Route>
@@ -429,128 +428,6 @@ function StaffLoginPage() {
       <button disabled={busy} className="w-full rounded-xl bg-[#21382d] px-4 py-3.5 text-sm font-bold text-white disabled:opacity-60">{busy ? "Verifying…" : "Sign in to staff portal"}</button>
     </form>}
     <p className="mt-6 text-center text-xs"><Link href="/login" className="font-semibold text-[#b64a1a]">Customer login</Link></p>
-  </AuthShell>;
-}
-
-function CustomerAccountPage() {
-  const [, setLocation] = useLocation();
-  const { isLoaded, isSignedIn, getToken, signOut } = useAuth();
-  const { user: clerkUser } = useUser();
-  const [profile, setProfile] = useState<{ name: string; email: string; phone: string } | null>(null);
-  const [needsProfile, setNeedsProfile] = useState(false);
-  const [phone, setPhone] = useState("");
-  const [adultConfirmed, setAdultConfirmed] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    let active = true;
-    if (!isLoaded) return () => { active = false; };
-    if (!isSignedIn) {
-      setLocation("/login");
-      setLoading(false);
-      return () => { active = false; };
-    }
-    (async () => {
-      try {
-        const token = await getToken();
-        if (!token) throw new Error("Your sign-in session could not be verified. Please sign in again.");
-        const response = await fetch("/api/auth/me", {
-          headers: { Authorization: "Bearer " + token },
-          credentials: "same-origin",
-          cache: "no-store",
-        });
-        const result = await response.json() as {
-          error?: string;
-          needsProfile?: boolean;
-          user?: { name: string; email: string; phone: string };
-        };
-        if (response.status === 401) throw new Error("Your sign-in session has expired. Please sign in again.");
-        if (!response.ok) throw new Error(result.error ?? "We could not load your customer profile.");
-        if (active) {
-          if (result.needsProfile) {
-            setNeedsProfile(true);
-            setPhone(clerkUser?.primaryPhoneNumber?.phoneNumber ?? "");
-          } else if (result.user) {
-            setProfile(result.user);
-            setPhone(result.user.phone);
-          }
-        }
-      } catch (caught) {
-        if (active) {
-          setError(caught instanceof Error ? caught.message : "We could not load your account.");
-          if (caught instanceof Error && caught.message.includes("sign in again")) setLocation("/login");
-        }
-      } finally {
-        if (active) setLoading(false);
-      }
-    })();
-    return () => { active = false; };
-  }, [isLoaded, isSignedIn, getToken, setLocation, clerkUser]);
-
-  const saveProfile = async (event: FormEvent) => {
-    event.preventDefault();
-    if (busy) return;
-    setBusy(true);
-    setError("");
-    try {
-      const token = await getToken();
-      if (!token) throw new Error("Your sign-in session has expired. Please sign in again.");
-      const response = await fetch("/api/auth/profile", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
-        credentials: "same-origin",
-        body: JSON.stringify({ phone, adultConfirmed }),
-      });
-      const result = await response.json() as { error?: string; user?: { name: string; email: string; phone: string } };
-      if (!response.ok || !result.user) throw new Error(result.error ?? "We could not save your profile.");
-      setProfile(result.user);
-      setNeedsProfile(false);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "We could not save your profile.");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const logout = async () => {
-    await signOut();
-    setLocation("/login");
-  };
-
-  return <AuthShell title="Your account" subtitle="Your customer profile is securely connected to your Clerk sign-in.">
-    {loading || !isLoaded ? <p className="mt-6 text-sm text-[#69766e]">Verifying your customer session…</p> : profile ? (
-      <div className="mt-6 space-y-3 text-sm">
-        <p><strong>Name:</strong> {profile.name}</p>
-        <p><strong>Email:</strong> {profile.email}</p>
-        <p><strong>Phone:</strong> {profile.phone}</p>
-        <button onClick={logout} className="mt-4 w-full rounded-xl border border-[#d9d4c9] px-4 py-3 text-sm font-semibold">Log out</button>
-        <p className="border-t border-[#e8e2d6] pt-4 text-xs leading-5 text-[#7b887f]">Order history will appear here after secure customer-owned ordering is enabled. To request account deletion, contact the restaurant.</p>
-      </div>
-    ) : needsProfile ? (
-      <form onSubmit={saveProfile} className="mt-6 space-y-4">
-        <div className="rounded-xl bg-[#f0f4ed] p-3 text-xs leading-5 text-[#52645a]">
-          Your Clerk sign-in is verified. Add a phone number to finish setting up your customer profile.
-        </div>
-        <label className="block text-xs font-semibold">Phone number
-          <input required type="tel" autoComplete="tel" minLength={8} maxLength={24} value={phone} onChange={event => setPhone(event.target.value)} className="mt-1.5 w-full rounded-xl border border-[#e5dfd3] bg-[#fbf8f1] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#e96d2c]" />
-        </label>
-        <label className="flex items-start gap-2 text-xs leading-5 text-[#69766e]">
-          <input type="checkbox" required checked={adultConfirmed} onChange={event => setAdultConfirmed(event.target.checked)} className="mt-1 accent-[#e96d2c]" />
-          I confirm I am 18 or older and have read the <Link href="/privacy" className="font-semibold underline">Privacy Notice</Link>. A parent or legal guardian must place an order for a child using their own details.
-        </label>
-        {error && <p role="alert" className="rounded-xl bg-[#fff0e5] p-3 text-xs leading-5 text-[#8b401d]">{error}</p>}
-        <button disabled={busy} className="w-full rounded-xl bg-[#21382d] px-4 py-3.5 text-sm font-bold text-white disabled:opacity-60">{busy ? "Saving profile…" : "Finish account setup"}</button>
-        <button type="button" onClick={logout} className="w-full rounded-xl border border-[#d9d4c9] px-4 py-3 text-sm font-semibold">Sign out</button>
-      </form>
-    ) : (
-      <div className="mt-6 space-y-3">
-        {error && <p role="alert" className="rounded-xl bg-[#fff0e5] p-3 text-xs leading-5 text-[#8b401d]">{error}</p>}
-        <p className="text-sm text-[#69766e]">We could not load your customer profile.</p>
-        <button onClick={logout} className="w-full rounded-xl border border-[#d9d4c9] px-4 py-3 text-sm font-semibold">Sign out</button>
-      </div>
-    )}
   </AuthShell>;
 }
 
