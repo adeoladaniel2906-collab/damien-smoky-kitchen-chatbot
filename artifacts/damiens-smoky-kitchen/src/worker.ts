@@ -7,6 +7,7 @@ type WorkerMessage = {
 };
 
 interface Env {
+  [TEST_AUTH_BYPASS]?: true;
   AI: {
     run(model: string, input: { messages: WorkerMessage[] }): Promise<unknown>;
   };
