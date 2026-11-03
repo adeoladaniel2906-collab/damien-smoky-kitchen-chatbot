@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHmac, pbkdf2Sync } from "node:crypto";
-import worker from "../src/worker.ts";
+import worker, { TEST_AUTH_BYPASS } from "../src/worker.ts";
 
 const b64url = (value) => Buffer.from(value).toString("base64url");
 const STAFF_TOTP_SECRET = "JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP";
@@ -58,6 +58,7 @@ class FakeStatement {
     }
     return null;
   }
+  async all() { return { results: [] }; }
   async run() {
     const p = this.params;
     if (this.sql.startsWith("INSERT INTO customer_accounts")) {
@@ -112,6 +113,7 @@ function staffHash(password) {
 function makeEnv(overrides = {}) {
   return {
     DB: new FakeDatabase(),
+    [TEST_AUTH_BYPASS]: true,
     AUTH_RATE_LIMIT: { limit: async () => ({ success: true }) },
     AUTH_EMAIL_RATE_LIMIT: { limit: async () => ({ success: true }) },
     CHAT_RATE_LIMIT: { limit: async () => ({ success: true }) },
@@ -129,7 +131,8 @@ function makeEnv(overrides = {}) {
 }
 
 function request(path, { method = "POST", body, origin = "https://restaurant.example", cookie } = {}) {
-  const headers = new Headers({ Origin: origin });
+  const headers = new Headers();
+  if (origin !== null) headers.set("Origin", origin);
   if (body !== undefined) headers.set("Content-Type", "application/json");
   if (cookie) headers.set("Cookie", cookie);
   return new Request("https://restaurant.example" + path, {
@@ -296,4 +299,113 @@ test("order preview rejects an order without adult confirmation", async () => {
     body: { name: "Test User", phone: "08012345678", address: "Ibafo, Lagos", state: "Lagos", adultConfirmed: false, items: [{ name: "Jollof Rice", category: "Rice", quantity: 1 }] },
   }), env);
   assert.equal(response.status, 400);
+});
+
+
+test("production customer authentication and online ordering fail closed even when dashboard flags are true", async () => {
+  const env = makeEnv({
+    CUSTOMER_AUTH_ENABLED: "true",
+    ORDERS_ENABLED: "true",
+  });
+  delete env[TEST_AUTH_BYPASS]; // Simulate Cloudflare: bindings cannot supply symbol-keyed test hooks.
+  const status = await worker.fetch(request("/api/auth/status", { method: "GET" }), env);
+  assert.deepEqual(await status.json(), { customerEnabled: false, staffEnabled: true });
+
+  const registration = await worker.fetch(request("/api/auth/register", {
+    body: { name: "Test User", email: "production@example.com", phone: "08012345678", password: "LongEnoughPassword1!", adultConfirmed: true },
+  }), env);
+  assert.equal(registration.status, 503);
+  assert.equal(env.DB.accounts.size, 0);
+
+  const orderStatus = await worker.fetch(request("/api/orders/status", { method: "GET" }), env);
+  assert.deepEqual(await orderStatus.json(), { enabled: false });
+
+  const payload = { name: "Test User", phone: "08012345678", address: "Ibafo, Lagos", state: "Lagos", adultConfirmed: true, items: [{ name: "Jollof Rice", category: "Rice", quantity: 1 }] };
+  const order = await worker.fetch(request("/api/orders", { body: payload }), env);
+  assert.equal(order.status, 503);
+  const preview = await worker.fetch(request("/api/orders/preview", { body: payload }), env);
+  assert.equal(preview.status, 503);
+});
+
+
+test("customer profile endpoint returns only the authenticated customer's own record", async () => {
+  const env = makeEnv();
+  const first = await worker.fetch(request("/api/auth/register", {
+    body: { name: "Customer One", email: "one@example.com", phone: "08012345678", password: "LongEnoughPassword1!", adultConfirmed: true },
+  }), env);
+  const second = await worker.fetch(request("/api/auth/register", {
+    body: { name: "Customer Two", email: "two@example.com", phone: "08087654321", password: "LongEnoughPassword2!", adultConfirmed: true },
+  }), env);
+  const firstCookie = sessionCookie(first);
+  const secondCookie = sessionCookie(second);
+
+  const ownProfile = await worker.fetch(request("/api/auth/me?userId=attacker-controlled", { method: "GET", cookie: firstCookie }), env);
+  assert.equal(ownProfile.status, 200);
+  const ownData = await ownProfile.json();
+  assert.equal(ownData.user.email, "one@example.com");
+  assert.equal(ownData.user.name, "Customer One");
+  assert.notEqual(ownData.user.email, "two@example.com");
+
+  const secondProfile = await worker.fetch(request("/api/auth/me", { method: "GET", cookie: secondCookie }), env);
+  assert.equal(secondProfile.status, 200);
+  assert.equal((await secondProfile.json()).user.email, "two@example.com");
+});
+
+test("customer sessions and unauthenticated requests cannot read staff orders or audit logs", async () => {
+  const env = makeEnv();
+  const registration = await worker.fetch(request("/api/auth/register", {
+    body: { name: "Customer One", email: "staff-boundary@example.com", phone: "08012345678", password: "LongEnoughPassword1!", adultConfirmed: true },
+  }), env);
+  const customerCookie = sessionCookie(registration);
+
+  for (const cookie of [undefined, customerCookie]) {
+    const orders = await worker.fetch(request("/api/staff/orders", { method: "GET", cookie }), env);
+    const logs = await worker.fetch(request("/api/staff/logs", { method: "GET", cookie }), env);
+    assert.equal(orders.status, 401);
+    assert.equal(logs.status, 401);
+  }
+});
+
+
+test("valid staff password and TOTP session can read staff operations endpoints", async () => {
+  const env = makeEnv();
+  const login = await worker.fetch(request("/api/auth/staff/login", {
+    body: {
+      email: "staff@example.com",
+      password: "StaffPassword!2026",
+      totpCode: makeTotpCode(STAFF_TOTP_SECRET),
+    },
+  }), env);
+  assert.equal(login.status, 200);
+  const staffCookie = sessionCookie(login);
+
+  const identity = await worker.fetch(request("/api/auth/me", { method: "GET", cookie: staffCookie }), env);
+  assert.equal(identity.status, 200);
+  assert.deepEqual(await identity.json(), {
+    authenticated: true,
+    role: "staff",
+    user: { email: "staff@example.com" },
+  });
+
+  const orders = await worker.fetch(request("/api/staff/orders", { method: "GET", cookie: staffCookie }), env);
+  const logs = await worker.fetch(request("/api/staff/logs", { method: "GET", cookie: staffCookie }), env);
+  assert.equal(orders.status, 200);
+  assert.equal(logs.status, 200);
+  assert.equal(orders.headers.get("Cache-Control"), "no-store");
+  assert.equal(logs.headers.get("Cache-Control"), "no-store");
+  assert.deepEqual(await orders.json(), { orders: [] });
+  assert.deepEqual(await logs.json(), { logs: [] });
+});
+
+
+test("order create and preview reject cross-origin and missing-Origin requests", async () => {
+  const env = makeEnv({ CUSTOMER_AUTH_ENABLED: "true", ORDERS_ENABLED: "true" });
+  const payload = { name: "Test User", phone: "08012345678", address: "Ibafo, Lagos", state: "Lagos", adultConfirmed: true, items: [{ name: "Jollof Rice", category: "Rice", quantity: 1 }] };
+
+  for (const origin of ["https://attacker.example", null]) {
+    const order = await worker.fetch(request("/api/orders", { body: payload, origin }), env);
+    const preview = await worker.fetch(request("/api/orders/preview", { body: payload, origin }), env);
+    assert.equal(order.status, 403);
+    assert.equal(preview.status, 403);
+  }
 });
