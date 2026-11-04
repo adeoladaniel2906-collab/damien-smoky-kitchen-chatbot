@@ -60,10 +60,10 @@ jobs:
       - name: Deploy to Cloudflare Workers
         working-directory: artifacts/damiens-smoky-kitchen
         env:
-          CLOUDFLARE_DEPLOY_TOKEN: ${{ secrets.CLOUDFLARE_DEPLOY_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_DEPLOY_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: "56b8950a841afabf4667e40c739a1048"
         run: |
-          if [ -z "$CLOUDFLARE_DEPLOY_TOKEN" ]; then
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
             echo "::error::Missing GitHub Actions secret CLOUDFLARE_DEPLOY_TOKEN"
             exit 1
           fi
