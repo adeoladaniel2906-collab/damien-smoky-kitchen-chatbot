@@ -37,7 +37,7 @@ test("Clerk sign-in and sign-up force stale OAuth redirect URLs back to the home
   assert.ok(app.includes('fallbackRedirectUrl="/" forceRedirectUrl="/"'));
   assert.ok(app.includes('signInForceRedirectUrl="/"'));
   assert.ok(app.includes('signUpForceRedirectUrl="/"'));
-  assert.doesNotMatch(app, /fallbackRedirectUrl="\\/account"/);
+  assert.ok(!app.includes('fallbackRedirectUrl="/account"'));
   assert.ok(app.includes('<Route path="/account"><LegacyAccountRedirect/></Route>'));
 });
 
