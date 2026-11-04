@@ -171,6 +171,7 @@ function App() {
       <Route path="/delivery"><DeliveryPage/></Route>
       <Route path="/assistant"><AssistantPage basket={basket}/></Route>
       <Route path="/checkout"><CheckoutPage basket={basket} change={change} remove={remove} clear={() => setBasket([])}/></Route>
+      <Route path="/account"><LegacyAccountRedirect/></Route>
       <Route path="/create-account"><CustomerAuthPage mode="register"/></Route>
       <Route path="/login"><CustomerAuthPage mode="login"/></Route>
       <Route path="/staff/login"><StaffLoginPage/></Route>
@@ -218,6 +219,14 @@ function AppLoadingScreen() {
       </section>
     </div>
   </main>;
+}
+
+function LegacyAccountRedirect() {
+  const [, setLocation] = useLocation();
+  useEffect(() => {
+    setLocation("/");
+  }, [setLocation]);
+  return <AppLoadingScreen/>;
 }
 
 function WelcomeOverlay({ name }: { name: string }) {
