@@ -4,6 +4,7 @@ import { SignIn, SignUp, useAuth, useUser } from '@clerk/react';
 import { ArrowRight, CheckCircle2, ChevronDown, Clock3, Flame, MapPin, MessageCircle, Minus, Plus, Search, ShoppingBag, Trash2, Truck, Utensils, WifiOff } from 'lucide-react';
 import { restaurantKnowledge, type MenuItem } from '@/chatbot/knowledge';
 import menuImageMap from '@/chatbot/menu-image-map.json';
+import menuImageSources from '@/chatbot/menu-image-sources.json';
 import { CookieConsent } from '@/components/CookieConsent';
 import { CookiePolicyPage, PrivacyPolicyPage, TermsPage } from '@/pages/LegalPages';
 
@@ -42,6 +43,11 @@ const menuPhoto = (item: CatalogItem) => {
   const category = escapeXml(item.displayCategory.toUpperCase());
   const svg = `<svg data-menu-item="${escapeXml(item.id)}" xmlns="http://www.w3.org/2000/svg" width="900" height="600" viewBox="0 0 900 600"><rect width="900" height="600" fill="${background}"/><circle cx="450" cy="255" r="155" fill="#fff" fill-opacity=".72"/><circle cx="450" cy="255" r="125" fill="none" stroke="#526a50" stroke-opacity=".3" stroke-width="8"/><text x="450" y="290" text-anchor="middle" font-family="Arial,sans-serif" font-size="112" font-weight="700" fill="#21382d">${initials}</text><text x="450" y="485" text-anchor="middle" font-family="Arial,sans-serif" font-size="34" font-weight="700" fill="#21382d">${label}</text><text x="450" y="535" text-anchor="middle" font-family="Arial,sans-serif" font-size="18" letter-spacing="5" fill="#526a50">${category}</text></svg>`;
   return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+};
+
+const menuPhotoCredit = (item: CatalogItem) => {
+  const url = menuImageMap[item.id as keyof typeof menuImageMap];
+  return menuImageSources.find((source) => source.url === url);
 };
 
 function App() {
@@ -279,7 +285,7 @@ function Home({ onBrowse, onAdd, basketCount }: { onBrowse: (query?: string) => 
 
 function ProductCard({ item, onAdd }: { item: CatalogItem; onAdd: () => void }) {
   return <article className="group overflow-hidden rounded-3xl border border-[#e7e9e2] bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
-    <div className="relative h-40 overflow-hidden bg-[#f0f1eb]"><img src={menuPhoto(item)} alt={`${item.name} menu image`} loading="lazy" className="h-full w-full object-cover transition duration-500 group-hover:scale-105"/><span className="absolute left-3 top-3 rounded-full bg-white/95 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-[#526a50]">{item.displayCategory}</span></div>
+    <div className="relative h-40 overflow-hidden bg-[#f0f1eb]"><img src={menuPhoto(item)} alt={`${item.name} menu image`} loading="lazy" className="h-full w-full object-cover transition duration-500 group-hover:scale-105"/>{menuPhotoCredit(item) && <a href={menuPhotoCredit(item)?.source} target="_blank" rel="noreferrer" title={menuPhotoCredit(item)?.title} className="absolute bottom-3 right-3 rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-semibold text-[#526a50]">Photo credit</a>}<span className="absolute left-3 top-3 rounded-full bg-white/95 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-[#526a50]">{item.displayCategory}</span></div>
     <div className="p-4"><h3 className="min-h-10 font-bold leading-snug text-[#29382d]">{item.name}</h3><div className="mt-4 flex items-center justify-between gap-3"><strong className="text-base text-[#26372c]">{item.price === null ? 'Ask for price' : money(item.price)}</strong>{item.price !== null && <button onClick={onAdd} aria-label={`Add ${item.name} to basket`} className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#ffc94a] text-[#26372c] transition hover:bg-[#f4b923]"><Plus size={19}/></button>}</div></div>
   </article>;
 }
