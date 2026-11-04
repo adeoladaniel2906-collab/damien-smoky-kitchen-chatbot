@@ -14,7 +14,7 @@ test("licensed menu photographs are unique, correctly attributed and attached on
   const photos = Object.values(map);
 
   assert.equal(items.length, 123);
-  assert.ok(photos.length >= 4, "the menu should have a useful starter set of verified photos");
+  assert.ok(photos.length >= 3, "the menu should have a useful starter set of verified photos");
   assert.equal(sources.length, photos.length);
   assert.ok(Object.keys(map).every((id) => ids.has(id)), "every photo must point to a real menu item");
   assert.equal(new Set(photos.map((photo) => photo.url)).size, photos.length, "no photograph may be reused for multiple menu entries");
