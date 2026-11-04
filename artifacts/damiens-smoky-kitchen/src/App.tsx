@@ -308,7 +308,7 @@ function MenuMotionFeature() {
     <img src={photoUrl} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover md:object-[center_48%]"/>
     {shouldLoadVideo && <video
       className="dsk-menu-motion__video absolute inset-0 h-full w-full object-cover"
-      src="https://videos.pexels.com/video-files/31801553/31801553-hd_1920_1080_25fps.mp4"
+      src="https://videos.pexels.com/video-files/856399/856399-hd_1920_1080_25fps.mp4"
       poster={photoUrl}
       autoPlay
       muted
