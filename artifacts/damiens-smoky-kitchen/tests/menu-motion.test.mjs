@@ -9,7 +9,7 @@ test("Explore Menu motion uses the selected real Pexels grill footage and existi
   const css = await read("../src/index.css");
 
   assert.match(app, /function MenuMotionFeature\(/);
-  assert.match(app, /31801553\/31801553-hd_1920_1080_25fps\.mp4/);
+  assert.match(app, /856399\/856399-hd_1920_1080_25fps\.mp4/);
   assert.match(app, /autoPlay[\s\S]*muted[\s\S]*loop[\s\S]*playsInline/);
   assert.match(app, /prefers-reduced-motion: reduce/);
   assert.match(app, /IntersectionObserver/);
