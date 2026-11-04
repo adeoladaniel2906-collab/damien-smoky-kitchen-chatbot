@@ -510,8 +510,8 @@ function CustomerAuthPage({ mode }: { mode: "register" | "login" }) {
         ) : (
           <div className="flex justify-center">
             {register
-              ? <SignUp routing="hash" signInUrl="/login" fallbackRedirectUrl="/" />
-              : <SignIn routing="hash" signUpUrl="/create-account" fallbackRedirectUrl="/" />}
+              ? <SignUp routing="hash" signInUrl="/login" fallbackRedirectUrl="/" forceRedirectUrl="/" signInForceRedirectUrl="/" />
+              : <SignIn routing="hash" signUpUrl="/create-account" fallbackRedirectUrl="/" forceRedirectUrl="/" signUpForceRedirectUrl="/" />}
           </div>
         )}
       </section>
