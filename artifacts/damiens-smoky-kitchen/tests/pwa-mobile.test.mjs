@@ -32,10 +32,13 @@ test("mobile viewport permits zoom and accounts for device safe areas", async ()
   assert.match(css, /env\(safe-area-inset-bottom/);
 });
 
-test("customer sign-in returns to an existing route, not the removed account page", async () => {
+test("Clerk sign-in and sign-up force stale OAuth redirect URLs back to the homepage", async () => {
   const app = await read("../src/App.tsx");
-  assert.match(app, /fallbackRedirectUrl="\/"/);
-  assert.doesNotMatch(app, /fallbackRedirectUrl="\/account"/);
+  assert.ok(app.includes('fallbackRedirectUrl="/" forceRedirectUrl="/"'));
+  assert.ok(app.includes('signInForceRedirectUrl="/"'));
+  assert.ok(app.includes('signUpForceRedirectUrl="/"'));
+  assert.doesNotMatch(app, /fallbackRedirectUrl="\\/account"/);
+  assert.ok(app.includes('<Route path="/account"><LegacyAccountRedirect/></Route>'));
 });
 
 test("the initial HTML shows a branded loading fallback before the app JavaScript loads", async () => {
