@@ -1,4 +1,4 @@
-import { type FormEvent, type ReactNode, useEffect, useState } from 'react';
+import { type FormEvent, type ReactNode, useEffect, useRef, useState } from 'react';
 import { Link, Route, Switch, useLocation } from 'wouter';
 import { SignIn, SignUp, useAuth, useUser } from '@clerk/react';
 import { ArrowRight, CheckCircle2, ChevronDown, Clock3, Flame, MapPin, MessageCircle, Minus, Plus, Search, ShoppingBag, Trash2, Truck, Utensils, WifiOff } from 'lucide-react';
@@ -297,6 +297,55 @@ function ProductCard({ item, onAdd }: { item: CatalogItem; onAdd: () => void }) 
   </article>;
 }
 
+function MenuMotionFeature() {
+  const containerRef = useRef<HTMLElement>(null);
+  const [shouldLoadVideo, setShouldLoadVideo] = useState(false);
+
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const target = containerRef.current;
+    if (!target) return;
+    if (!('IntersectionObserver' in window)) {
+      setShouldLoadVideo(true);
+      return;
+    }
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        setShouldLoadVideo(true);
+        observer.disconnect();
+      }
+    }, { rootMargin: '240px 0px' });
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, []);
+
+  return <section ref={containerRef} aria-label="Fresh from the grill" className="dsk-menu-motion relative isolate mt-7 min-h-[245px] overflow-hidden rounded-[1.75rem] bg-[#21382d] sm:min-h-[275px]">
+    <img src={photoUrl} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover md:object-[center_48%]"/>
+    {shouldLoadVideo && <video
+      className="dsk-menu-motion__video absolute inset-0 h-full w-full object-cover"
+      src="https://videos.pexels.com/video-files/31801553/31801553-hd_1920_1080_25fps.mp4"
+      poster={photoUrl}
+      autoPlay
+      muted
+      loop
+      playsInline
+      preload="none"
+      disablePictureInPicture
+      aria-hidden="true"
+      tabIndex={-1}
+    />}
+    <div className="absolute inset-0 bg-gradient-to-r from-[#172c21] via-[#172c21]/90 to-[#172c21]/15 md:via-[#172c21]/80 md:to-[#172c21]/5"/>
+    <div className="dsk-menu-motion__copy relative z-10 flex min-h-[245px] max-w-2xl flex-col justify-center p-6 sm:min-h-[275px] sm:p-9">
+      <span className="inline-flex w-fit items-center gap-2 rounded-full border border-[#ffc94a]/35 bg-[#21382d]/65 px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-[0.18em] text-[#ffc94a] backdrop-blur-sm">
+        <Flame size={13}/> Fresh from our kitchen
+      </span>
+      <h2 className="mt-4 max-w-lg text-3xl font-extrabold leading-[1.04] tracking-tight text-white sm:text-4xl">Fresh from the flame.</h2>
+      <p className="mt-3 max-w-md text-sm leading-6 text-white/80 sm:text-base">Real ingredients. Proper heat. Nigerian favourites made fresh with care.</p>
+      <span className="mt-5 inline-flex items-center gap-2 text-xs font-bold text-white/90"><span className="h-1.5 w-1.5 rounded-full bg-[#e96d2c]"/> Made fresh, served with care</span>
+    </div>
+  </section>;
+}
+
 function MenuPage({ search, setSearch, add, basket, activeCategory, setActiveCategory }: { search: string; setSearch: (value: string) => void; add: (item: CatalogItem) => void; basket: BasketLine[]; activeCategory: string; setActiveCategory: (value: string) => void }) {
   const active = activeCategory;
   const setActive = setActiveCategory;
@@ -311,6 +360,7 @@ function MenuPage({ search, setSearch, add, basket, activeCategory, setActiveCat
       <div><p className="text-xs font-bold uppercase tracking-widest text-[#71816f]">Damien's Smoky Kitchen</p><h1 className="mt-2 text-3xl font-extrabold tracking-tight text-[#26372c] sm:text-4xl">Explore the menu</h1><p className="mt-2 text-sm text-[#69766e]">Browse every dish, see the price and add your favourites to your basket.</p></div>
       <div className="rounded-2xl bg-[#fff0cf] px-4 py-3 text-xs font-semibold text-[#39463b]">Minimum delivery order <strong className="ml-1">₦3,000</strong></div>
     </div>
+    <MenuMotionFeature/>
     <div className="sticky top-[72px] z-20 -mx-4 mt-6 border-y border-[#e7e9e2] bg-[#f7f8f4]/95 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-2xl sm:border">
       <div className="flex gap-2 overflow-x-auto pb-1">{categoriesWithAll.map((category) => <button key={category} onClick={() => setActive(category)} className={active === category ? 'shrink-0 rounded-full bg-[#26372c] px-4 py-2.5 text-xs font-bold text-white' : 'shrink-0 rounded-full border border-[#dfe4dc] bg-white px-4 py-2.5 text-xs font-semibold text-[#526a50] transition hover:border-[#ffc94a]'}>{category}</button>)}</div>
     </div>
