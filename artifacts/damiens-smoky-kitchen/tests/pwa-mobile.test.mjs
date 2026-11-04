@@ -57,8 +57,8 @@ test("the kitchen assistant offers one-tap prompts and answers basket questions 
 
 test("legacy Clerk redirects to the removed account route safely return home", async () => {
   const app = await read("../src/App.tsx");
-  assert.match(app, /<Route path="\\/account"><LegacyAccountRedirect\\/>/);
-  assert.match(app, /function LegacyAccountRedirect\\(\\)/);
-  assert.match(app, /setLocation\\("\\/"\\)/);
-  assert.match(app, /fallbackRedirectUrl="\\/" /);
+  assert.ok(app.includes('<Route path="/account"><LegacyAccountRedirect/></Route>'));
+  assert.ok(app.includes('function LegacyAccountRedirect()'));
+  assert.ok(app.includes('setLocation("/");'));
+  assert.ok(app.includes('fallbackRedirectUrl="/"'));
 });
