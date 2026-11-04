@@ -31,7 +31,7 @@ test("licensed menu photographs are unique, correctly attributed and attached on
 
   assert.match(app, /menuImageMap as Record<string, MenuPhoto>/);
   assert.match(app, /menuImageCredit\(item\)/);
-  assert.match(app, /menuPhoto\?\.url \?\? menuIllustration\(item\)/);
+  assert.match(app, /menuPhotoFor\(item\)\?\.url \?\? menuIllustration\(item\)/);
 });
 
 test("the original illustrated fallback remains for menu entries without a verified matching photograph", async () => {
