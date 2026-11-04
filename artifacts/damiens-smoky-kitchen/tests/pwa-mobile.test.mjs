@@ -54,3 +54,11 @@ test("the kitchen assistant offers one-tap prompts and answers basket questions 
   assert.match(app, /Subtotal:/);
   assert.match(app, /AssistantPage basket=\{basket\}/);
 });
+
+test("legacy Clerk redirects to the removed account route safely return home", async () => {
+  const app = await read("../src/App.tsx");
+  assert.match(app, /<Route path="\\/account"><LegacyAccountRedirect\\/>/);
+  assert.match(app, /function LegacyAccountRedirect\\(\\)/);
+  assert.match(app, /setLocation\\("\\/"\\)/);
+  assert.match(app, /fallbackRedirectUrl="\\/" /);
+});
