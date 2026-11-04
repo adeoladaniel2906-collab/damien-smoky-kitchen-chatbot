@@ -1,8 +1,10 @@
-import { type FormEvent, type ReactNode, useEffect, useState } from 'react';
+import { type FormEvent, type ReactNode, useEffect, useRef, useState } from 'react';
 import { Link, Route, Switch, useLocation } from 'wouter';
 import { SignIn, SignUp, useAuth, useUser } from '@clerk/react';
 import { ArrowRight, CheckCircle2, ChevronDown, Clock3, Flame, MapPin, MessageCircle, Minus, Plus, Search, ShoppingBag, Trash2, Truck, Utensils, WifiOff } from 'lucide-react';
 import { restaurantKnowledge, type MenuItem } from '@/chatbot/knowledge';
+import menuImageMap from '@/chatbot/menu-image-map.json';
+import menuImageSources from '@/chatbot/menu-image-sources.json';
 import { CookieConsent } from '@/components/CookieConsent';
 import { CookiePolicyPage, PrivacyPolicyPage, TermsPage } from '@/pages/LegalPages';
 
@@ -27,34 +29,25 @@ function money(value: number) {
   return '₦' + value.toLocaleString('en-NG');
 }
 
-const commonsPhoto = (file: string) => `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(file)}?width=900`;
 const menuPhoto = (item: CatalogItem) => {
-  const name = item.name.toLowerCase();
-  if (name.includes('jollof')) return commonsPhoto('A Nigeria Jollof Rice with chicken.jpg');
-  if (name.includes('fried rice')) return commonsPhoto('Fried Rice and Chicken.jpg');
-  if (name.includes('ofada')) return commonsPhoto('Ofada Rice and Jollof Rice.jpg');
-  if (name.includes('coconut rice')) return commonsPhoto('Isip (coconut) rice.jpg');
-  if (name.includes('egusi')) return commonsPhoto('African dish,,Egusi Soup and Eba.jpg');
-  if (name.includes('amala')) return commonsPhoto('Amala and ewedu.jpg');
-  if (name.includes('pounded yam')) return commonsPhoto('EGUSI SOUP AND POUNDED YAM.JPG');
-  if (name.includes('eba') || name.includes('fufu') || name.includes('ogbono') || name.includes('okra')) return commonsPhoto('Eba and Vegetable Soup with Fish.jpg');
-  if (name.includes('puff puff')) return commonsPhoto('Nigerian-puff-puff-recipe.jpg');
-  if (name.includes('akara')) return commonsPhoto('Akara with bread, good combination for breakfast.jpg');
-  if (name.includes('moi moi')) return commonsPhoto('Images of a local dish in Nigeria called Moi-Moi.jpg');
-  if (name.includes('plantain') || name.includes('dodo')) return commonsPhoto('FRYING PLANTAIN.jpg');
-  if (name.includes('spaghetti') || name.includes('macaroni') || name.includes('indomie')) return commonsPhoto('Jollof Spaghettis with turkey wings.png');
-  if (name.includes('catfish')) return commonsPhoto('African Cat-Fish Pepper Soup.jpg');
-  if (name.includes('asun')) return commonsPhoto('Asun rice by Chef Phizzle. Native Delight. 03.jpg');
-  if (name.includes('snail')) return commonsPhoto('Fried Snail Stew.jpg');
-  if (name.includes('yam')) return commonsPhoto('Yam Pottage Longthroat Memoirs.jpg');
-  if (name.includes('smoothie') || name.includes('juice') || name.includes('zobo') || name.includes('kunu') || name.includes('tigernut') || name.includes('sobo')) return 'https://images.unsplash.com/photo-1600271886742-f049cd451bba?auto=format&fit=crop&w=900&q=85';
-  if (item.category.toLowerCase().includes('drink') || item.category.toLowerCase().includes('alcohol')) return 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?auto=format&fit=crop&w=900&q=85';
-  if (item.category.toLowerCase().includes('protein')) return commonsPhoto('A Nigeria Jollof Rice with chicken.jpg');
-  if (item.category.toLowerCase().includes('small chops')) return commonsPhoto('Nigerian-puff-puff-recipe.jpg');
-  if (item.category.toLowerCase().includes('breakfast')) return commonsPhoto('Akara and kwunu breakfast (beans cake and pap).jpg');
-  if (item.category.toLowerCase().includes('side')) return commonsPhoto('FRYING PLANTAIN.jpg');
-  if (item.category.toLowerCase().includes('rice')) return commonsPhoto('A Nigeria Jollof Rice with chicken.jpg');
-  return commonsPhoto('African dish,,Egusi Soup and Eba.jpg');
+  const verifiedPhoto = menuImageMap[item.id as keyof typeof menuImageMap];
+  if (verifiedPhoto) return verifiedPhoto;
+
+  // Unique, branded illustration fallback. Never reuse another menu item's photograph.
+  const escapeXml = (value: string) => value.replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' })[char] ?? char);
+  const palette = ['#e8d7b5', '#d8e3d1', '#f0d2c6', '#d9d8ed', '#e9e2b8', '#d1e3e8'];
+  const hash = [...item.id].reduce((value, char) => (value * 31 + char.charCodeAt(0)) >>> 0, 7);
+  const background = palette[hash % palette.length];
+  const initials = item.name.split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
+  const label = escapeXml(item.name.length > 25 ? `${item.name.slice(0, 22)}…` : item.name);
+  const category = escapeXml(item.displayCategory.toUpperCase());
+  const svg = `<svg data-menu-item="${escapeXml(item.id)}" xmlns="http://www.w3.org/2000/svg" width="900" height="600" viewBox="0 0 900 600"><rect width="900" height="600" fill="${background}"/><circle cx="450" cy="255" r="155" fill="#fff" fill-opacity=".72"/><circle cx="450" cy="255" r="125" fill="none" stroke="#526a50" stroke-opacity=".3" stroke-width="8"/><text x="450" y="290" text-anchor="middle" font-family="Arial,sans-serif" font-size="112" font-weight="700" fill="#21382d">${initials}</text><text x="450" y="485" text-anchor="middle" font-family="Arial,sans-serif" font-size="34" font-weight="700" fill="#21382d">${label}</text><text x="450" y="535" text-anchor="middle" font-family="Arial,sans-serif" font-size="18" letter-spacing="5" fill="#526a50">${category}</text></svg>`;
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+};
+
+const menuPhotoCredit = (item: CatalogItem) => {
+  const url = menuImageMap[item.id as keyof typeof menuImageMap];
+  return menuImageSources.find((source) => source.url === url);
 };
 
 function App() {
@@ -292,9 +285,58 @@ function Home({ onBrowse, onAdd, basketCount }: { onBrowse: (query?: string) => 
 
 function ProductCard({ item, onAdd }: { item: CatalogItem; onAdd: () => void }) {
   return <article className="group overflow-hidden rounded-3xl border border-[#e7e9e2] bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
-    <div className="relative h-40 overflow-hidden bg-[#f0f1eb]"><img src={menuPhoto(item)} alt={`${item.name} food photography`} loading="lazy" className="h-full w-full object-cover transition duration-500 group-hover:scale-105"/><span className="absolute left-3 top-3 rounded-full bg-white/95 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-[#526a50]">{item.displayCategory}</span></div>
+    <div className="relative h-40 overflow-hidden bg-[#f0f1eb]"><img src={menuPhoto(item)} alt={`${item.name} menu image`} loading="lazy" className="h-full w-full object-cover transition duration-500 group-hover:scale-105"/>{menuPhotoCredit(item) && <a href={menuPhotoCredit(item)?.source} target="_blank" rel="noreferrer" title={menuPhotoCredit(item)?.title} className="absolute bottom-3 right-3 rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-semibold text-[#526a50]">Photo credit</a>}{menuPhotoCredit(item) && <a href={menuPhotoCredit(item)?.source} target="_blank" rel="noreferrer" title={menuPhotoCredit(item)?.title} className="absolute bottom-3 right-3 rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-semibold text-[#526a50]">Photo credit</a>}<span className="absolute left-3 top-3 rounded-full bg-white/95 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-[#526a50]">{item.displayCategory}</span></div>
     <div className="p-4"><h3 className="min-h-10 font-bold leading-snug text-[#29382d]">{item.name}</h3><div className="mt-4 flex items-center justify-between gap-3"><strong className="text-base text-[#26372c]">{item.price === null ? 'Ask for price' : money(item.price)}</strong>{item.price !== null && <button onClick={onAdd} aria-label={`Add ${item.name} to basket`} className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#ffc94a] text-[#26372c] transition hover:bg-[#f4b923]"><Plus size={19}/></button>}</div></div>
   </article>;
+}
+
+function MenuMotionFeature() {
+  const containerRef = useRef<HTMLElement>(null);
+  const [shouldLoadVideo, setShouldLoadVideo] = useState(false);
+
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const target = containerRef.current;
+    if (!target) return;
+    if (!('IntersectionObserver' in window)) {
+      setShouldLoadVideo(true);
+      return;
+    }
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        setShouldLoadVideo(true);
+        observer.disconnect();
+      }
+    }, { rootMargin: '240px 0px' });
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, []);
+
+  return <section ref={containerRef} aria-label="Fresh from the grill" className="dsk-menu-motion relative isolate mt-7 min-h-[245px] overflow-hidden rounded-[1.75rem] bg-[#21382d] sm:min-h-[275px]">
+    <img src={photoUrl} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover md:object-[center_48%]"/>
+    {shouldLoadVideo && <video
+      className="dsk-menu-motion__video absolute inset-0 h-full w-full object-cover"
+      src="https://videos.pexels.com/video-files/31801553/31801553-hd_1920_1080_25fps.mp4"
+      poster={photoUrl}
+      autoPlay
+      muted
+      loop
+      playsInline
+      preload="none"
+      disablePictureInPicture
+      aria-hidden="true"
+      tabIndex={-1}
+    />}
+    <div className="absolute inset-0 bg-gradient-to-r from-[#172c21] via-[#172c21]/90 to-[#172c21]/15 md:via-[#172c21]/80 md:to-[#172c21]/5"/>
+    <div className="dsk-menu-motion__copy relative z-10 flex min-h-[245px] max-w-2xl flex-col justify-center p-6 sm:min-h-[275px] sm:p-9">
+      <span className="inline-flex w-fit items-center gap-2 rounded-full border border-[#ffc94a]/35 bg-[#21382d]/65 px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-[0.18em] text-[#ffc94a] backdrop-blur-sm">
+        <Flame size={13}/> Fresh from our kitchen
+      </span>
+      <h2 className="mt-4 max-w-lg text-3xl font-extrabold leading-[1.04] tracking-tight text-white sm:text-4xl">Fresh from the flame.</h2>
+      <p className="mt-3 max-w-md text-sm leading-6 text-white/80 sm:text-base">Real ingredients. Proper heat. Nigerian favourites made fresh with care.</p>
+      <span className="mt-5 inline-flex items-center gap-2 text-xs font-bold text-white/90"><span className="h-1.5 w-1.5 rounded-full bg-[#e96d2c]"/> Made fresh, served with care</span>
+    </div>
+  </section>;
 }
 
 function MenuPage({ search, setSearch, add, basket, activeCategory, setActiveCategory }: { search: string; setSearch: (value: string) => void; add: (item: CatalogItem) => void; basket: BasketLine[]; activeCategory: string; setActiveCategory: (value: string) => void }) {
@@ -311,12 +353,13 @@ function MenuPage({ search, setSearch, add, basket, activeCategory, setActiveCat
       <div><p className="text-xs font-bold uppercase tracking-widest text-[#71816f]">Damien's Smoky Kitchen</p><h1 className="mt-2 text-3xl font-extrabold tracking-tight text-[#26372c] sm:text-4xl">Explore the menu</h1><p className="mt-2 text-sm text-[#69766e]">Browse every dish, see the price and add your favourites to your basket.</p></div>
       <div className="rounded-2xl bg-[#fff0cf] px-4 py-3 text-xs font-semibold text-[#39463b]">Minimum delivery order <strong className="ml-1">₦3,000</strong></div>
     </div>
+    <MenuMotionFeature/>
     <div className="sticky top-[72px] z-20 -mx-4 mt-6 border-y border-[#e7e9e2] bg-[#f7f8f4]/95 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-2xl sm:border">
       <div className="flex gap-2 overflow-x-auto pb-1">{categoriesWithAll.map((category) => <button key={category} onClick={() => setActive(category)} className={active === category ? 'shrink-0 rounded-full bg-[#26372c] px-4 py-2.5 text-xs font-bold text-white' : 'shrink-0 rounded-full border border-[#dfe4dc] bg-white px-4 py-2.5 text-xs font-semibold text-[#526a50] transition hover:border-[#ffc94a]'}>{category}</button>)}</div>
     </div>
     <div className="mt-6 flex items-center justify-between gap-3"><p className="text-sm font-semibold text-[#526a50]">{filtered.length} menu items</p><p className="text-xs text-[#7a857b]">Prices in Nigerian naira</p></div>
     <div className="mt-4 space-y-10">{displayedGroups.map((group) => <section key={group.category} aria-labelledby={`menu-group-${group.category.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`}><div className="mb-4 flex items-center justify-between gap-3"><h2 id={`menu-group-${group.category.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`} className="text-xl font-extrabold tracking-tight text-[#26372c]">{group.category}</h2><span className="text-xs font-semibold text-[#7a857b]">{group.items.length} items</span></div><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{group.items.map((item) => <article key={item.id} className="group overflow-hidden rounded-3xl border border-[#e7e9e2] bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
-      <div className="relative h-44 overflow-hidden bg-[#eef0e9]"><img src={menuPhoto(item)} alt={`${item.name} food photography`} loading="lazy" className="h-full w-full object-cover transition duration-500 group-hover:scale-105"/><div className="absolute left-3 top-3 flex gap-2"><span className="rounded-full bg-white/95 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[#526a50]">{item.displayCategory}</span>{item.dietaryLabel && <span className="rounded-full bg-[#e8eee6]/95 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[#526a50]">Vegan</span>}</div></div>
+      <div className="relative h-44 overflow-hidden bg-[#eef0e9]"><img src={menuPhoto(item)} alt={`${item.name} menu image`} loading="lazy" className="h-full w-full object-cover transition duration-500 group-hover:scale-105"/><div className="absolute left-3 top-3 flex gap-2"><span className="rounded-full bg-white/95 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[#526a50]">{item.displayCategory}</span>{item.dietaryLabel && <span className="rounded-full bg-[#e8eee6]/95 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[#526a50]">Vegan</span>}</div></div>
       <div className="p-4"><h3 className="min-h-10 font-bold leading-snug text-[#29382d]">{item.name}</h3><div className="mt-4 flex items-center justify-between gap-3"><strong className="text-base text-[#26372c]">{item.price === null ? 'Ask for price' : money(item.price)}</strong>{item.price !== null && <button onClick={() => add(item)} aria-label={`Add ${item.name} to basket`} className="inline-flex shrink-0 items-center gap-2 rounded-full bg-[#ffc94a] px-4 py-2.5 text-xs font-bold text-[#26372c] transition hover:bg-[#f4b923]"><Plus size={15}/> Add</button>}</div></div>
     </article>)}</div></section>)}</div>
     {filtered.length === 0 && <p className="rounded-2xl bg-white p-8 text-center text-sm text-[#69766e]">No menu items match that search.</p>}
