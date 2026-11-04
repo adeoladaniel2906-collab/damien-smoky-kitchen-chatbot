@@ -552,3 +552,34 @@ body { background: #f7f8f4; color: #26372c; }
   html { scroll-behavior: auto; }
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
 }
+
+
+/* Explore Menu: cinematic food footage, using the existing kitchen palette. */
+.dsk-menu-motion {
+  box-shadow: 0 18px 48px rgba(33, 56, 45, .12);
+  isolation: isolate;
+}
+.dsk-menu-motion__video {
+  opacity: 0;
+  animation: dsk-menu-video-ready 900ms ease-out 120ms forwards,
+    dsk-menu-video-drift 18s ease-in-out 1s infinite alternate;
+  transform: scale(1.035);
+}
+.dsk-menu-motion__copy {
+  animation: dsk-menu-copy-enter 720ms cubic-bezier(.2,.8,.2,1) both;
+}
+@keyframes dsk-menu-video-ready {
+  to { opacity: 1; }
+}
+@keyframes dsk-menu-video-drift {
+  from { transform: scale(1.035) translate3d(0, 0, 0); }
+  to { transform: scale(1.095) translate3d(-.5%, -.35%, 0); }
+}
+@keyframes dsk-menu-copy-enter {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dsk-menu-motion__video { display: none; animation: none; }
+  .dsk-menu-motion__copy { animation: none; }
+}
