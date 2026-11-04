@@ -4,7 +4,6 @@ import { SignIn, SignUp, useAuth, useUser } from '@clerk/react';
 import { ArrowRight, CheckCircle2, ChevronDown, Clock3, Flame, MapPin, MessageCircle, Minus, Plus, Search, ShoppingBag, Trash2, Truck, Utensils, WifiOff } from 'lucide-react';
 import { restaurantKnowledge, type MenuItem } from '@/chatbot/knowledge';
 import menuImageMap from '@/chatbot/menu-image-map.json';
-import menuImageSources from '@/chatbot/menu-image-sources.json';
 import { CookieConsent } from '@/components/CookieConsent';
 import { CookiePolicyPage, PrivacyPolicyPage, TermsPage } from '@/pages/LegalPages';
 
@@ -29,11 +28,8 @@ function money(value: number) {
   return '₦' + value.toLocaleString('en-NG');
 }
 
-const menuPhoto = (item: CatalogItem) => {
-  const verifiedPhoto = menuImageMap[item.id as keyof typeof menuImageMap];
-  if (verifiedPhoto) return verifiedPhoto;
-
-  // Unique, branded illustration fallback. Never reuse another menu item's photograph.
+const menuVisual = (item: CatalogItem) => {
+  // Every menu entry gets a unique, clearly illustrated visual until a real, licensed food photo is approved.
   const escapeXml = (value: string) => value.replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' })[char] ?? char);
   const palette = ['#e8d7b5', '#d8e3d1', '#f0d2c6', '#d9d8ed', '#e9e2b8', '#d1e3e8'];
   const hash = [...item.id].reduce((value, char) => (value * 31 + char.charCodeAt(0)) >>> 0, 7);
@@ -45,10 +41,6 @@ const menuPhoto = (item: CatalogItem) => {
   return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
 };
 
-const menuPhotoCredit = (item: CatalogItem) => {
-  const url = menuImageMap[item.id as keyof typeof menuImageMap];
-  return menuImageSources.find((source) => source.url === url);
-};
 
 function App() {
   const [location, setLocation] = useLocation();
@@ -285,7 +277,7 @@ function Home({ onBrowse, onAdd, basketCount }: { onBrowse: (query?: string) => 
 
 function ProductCard({ item, onAdd }: { item: CatalogItem; onAdd: () => void }) {
   return <article className="group overflow-hidden rounded-3xl border border-[#e7e9e2] bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
-    <div className="relative h-40 overflow-hidden bg-[#f0f1eb]"><img src={menuPhoto(item)} alt={`${item.name} menu image`} loading="lazy" className="h-full w-full object-cover transition duration-500 group-hover:scale-105"/>{menuPhotoCredit(item) && <a href={menuPhotoCredit(item)?.source} target="_blank" rel="noreferrer" title={menuPhotoCredit(item)?.title} className="absolute bottom-3 right-3 rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-semibold text-[#526a50]">Photo credit</a>}{menuPhotoCredit(item) && <a href={menuPhotoCredit(item)?.source} target="_blank" rel="noreferrer" title={menuPhotoCredit(item)?.title} className="absolute bottom-3 right-3 rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-semibold text-[#526a50]">Photo credit</a>}<span className="absolute left-3 top-3 rounded-full bg-white/95 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-[#526a50]">{item.displayCategory}</span></div>
+    <div className="relative h-40 overflow-hidden bg-[#f0f1eb]"><img src={menuVisual(item)} alt={`${item.name} menu image`} loading="lazy" className="h-full w-full object-cover transition duration-500 group-hover:scale-105"/><span className="absolute left-3 top-3 rounded-full bg-white/95 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-[#526a50]">{item.displayCategory}</span></div>
     <div className="p-4"><h3 className="min-h-10 font-bold leading-snug text-[#29382d]">{item.name}</h3><div className="mt-4 flex items-center justify-between gap-3"><strong className="text-base text-[#26372c]">{item.price === null ? 'Ask for price' : money(item.price)}</strong>{item.price !== null && <button onClick={onAdd} aria-label={`Add ${item.name} to basket`} className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#ffc94a] text-[#26372c] transition hover:bg-[#f4b923]"><Plus size={19}/></button>}</div></div>
   </article>;
 }
@@ -359,7 +351,7 @@ function MenuPage({ search, setSearch, add, basket, activeCategory, setActiveCat
     </div>
     <div className="mt-6 flex items-center justify-between gap-3"><p className="text-sm font-semibold text-[#526a50]">{filtered.length} menu items</p><p className="text-xs text-[#7a857b]">Prices in Nigerian naira</p></div>
     <div className="mt-4 space-y-10">{displayedGroups.map((group) => <section key={group.category} aria-labelledby={`menu-group-${group.category.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`}><div className="mb-4 flex items-center justify-between gap-3"><h2 id={`menu-group-${group.category.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`} className="text-xl font-extrabold tracking-tight text-[#26372c]">{group.category}</h2><span className="text-xs font-semibold text-[#7a857b]">{group.items.length} items</span></div><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{group.items.map((item) => <article key={item.id} className="group overflow-hidden rounded-3xl border border-[#e7e9e2] bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
-      <div className="relative h-44 overflow-hidden bg-[#eef0e9]"><img src={menuPhoto(item)} alt={`${item.name} menu image`} loading="lazy" className="h-full w-full object-cover transition duration-500 group-hover:scale-105"/><div className="absolute left-3 top-3 flex gap-2"><span className="rounded-full bg-white/95 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[#526a50]">{item.displayCategory}</span>{item.dietaryLabel && <span className="rounded-full bg-[#e8eee6]/95 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[#526a50]">Vegan</span>}</div></div>
+      <div className="relative h-44 overflow-hidden bg-[#eef0e9]"><img src={menuVisual(item)} alt={`${item.name} menu image`} loading="lazy" className="h-full w-full object-cover transition duration-500 group-hover:scale-105"/><div className="absolute left-3 top-3 flex gap-2"><span className="rounded-full bg-white/95 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[#526a50]">{item.displayCategory}</span>{item.dietaryLabel && <span className="rounded-full bg-[#e8eee6]/95 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[#526a50]">Vegan</span>}</div></div>
       <div className="p-4"><h3 className="min-h-10 font-bold leading-snug text-[#29382d]">{item.name}</h3><div className="mt-4 flex items-center justify-between gap-3"><strong className="text-base text-[#26372c]">{item.price === null ? 'Ask for price' : money(item.price)}</strong>{item.price !== null && <button onClick={() => add(item)} aria-label={`Add ${item.name} to basket`} className="inline-flex shrink-0 items-center gap-2 rounded-full bg-[#ffc94a] px-4 py-2.5 text-xs font-bold text-[#26372c] transition hover:bg-[#f4b923]"><Plus size={15}/> Add</button>}</div></div>
     </article>)}</div></section>)}</div>
     {filtered.length === 0 && <p className="rounded-2xl bg-white p-8 text-center text-sm text-[#69766e]">No menu items match that search.</p>}
