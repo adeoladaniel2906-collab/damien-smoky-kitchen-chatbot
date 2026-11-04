@@ -542,3 +542,13 @@ body { background: #f7f8f4; color: #26372c; }
     animation: none !important;
   }
 }
+
+
+/* Mobile browser and installed-PWA safe areas (iOS notch/home indicator). */
+#root { min-height: 100dvh; }
+.dsk-app-header { top: env(safe-area-inset-top, 0px); }
+.dsk-app-footer { padding-bottom: env(safe-area-inset-bottom, 0px); }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+}
