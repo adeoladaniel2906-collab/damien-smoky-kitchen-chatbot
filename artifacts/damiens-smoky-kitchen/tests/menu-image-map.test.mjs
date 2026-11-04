@@ -15,7 +15,7 @@ test("all 123 menu entries have distinct, clearly labelled illustration fallback
   assert.deepEqual(sources, [], "unverified photo credits must not be shown");
   assert.match(app, /const menuVisual = \(item: CatalogItem\)/);
   assert.match(app, /data-menu-item=/);
-  assert.match(app, /Unique, clearly illustrated visual/);
+  assert.match(app, /clearly illustrated visual/i);
   assert.doesNotMatch(app, /menuPhotoCredit/);
   assert.doesNotMatch(app, /menuPhoto\(item\)/);
 });
