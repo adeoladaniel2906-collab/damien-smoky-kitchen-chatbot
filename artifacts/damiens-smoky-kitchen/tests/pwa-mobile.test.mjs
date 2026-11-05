@@ -65,3 +65,14 @@ test("legacy Clerk redirects to the removed account route safely return home", a
   assert.ok(app.includes('setLocation("/");'));
   assert.ok(app.includes('fallbackRedirectUrl="/"'));
 });
+
+
+test("menu controls stay clear of the two-row mobile header and device home indicator", async () => {
+  const app = await read("../src/App.tsx");
+  const css = await read("../src/index.css");
+  assert.match(app, /dsk-menu-category-bar sticky/);
+  assert.match(app, /dsk-menu-basket-bar fixed/);
+  assert.match(css, /\.dsk-menu-category-bar\s*\{\s*top:\s*calc\(7rem \+ env\(safe-area-inset-top/);
+  assert.match(css, /@media \(min-width: 1024px\)[\s\S]*\.dsk-menu-category-bar[\s\S]*top: calc\(4\.5rem \+ env\(safe-area-inset-top/);
+  assert.match(css, /\.dsk-menu-basket-bar\s*\{\s*bottom:\s*calc\(1rem \+ env\(safe-area-inset-bottom/);
+});

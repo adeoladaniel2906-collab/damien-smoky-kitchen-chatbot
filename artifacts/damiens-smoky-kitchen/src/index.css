@@ -583,3 +583,20 @@ body { background: #f7f8f4; color: #26372c; }
   .dsk-menu-motion__video { display: none; animation: none; }
   .dsk-menu-motion__copy { animation: none; }
 }
+
+
+/* Keep the sticky category controls below the full two-row tablet/mobile header. */
+.dsk-menu-category-bar {
+  top: calc(7rem + env(safe-area-inset-top, 0px));
+}
+
+/* Keep the floating basket action clear of the iOS/Android gesture safe area. */
+.dsk-menu-basket-bar {
+  bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+}
+
+@media (min-width: 1024px) {
+  .dsk-menu-category-bar {
+    top: calc(4.5rem + env(safe-area-inset-top, 0px));
+  }
+}
