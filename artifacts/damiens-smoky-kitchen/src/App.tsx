@@ -707,7 +707,7 @@ function StaffPortalPage() {
         <div className="mt-auto rounded-xl border border-white/10 bg-white/5 p-3">
           <p className="text-[10px] font-bold uppercase tracking-[.15em] text-[#f4b184]">Signed in</p>
           <p className="mt-1 break-all text-xs text-white/80">{email}</p>
-          <p className="mt-2 text-[10px] text-white/45">Owner access · protected session</p>
+          <p className="mt-2 text-[10px] text-white/45">Primary administrator · protected session</p>
         </div>
       </aside>
       <section className="min-w-0 flex-1">
