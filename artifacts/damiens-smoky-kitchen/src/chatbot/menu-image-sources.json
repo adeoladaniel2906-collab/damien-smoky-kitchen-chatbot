@@ -124,5 +124,95 @@
     "license": "CC BY-SA 4.0",
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
     "alt": "Nigerian beans and fried plantain"
+  },
+  {
+    "menuItemId": "Rice:Coconut Rice:1200",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/COCONUT_RICE_AND_SALAD.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:COCONUT_RICE_AND_SALAD.jpg",
+    "author": "Oghenevwogaga Amos",
+    "license": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "alt": "Nigerian coconut rice served with salad"
+  },
+  {
+    "menuItemId": "Rice:White Rice + Stew:800",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/White_rice_and_stew_(Banga_stew)_(Nigerian_dish).jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:White_rice_and_stew_(Banga_stew)_(Nigerian_dish).jpg",
+    "author": "Beendy234",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "alt": "Nigerian white rice served with Banga stew"
+  },
+  {
+    "menuItemId": "Swallow:Pounded Yam + Egusi:1500",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Pounded_Yam_and_Egusi_Soup.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Pounded_Yam_and_Egusi_Soup.jpg",
+    "author": "Justdifference",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "alt": "Pounded yam served with Nigerian egusi soup"
+  },
+  {
+    "menuItemId": "Swallow:Fufu + Ogbono:1000",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Fufu_served_with_Ogbono_Soup.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Fufu_served_with_Ogbono_Soup.jpg",
+    "author": "Aderiqueza",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "alt": "Fufu served with ogbono soup"
+  },
+  {
+    "menuItemId": "Proteins:Grilled Chicken:1200",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Grilled_chicken.JPG?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Grilled_chicken.JPG",
+    "author": "ANBI",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/",
+    "alt": "Grilled chicken"
+  },
+  {
+    "menuItemId": "Vegan Small Chops:Roasted Corn:400",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Road_side_snack_(Roasted_Corn).jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Road_side_snack_(Roasted_Corn).jpg",
+    "author": "Lollyday",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "alt": "Nigerian roadside roasted corn"
+  },
+  {
+    "menuItemId": "Drinks:Zobo:300",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Zobo_drink.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Zobo_drink.jpg",
+    "author": "Lyndadelz",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "alt": "Zobo drink made with roselle flowers"
+  },
+  {
+    "menuItemId": "Drinks:Kunu:300",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Kunu.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Kunu.jpg",
+    "author": "Agan56",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "alt": "Kunu, a traditional Nigerian drink"
+  },
+  {
+    "menuItemId": "Drinks:Fresh Orange Juice:700",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Fresh_Orange_Juice.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Fresh_Orange_Juice.jpg",
+    "author": "Emna Mizouni",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "alt": "Fresh orange juice"
+  },
+  {
+    "menuItemId": "Drinks:Schweppes Chapman:500",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/A_glass_of_Chapman.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:A_glass_of_Chapman.jpg",
+    "author": "Solasly",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "alt": "A glass of Nigerian Chapman"
   }
 ]
