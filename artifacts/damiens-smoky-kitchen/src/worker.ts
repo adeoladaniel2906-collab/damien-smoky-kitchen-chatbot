@@ -725,7 +725,7 @@ async function readMenu(env: Env, includeUnavailable = false) {
 async function handleStaffMenu(request: Request, env: Env, url: URL, actor: string): Promise<Response> {
   if (request.headers.get("Origin") !== url.origin) return authResponse({ error:"Request origin is not allowed." },403);
   if (request.method === "GET" && url.pathname === "/api/staff/menu") {
-    return authResponse({ items:await readMenu(env,true) },200,undefined,{"Cache-Control":"no-store"});
+    return authResponse({ items:await readMenu(env,true) });
   }
   if (request.method !== "POST" && request.method !== "PATCH") return authResponse({ error:"Method not allowed." },405);
   let body: Record<string, unknown>;
@@ -751,7 +751,7 @@ async function handleStaffMenu(request: Request, env: Env, url: URL, actor: stri
       env.DB.prepare("INSERT INTO staff_audit_logs (actor,action,target_id) VALUES (?,?,?)").bind(actor,"menu.item_created:"+name,id)
     ]);
     const created=await env.DB.prepare("SELECT id,name,category,price_ngn,aliases_json,is_vegan,is_available,sort_order,updated_at FROM menu_items WHERE id=?").bind(id).first<MenuDbRow>();
-    return authResponse({item:created?serializeMenuRow(created):null},201,undefined,{"Cache-Control":"no-store"});
+    return authResponse({item:created?serializeMenuRow(created):null},201);
   }
   const id=decodeURIComponent(url.pathname.slice("/api/staff/menu/".length));
   if (!id || id.length>180) return authResponse({error:"Invalid menu item identifier."},400);
@@ -769,7 +769,7 @@ async function handleStaffMenu(request: Request, env: Env, url: URL, actor: stri
     env.DB.prepare("INSERT INTO staff_audit_logs (actor,action,target_id) VALUES (?,?,?)").bind(actor,"menu.item_updated:"+nextName,id)
   ]);
   const updated=await env.DB.prepare("SELECT id,name,category,price_ngn,aliases_json,is_vegan,is_available,sort_order,updated_at FROM menu_items WHERE id=?").bind(id).first<MenuDbRow>();
-  return authResponse({item:updated?serializeMenuRow(updated):null},200,undefined,{"Cache-Control":"no-store"});
+  return authResponse({item:updated?serializeMenuRow(updated):null},200);
 }
 
 type StaffOrderRow = { id: string; customer_name: string; customer_phone: string; delivery_address: string; subtotal_ngn: number; delivery_fee_ngn: number | null; status: string; created_at: string; updated_at: string };
