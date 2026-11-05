@@ -430,5 +430,165 @@
     "license": "CC BY-SA 4.0",
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
     "alt": "Fresh watermelon juice served in a glass"
+  },
+  "Proteins:Shaki:600": {
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Eba%20with%20Ewedu%20soup%20%26%20Stew%20with%20Croaker%20Fish%20and%20Shaki.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Eba_with_Ewedu_soup_%26_Stew_with_Croaker_Fish_and_Shaki.jpg",
+    "author": "Oludafa",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "alt": "Eba with ewedu soup, croaker fish stew and shaki"
+  },
+  "Rice:Jollof Rice:1500": {
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Nigerian%20jollof%20rice.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Nigerian_jollof_rice.jpg",
+    "author": "Halima Waziri",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "alt": "A plate of Nigerian jollof rice"
+  },
+  "Rice:Fried Rice:1600": {
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/A%20plate%20of%20Assorted%20fried%20rice.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:A_plate_of_Assorted_fried_rice.jpg",
+    "author": "Maame1Yaa",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "alt": "A plate of assorted fried rice"
+  },
+  "Vegan Rice:Vegan Fried Rice:1300": {
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/From%20Garden%20to%20Table%20Vegan%20Fried%20Rice%20with%20Tofu%20and%20Kolitis.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:From_Garden_to_Table_Vegan_Fried_Rice_with_Tofu_and_Kolitis.jpg",
+    "author": "Elmer Centeno Guevarra",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "alt": "Vegan fried rice with tofu and kolitis greens"
+  },
+  "Vegan Proteins:Fried Tofu:600": {
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Fried%20Chickpea%20Tofu.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Fried_Chickpea_Tofu.jpg",
+    "author": "Theinga Ye Thway",
+    "license": "CC0 1.0",
+    "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "alt": "Fried chickpea tofu fritters"
+  },
+  "Vegan Proteins:Peppered Tofu:800": {
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Tofu%20stir-fry.jpeg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Tofu_stir-fry.jpeg",
+    "author": "Miscellaneous contributor",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "alt": "Tofu stir-fry with vegetables"
+  },
+  "Vegan Proteins:Garden Egg Stew:500": {
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Garden%20egg%20stew1.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Garden_egg_stew1.jpg",
+    "author": "Umuhiera",
+    "license": "CC0 1.0",
+    "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "alt": "Mashed garden egg stew fried in palm oil"
+  },
+  "Vegan Breakfast:Boiled Yam + Garden Egg Sauce:900": {
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Boiled%20Yam%20with%20garden%20egg%20stew.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Boiled_Yam_with_garden_egg_stew.jpg",
+    "author": "Umuhiera",
+    "license": "CC0 1.0",
+    "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "alt": "Boiled yam served with mashed garden egg stew"
+  },
+  "Vegan Small Chops:Vegan Samosa:600": {
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Ailin9VeganSamosa.JPG?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Ailin9VeganSamosa.JPG",
+    "author": "AilinParsa",
+    "license": "CC0 1.0",
+    "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "alt": "Vegan samosas"
+  },
+  "Vegan Sides:Roasted Sweet Potato:500": {
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Roasted%20Sweet%20Potato.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Roasted_Sweet_Potato.jpg",
+    "author": "Nizil Shah",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "alt": "Roasted sweet potato"
+  },
+  "Vegan Sides:Steamed Vegetables:500": {
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Steamed%20Vegetables.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Steamed_Vegetables.jpg",
+    "author": "Joekyabby1",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "alt": "A side serving of steamed vegetables"
+  },
+  "Vegan Drinks:Zobo:300": {
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Chilled%20Zobo%20drink.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Chilled_Zobo_drink.jpg",
+    "author": "Halima Waziri",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "alt": "A chilled Nigerian zobo drink made from hibiscus"
+  },
+  "Vegan Drinks:Kunu:300": {
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Kunun%20masara.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Kunun_masara.jpg",
+    "author": "Salma kyari",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "alt": "Kunun masara, a Nigerian corn-based kunu drink"
+  },
+  "Vegan Drinks:Coconut Water:500": {
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Fresh%20Coconut%20with%20Coconut%20Water.JPG?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Fresh_Coconut_with_Coconut_Water.JPG",
+    "author": "Miansari66",
+    "license": "CC0 1.0",
+    "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "alt": "Fresh coconut containing coconut water"
+  },
+  "Drinks:Banana Smoothie:800": {
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Banana%20Smoothie.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Banana_Smoothie.jpg",
+    "author": "Ourlibrary",
+    "license": "CC0 1.0",
+    "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "alt": "A banana smoothie"
+  },
+  "Drinks:Mixed Fruit Smoothie:1000": {
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Fruit%20smoothie.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Fruit_smoothie.jpg",
+    "author": "Tiia Monto",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/",
+    "alt": "A mixed fruit smoothie with pineapple, watermelon, orange, kiwi and apple"
+  },
+  "Vegan Drinks:Tigernut:500": {
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Kunun%20Aya%20In%20Northern%20Nigeria%206.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Kunun_Aya_In_Northern_Nigeria_6.jpg",
+    "author": "Hajjare",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "alt": "Kunun aya, a Nigerian tiger-nut drink"
+  },
+  "Vegan Sides:Fried Plantain:500": {
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Pap%20and%20fried%20plantain%20(%20Nigerian%20cuisine).jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Pap_and_fried_plantain_(_Nigerian_cuisine).jpg",
+    "author": "Beendy234",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "alt": "Nigerian pap served with fried plantain"
+  },
+  "Vegan Small Chops:Boiled Groundnuts:300": {
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Boiled%20Groundnut%20Peanuts.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Boiled_Groundnut_Peanuts.jpg",
+    "author": "Uncle Bash007",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "alt": "Boiled groundnuts, a traditional Nigerian snack"
+  },
+  "Vegan Drinks:Fresh Orange:700": {
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Fresh%20orange%20juice%20II.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Fresh_orange_juice_II.jpg",
+    "author": "Robertgombos",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "alt": "Fresh orange juice"
   }
 }
