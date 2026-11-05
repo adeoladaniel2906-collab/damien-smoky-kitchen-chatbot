@@ -719,6 +719,7 @@ function StaffPortalPage() {
         <p className="mb-3 mt-10 px-3 text-[10px] font-bold uppercase tracking-[.2em] text-white/40">Workspace</p>
         <nav className="space-y-1">
           {nav.map(item=><button key={item.id} onClick={()=>setSection(item.id)} className={section===item.id?"flex w-full items-center gap-3 rounded-xl bg-white/12 px-3 py-3 text-left text-sm font-semibold text-white":"flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm text-white/65 transition hover:bg-white/8 hover:text-white"}><span className="w-5 text-center text-lg">{item.icon}</span>{item.label}{item.id==="orders"&&pending>0&&<span className="ml-auto rounded-full bg-[#e96d2c] px-2 py-0.5 text-[10px] font-bold">{pending}</span>}</button>)}
+          <button onClick={()=>setLocation("/admin/menu")} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm text-white/65 transition hover:bg-white/8 hover:text-white"><span className="w-5 text-center text-lg">▦</span>Menu management</button>
         </nav>
         <div className="mt-8 border-t border-white/10 pt-5">
           <p className="px-3 text-[10px] font-bold uppercase tracking-[.2em] text-white/40">Coming next</p>
@@ -747,7 +748,7 @@ function StaffPortalPage() {
           </div>
         </header>
         <div className="border-b border-[#e5e9e2] bg-white px-4 py-2 md:hidden">
-          <nav className="flex gap-2 overflow-x-auto">{nav.map(item=><button key={item.id} onClick={()=>setSection(item.id)} className={section===item.id?"shrink-0 rounded-lg bg-[#20372b] px-3 py-2 text-xs font-bold text-white":"shrink-0 rounded-lg bg-[#f1f3ee] px-3 py-2 text-xs font-semibold text-[#657469]"}>{item.label}</button>)}</nav>
+          <nav className="flex gap-2 overflow-x-auto">{nav.map(item=><button key={item.id} onClick={()=>setSection(item.id)} className={section===item.id?"shrink-0 rounded-lg bg-[#20372b] px-3 py-2 text-xs font-bold text-white":"shrink-0 rounded-lg bg-[#f1f3ee] px-3 py-2 text-xs font-semibold text-[#657469]"}>{item.label}</button>)}<button onClick={()=>setLocation("/admin/menu")} className="shrink-0 rounded-lg bg-[#f1f3ee] px-3 py-2 text-xs font-semibold text-[#657469]">Menu</button></nav>
         </div>
         <div className="mx-auto max-w-7xl px-4 py-6 sm:px-7 sm:py-8 lg:px-10">
           {error && <p role="alert" className="mb-5 rounded-xl border border-[#f2d3c3] bg-[#fff0e5] p-3 text-sm text-[#8b401d]">{error}</p>}
