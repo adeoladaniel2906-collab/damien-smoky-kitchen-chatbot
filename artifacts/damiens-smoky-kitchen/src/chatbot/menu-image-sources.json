@@ -586,12 +586,12 @@
   },
   {
     "menuItemId": "Vegan Drinks:Zobo:300",
-    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Chilled%20Zobo%20drink.jpg?width=1200",
-    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Chilled_Zobo_drink.jpg",
-    "author": "Halima Waziri",
-    "license": "CC BY-SA 4.0",
-    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
-    "alt": "A chilled Nigerian zobo drink made from hibiscus"
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Zobo(hibiscus)%20drink.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Zobo(hibiscus)_drink.jpg",
+    "author": "Judethedeus",
+    "license": "CC0 1.0",
+    "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "alt": "A bottle of Nigerian zobo made from hibiscus leaves"
   },
   {
     "menuItemId": "Vegan Drinks:Kunu:300",
@@ -658,11 +658,11 @@
   },
   {
     "menuItemId": "Vegan Drinks:Fresh Orange:700",
-    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Fresh%20orange%20juice%20II.jpg?width=1200",
-    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Fresh_orange_juice_II.jpg",
-    "author": "Robertgombos",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Glass%20of%20Fresh%20Orange%20Juice.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Glass_of_Fresh_Orange_Juice.jpg",
+    "author": "Rebeloasisx",
     "license": "CC BY-SA 4.0",
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
-    "alt": "Fresh orange juice"
+    "alt": "A glass of fresh orange juice with orange slices"
   }
 ]
