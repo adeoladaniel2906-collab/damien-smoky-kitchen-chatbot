@@ -723,7 +723,7 @@ async function readMenu(env: Env, includeUnavailable = false) {
   return (result.results ?? []).map(serializeMenuRow);
 }
 async function handleStaffMenu(request: Request, env: Env, url: URL, actor: string): Promise<Response> {
-  if (request.headers.get("Origin") !== url.origin) return authResponse({ error:"Request origin is not allowed." },403);
+  if (request.method !== "GET" && request.headers.get("Origin") !== url.origin) return authResponse({ error:"Request origin is not allowed." },403);
   if (request.method === "GET" && url.pathname === "/api/staff/menu") {
     return authResponse({ items:await readMenu(env,true) });
   }
@@ -743,7 +743,7 @@ async function handleStaffMenu(request: Request, env: Env, url: URL, actor: stri
   const vegan=body.isVegan===true;
   const available=body.isAvailable!==false;
   if (request.method==="POST") {
-    if (!name || name.length>100 || !category || category.length>60 || !(price===null || (Number.isInteger(price) && Number(price)>=0 && Number(price)<=10000000))) return authResponse({error:"Enter a valid item name, category and price."},400);
+    if (!name || name.length>100 || !category || category.length>60 || !(price===null || (typeof price==="number" && Number.isInteger(price) && price>=0 && price<=10000000))) return authResponse({error:"Enter a valid item name, category and price."},400);
     const id=crypto.randomUUID();
     const max=await env.DB.prepare("SELECT COALESCE(MAX(sort_order),0) AS max_order FROM menu_items").first<{max_order:number}>();
     await env.DB.batch([
@@ -763,7 +763,7 @@ async function handleStaffMenu(request: Request, env: Env, url: URL, actor: stri
   const nextAliases=body.aliases===undefined?JSON.parse(existing.aliases_json):aliases;
   const nextVegan=body.isVegan===undefined?Boolean(existing.is_vegan):vegan;
   const nextAvailable=body.isAvailable===undefined?Boolean(existing.is_available):available;
-  if (!nextName || nextName.length>100 || !nextCategory || nextCategory.length>60 || !(nextPrice===null || (Number.isInteger(nextPrice) && Number(nextPrice)>=0 && Number(nextPrice)<=10000000)) || !Array.isArray(nextAliases)) return authResponse({error:"Menu item details are invalid."},400);
+  if (!nextName || nextName.length>100 || !nextCategory || nextCategory.length>60 || !(nextPrice===null || (typeof nextPrice==="number" && Number.isInteger(nextPrice) && nextPrice>=0 && nextPrice<=10000000)) || !Array.isArray(nextAliases)) return authResponse({error:"Menu item details are invalid."},400);
   await env.DB.batch([
     env.DB.prepare("UPDATE menu_items SET name=?,category=?,price_ngn=?,aliases_json=?,is_vegan=?,is_available=?,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=?").bind(nextName,nextCategory,nextPrice,JSON.stringify(nextAliases),nextVegan?1:0,nextAvailable?1:0,id),
     env.DB.prepare("INSERT INTO staff_audit_logs (actor,action,target_id) VALUES (?,?,?)").bind(actor,"menu.item_updated:"+nextName,id)
