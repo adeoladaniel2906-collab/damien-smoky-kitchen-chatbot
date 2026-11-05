@@ -97,5 +97,41 @@
     "license": "CC BY-SA 4.0",
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
     "alt": "Nigerian suya grilled meat"
+  },
+  {
+    "menuItemId": "Rice:Fish Jollof Rice:1200",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Fish_jollof_rice.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Fish_jollof_rice.jpg",
+    "author": "Halima Waziri",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "alt": "Nigerian fish jollof rice"
+  },
+  {
+    "menuItemId": "Proteins:Whole Grilled Catfish:2500",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Peppered_Grilled_fish_with_fried_Irish,_ketchup_and_lemon.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Peppered_Grilled_fish_with_fried_Irish,_ketchup_and_lemon.jpg",
+    "author": "Halima Waziri",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "alt": "Peppered grilled fish served with fried potatoes and lemon"
+  },
+  {
+    "menuItemId": "Vegan Small Chops:Boli + Groundnut:600",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Boli_and_Groundnut.png?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Boli_and_Groundnut.png",
+    "author": "Jostbrain",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "alt": "Nigerian roasted plantain (boli) served with groundnuts"
+  },
+  {
+    "menuItemId": "Breakfast:Beans + Plantain:800",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Beans_and_plantain.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Beans_and_plantain.jpg",
+    "author": "Gani Ray",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "alt": "Nigerian beans and fried plantain"
   }
 ]
