@@ -666,5 +666,365 @@
     "license": "CC BY-SA 4.0",
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
     "alt": "A glass of fresh orange juice with orange slices"
+  },
+  {
+    "menuItemId": "Drinks:Coke 35cl:400",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Coca-Cola%20Bottle.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Coca-Cola_Bottle.jpg",
+    "author": "Ayakln",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "alt": "A Coca-Cola bottle"
+  },
+  {
+    "menuItemId": "Drinks:Coke 50cl:600",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Coca-cola%20bottle.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Coca-cola_bottle.jpg",
+    "author": "Oleg Yunakov",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "alt": "A classic glass Coca-Cola bottle"
+  },
+  {
+    "menuItemId": "Drinks:Fanta 35cl:400",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Fanta.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Fanta.jpg",
+    "author": "AyoPaulDiesel",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "alt": "An orange Fanta bottle"
+  },
+  {
+    "menuItemId": "Drinks:Sprite 35cl:400",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Sprite%20Glass%20Bottle.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Sprite_Glass_Bottle.jpg",
+    "author": "Ayakln",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "alt": "An older green glass Sprite bottle"
+  },
+  {
+    "menuItemId": "Drinks:Pepsi 35cl:400",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Pepsi%20Bottle.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Pepsi_Bottle.jpg",
+    "author": "Ayakln",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "alt": "A Pepsi bottle"
+  },
+  {
+    "menuItemId": "Drinks:Mirinda 35cl:400",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Mirinda%20nigeria%20plastic%20bottle.JPG?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Mirinda_nigeria_plastic_bottle.JPG",
+    "author": "Gons",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "alt": "An orange Mirinda bottle photographed in Nigeria"
+  },
+  {
+    "menuItemId": "Drinks:Water 50cl:200",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Bottled%20water.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Bottled_water.jpg",
+    "author": "H.A.W.C 101",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "alt": "A clear bottle of drinking water"
+  },
+  {
+    "menuItemId": "Drinks:Sparkling Water:500",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/75cl%20vetro%20frizzante.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:75cl_vetro_frizzante.jpg",
+    "author": "Alexandream",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "alt": "A bottle of San Martino sparkling mineral water"
+  },
+  {
+    "menuItemId": "Drinks:Milo:400",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Cup%20of%20hot%20milo.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Cup_of_hot_milo.jpg",
+    "author": "Hughesdarren",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "alt": "A cup of hot Milo"
+  },
+  {
+    "menuItemId": "Drinks:Nescafé:500",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Caf%C3%A8%20nescafe%20por%20la%20tarde..JPG?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Caf%C3%A8_nescafe_por_la_tarde..JPG",
+    "author": "Maria Gracia Quintero",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/",
+    "alt": "A red Nescafé mug filled with coffee"
+  },
+  {
+    "menuItemId": "Drinks:Zobo:500",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Zobo%20drink%20(hibiscus%20juice)%2001.png?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Zobo_drink_(hibiscus_juice)_01.png",
+    "author": "Zmu'az4Z",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "alt": "A cup of Nigerian zobo made from hibiscus"
+  },
+  {
+    "menuItemId": "Drinks:Kunu:500",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Kunu%20in%20Northern%20Nigeria%2001.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Kunu_in_Northern_Nigeria_01.jpg",
+    "author": "Zahraswaty",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "alt": "A bowl of traditional Nigerian kunu drink"
+  },
+  {
+    "menuItemId": "Drinks:Tigernut:500",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Kunun%20aya.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Kunun_aya.jpg",
+    "author": "Jidda3711",
+    "license": "CC0 1.0",
+    "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "alt": "Kunun aya tigernut and coconut drink with nuts and coconuts"
+  },
+  {
+    "menuItemId": "Drinks:Sobo:300",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Zobo%20drink%20(hibiscus%20juice)%2002.png?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Zobo_drink_(hibiscus_juice)_02.png",
+    "author": "Zmu'az4Z",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "alt": "Nigerian zobo being poured into a cup"
+  },
+  {
+    "menuItemId": "Vegan Drinks:Banana Smoothie:800",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Green%20Smoothie.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Green_Smoothie.jpg",
+    "author": "Annapowell",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "alt": "A vegan spinach, banana, avocado and coconut milk smoothie"
+  },
+  {
+    "menuItemId": "Vegan Drinks:Mixed Fruit Smoothie:1000",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/A%20healthy%20fruit%20smoothie.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:A_healthy_fruit_smoothie.jpg",
+    "author": "Deborah Tjituka",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "alt": "A cup of apple, pear and banana fruit smoothie"
+  },
+  {
+    "menuItemId": "Vegan Breakfast:Oatmeal + Banana + Groundnuts:700",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Banana%20oatmeal.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Banana_oatmeal.jpg",
+    "author": "Shisma",
+    "license": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "alt": "A bowl of oatmeal topped with banana pieces"
+  },
+  {
+    "menuItemId": "Vegan Rice:Coconut Rice + Stewed Veg:1200",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Vegan%20Caribbean%20Vegetables%20with%20Coconut%20Rice%20and%20Plantains%20(11958034645).jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Vegan_Caribbean_Vegetables_with_Coconut_Rice_and_Plantains_(11958034645).jpg",
+    "author": "tomatoes and friends",
+    "license": "CC BY 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/2.0/",
+    "alt": "Vegan vegetables served with coconut rice and plantains"
+  },
+  {
+    "menuItemId": "Vegan Proteins:Soy Chunks:500",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Chilli%20Soyabean%20Chunks.JPG?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Chilli_Soyabean_Chunks.JPG",
+    "author": "Aindrilachanda",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "alt": "A serving of chilli soyabean chunks with vegetables"
+  },
+  {
+    "menuItemId": "Sides:Moi Moi (1 wrap):300",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Sliced%20Moi%20Moi.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Sliced_Moi_Moi.jpg",
+    "author": "Efrederick90",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "alt": "Slices of Nigerian moi moi"
+  },
+  {
+    "menuItemId": "Proteins:Stockfish:600",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Dried%20stock%20fish.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Dried_stock_fish.jpg",
+    "author": "Dappasolomon001",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "alt": "Dried Nigerian stockfish (okporoko)"
+  },
+  {
+    "menuItemId": "Small Chops:Gizdodo:1500",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Chinwe%20Uzoma%20kitchen%20%26%20Lifestyle%20-%20How%20to%20make%20gizdodo%20-%20This%20is%20so%20GOOD!!!%20Chinwe%20Uzoma%20Kitchen%20%26%20Lifestyle.png?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Chinwe_Uzoma_kitchen_%26_Lifestyle_-_How_to_make_gizdodo_-_This_is_so_GOOD!!!_Chinwe_Uzoma_Kitchen_%26_Lifestyle.png",
+    "author": "Chinwe Uzoma kitchen & Lifestyle",
+    "license": "CC BY 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/3.0/",
+    "alt": "Gizdodo being prepared in a cooking pot"
+  },
+  {
+    "menuItemId": "Small Chops:Peppered Gizzard:1200",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Stir-fried%20cabbage%20and%20chicken%20gizzard%20(2206134344).jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Stir-fried_cabbage_and_chicken_gizzard_(2206134344).jpg",
+    "author": "pelican from Tokyo, Japan",
+    "license": "CC BY-SA 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0/",
+    "alt": "Stir-fried chicken gizzard with cabbage and red pepper"
+  },
+  {
+    "menuItemId": "Small Chops:Asun:1800",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Goat%20meat%20Asun.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Goat_meat_Asun.jpg",
+    "author": "Edriiic",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "alt": "Nigerian goat meat asun in pepper mix"
+  },
+  {
+    "menuItemId": "Drinks:Water 75cl:300",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Eau%20potable.png?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Eau_potable.png",
+    "author": "Nounahon",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "alt": "A bottle of drinking water with a glass"
+  },
+  {
+    "menuItemId": "Drinks:Chivita:500",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Orange%20juice%20in%20a%20glass.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Orange_juice_in_a_glass.jpg",
+    "author": "Nshemeire Addah",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "alt": "Two glasses of orange juice with orange slices"
+  },
+  {
+    "menuItemId": "Drinks:Five Alive:500",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Mixed%20fruit%20juice.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Mixed_fruit_juice.jpg",
+    "author": "Roenashy",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "alt": "A glass of mixed fruit juice served with ice"
+  },
+  {
+    "menuItemId": "Drinks:Hollandia:600",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Drinkable%20Yogurt.png?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Drinkable_Yogurt.png",
+    "author": "Rollcloud",
+    "license": "CC BY 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/3.0/",
+    "alt": "Bottles of drinkable yogurt displayed in a store"
+  },
+  {
+    "menuItemId": "Drinks:Watermelon Smoothie:800",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Watermelon%20juice%20in%20a%20glass.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Watermelon_juice_in_a_glass.jpg",
+    "author": "Susan Slater",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "alt": "A glass of freshly prepared watermelon drink"
+  },
+  {
+    "menuItemId": "Drinks:Lipton:300",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Lipton%20Sweet%20Tea%20in%20Glass.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Lipton_Sweet_Tea_in_Glass.jpg",
+    "author": "Lauren Williams",
+    "license": "CC0 1.0",
+    "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "alt": "Lipton sweet tea served over ice in a glass"
+  },
+  {
+    "menuItemId": "Drinks:Bournvita:400",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Cup%20of%20Hot%20Chocolate.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Cup_of_Hot_Chocolate.jpg",
+    "author": "MochaMilk",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "alt": "A cup of hot chocolate"
+  },
+  {
+    "menuItemId": "Alcoholic Drinks:Heineken:900",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Green%20bottle%20of%20Heineken.JPG?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Green_bottle_of_Heineken.JPG",
+    "author": "Nicholas Gemini",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/",
+    "alt": "A green bottle of Heineken beer"
+  },
+  {
+    "menuItemId": "Alcoholic Drinks:Guinness:900",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Guinness.Original.Stout.2012.JPG?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Guinness.Original.Stout.2012.JPG",
+    "author": "LeeKeoma",
+    "license": "CC0 1.0",
+    "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "alt": "A bottle of Guinness Original Stout"
+  },
+  {
+    "menuItemId": "Alcoholic Drinks:Smirnoff Ice:1000",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Smirnoff%20Ice%20Original.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Smirnoff_Ice_Original.jpg",
+    "author": "Uttamstef12",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/",
+    "alt": "A bottle of Smirnoff Ice Original"
+  },
+  {
+    "menuItemId": "Vegan Swallow:Eba + Vegetable Egusi:1200",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Egusi%20soup%20and%20Eba.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Egusi_soup_and_Eba.jpg",
+    "author": "Chioma Mbakwe (Tinuke)",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "alt": "Eba served with a bowl of Nigerian egusi soup"
+  },
+  {
+    "menuItemId": "Vegan Swallow:Amala + Ewedu:1200",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Amala%20and%20Ewedu%20Soup%2019%2004.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Amala_and_Ewedu_Soup_19_04.jpg",
+    "author": "Lord Ajax 001",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "alt": "A serving of amala with ewedu soup"
+  },
+  {
+    "menuItemId": "Vegan Swallow:Pounded Yam + Ogbono:1500",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Ogbono%20soup%2020th%20April.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Ogbono_soup_20th_April.jpg",
+    "author": "Sasu photography",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "alt": "A pot of Nigerian ogbono soup being prepared"
+  },
+  {
+    "menuItemId": "Vegan Proteins:Mushroom Stir Fry:700",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Stir%20fry%20%C3%A0%20la%20Gabi-showcasingbabycorn.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Stir_fry_%C3%A0_la_Gabi-showcasingbabycorn.jpg",
+    "author": "Brian Snelson",
+    "license": "CC BY 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/2.0/",
+    "alt": "A meat-free stir fry with mushrooms and vegetables"
+  },
+  {
+    "menuItemId": "Vegan Proteins:Black-eyed Bean Patties (2):600",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/A%20bowl%20of%20Bean%20cake.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:A_bowl_of_Bean_cake.jpg",
+    "author": "Afroscope",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "alt": "A bowl of Nigerian akara bean cakes"
+  },
+  {
+    "menuItemId": "Vegan Sides:Boiled Plantain:400",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Boiled%20plantain%20with%20Vegetable%20soup.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Boiled_plantain_with_Vegetable_soup.jpg",
+    "author": "Bukky658",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "alt": "Boiled plantain served with vegetable soup"
   }
 ]
