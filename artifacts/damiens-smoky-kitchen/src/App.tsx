@@ -113,6 +113,28 @@ function App() {
       return [];
     }
   });
+
+  const [menuItems, setMenuItems] = useState<CatalogItem[]>(catalog);
+  useEffect(() => {
+    let active = true;
+    fetch("/api/menu", { cache:"no-store" })
+      .then(response => response.ok ? response.json() : Promise.reject(new Error("Menu unavailable")))
+      .then(data => {
+        if (!active || !Array.isArray(data.items)) return;
+        const items: CatalogItem[] = data.items.map((item: any) => ({
+          ...item,
+          displayCategory: item.displayCategory ?? displayCategory(item.category),
+          dietaryLabel: item.dietaryLabel,
+        }));
+        setMenuItems(items);
+        setBasket(current => current.flatMap(line => {
+          const fresh = items.find(item => item.id === line.item.id);
+          return fresh ? [{ ...line, item:fresh }] : [];
+        }));
+      })
+      .catch(() => { /* Keep the bundled menu as an offline fallback. */ });
+    return () => { active = false; };
+  }, []);
   const [search, setSearch] = useState('');
   const [menuCategory, setMenuCategory] = useState('All');
 
@@ -133,7 +155,7 @@ function App() {
     .filter((line) => line.quantity > 0));
   const remove = (id: string) => setBasket((current) => current.filter((line) => line.item.id !== id));
   const openMenu = (query = '') => {
-    if (categories.includes(query)) {
+    if (menuItems.some(item => item.displayCategory === query)) {
       setMenuCategory(query);
       setSearch('');
     } else {
@@ -176,8 +198,8 @@ function App() {
     </header>}
 
     <Switch>
-      <Route path="/"><Home onBrowse={openMenu} onAdd={add} basketCount={count}/></Route>
-      <Route path="/menu"><MenuPage search={search} setSearch={setSearch} add={add} basket={basket} activeCategory={menuCategory} setActiveCategory={setMenuCategory}/></Route>
+      <Route path="/"><Home onBrowse={openMenu} onAdd={add} basketCount={count} menuItems={menuItems}/></Route>
+      <Route path="/menu"><MenuPage search={search} setSearch={setSearch} add={add} basket={basket} activeCategory={menuCategory} setActiveCategory={setMenuCategory} menuItems={menuItems}/></Route>
       <Route path="/delivery"><DeliveryPage/></Route>
       <Route path="/assistant"><AssistantPage basket={basket}/></Route>
       <Route path="/checkout"><CheckoutPage basket={basket} change={change} remove={remove} clear={() => setBasket([])}/></Route>
@@ -188,6 +210,7 @@ function App() {
       <Route path="/staff-login"><StaffLoginPage/></Route>
       <Route path="/staff"><StaffPortalPage/></Route>
       <Route path="/admin/dashboard"><StaffPortalPage/></Route>
+      <Route path="/admin/menu"><AdminMenuPage/></Route>
       <Route path="/privacy"><PrivacyPolicyPage/></Route>
       <Route path="/terms"><TermsPage/></Route>
       <Route path="/cookies"><CookiePolicyPage/></Route>
@@ -263,9 +286,9 @@ function OfflinePage({ onRetry }: { onRetry: () => void }) {
   </main>;
 }
 
-function Home({ onBrowse, onAdd, basketCount }: { onBrowse: (query?: string) => void; onAdd: (item: CatalogItem) => void; basketCount: number }) {
-  const featured = catalog.filter((item) => item.price !== null).slice(0, 8);
-  const quickCategories = categories;
+function Home({ onBrowse, onAdd, basketCount, menuItems }: { onBrowse: (query?: string) => void; onAdd: (item: CatalogItem) => void; basketCount: number; menuItems: CatalogItem[] }) {
+  const featured = menuItems.filter((item) => item.price !== null).slice(0, 8);
+  const quickCategories = Array.from(new Set(menuItems.map(item => item.displayCategory)));
   return <main className="bg-[#f7f8f4]">
     <section className="mx-auto max-w-7xl px-4 pb-5 pt-5 sm:px-6">
       <div className="overflow-hidden rounded-[2rem] bg-[#ffc94a]">
@@ -357,11 +380,12 @@ function MenuMotionFeature() {
   </section>;
 }
 
-function MenuPage({ search, setSearch, add, basket, activeCategory, setActiveCategory }: { search: string; setSearch: (value: string) => void; add: (item: CatalogItem) => void; basket: BasketLine[]; activeCategory: string; setActiveCategory: (value: string) => void }) {
+function MenuPage({ search, setSearch, add, basket, activeCategory, setActiveCategory, menuItems }: { search: string; setSearch: (value: string) => void; add: (item: CatalogItem) => void; basket: BasketLine[]; activeCategory: string; setActiveCategory: (value: string) => void; menuItems: CatalogItem[] }) {
   const active = activeCategory;
   const setActive = setActiveCategory;
+  const categories = Array.from(new Set(menuItems.map(item => item.displayCategory)));
   const categoriesWithAll = ['All', ...categories];
-  const filtered = catalog.filter((item) => (active === 'All' || item.displayCategory === active) && `${item.name} ${item.displayCategory} ${item.dietaryLabel ?? ''}`.toLowerCase().includes(search.toLowerCase()));
+  const filtered = menuItems.filter((item) => (active === 'All' || item.displayCategory === active) && `${item.name} ${item.displayCategory} ${item.dietaryLabel ?? ''}`.toLowerCase().includes(search.toLowerCase()));
   const displayedGroups = active === 'All'
     ? categories.map((category) => ({ category, items: filtered.filter((item) => item.displayCategory === category) })).filter((group) => group.items.length > 0)
     : [{ category: active, items: filtered }];
@@ -759,6 +783,95 @@ function StaffPortalPage() {
           </section>}
           {section==="activity" && <section className="overflow-hidden rounded-2xl border border-[#e4e9e1] bg-white"><div className="border-b border-[#edf0ea] px-5 py-4"><h2 className="text-sm font-extrabold">Administrator audit trail</h2><p className="mt-1 text-xs text-[#89948c]">Order status changes recorded by the backend.</p></div>{logs.length===0?<p className="p-8 text-sm text-[#89948c]">No administrator actions recorded yet.</p>:logs.map(log=><div key={log.id} className="flex flex-wrap justify-between gap-2 border-b border-[#f0f2ed] px-5 py-4 text-xs last:border-0"><span className="font-semibold text-[#314739]">{log.action}</span><span className="text-[#7a867c]">{log.actor} · {new Date(log.created_at).toLocaleString()}</span></div>)}</section>}
           <p className="mt-6 text-[11px] leading-5 text-[#929d93]">Private administrator area. Customer information is shown only to an authenticated staff session. Sign out when using a shared device.</p>
+        </div>
+      </section>
+    </div>
+  </main>;
+}
+
+
+function AdminMenuPage() {
+  const [, setLocation] = useLocation();
+  const [items, setItems] = useState<Array<{id:string;name:string;category:string;price:number|null;isVegan:boolean;isAvailable:boolean}>>([]);
+  const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
+  const load = async () => {
+    const response = await fetch("/api/staff/menu", { credentials:"same-origin", cache:"no-store" });
+    if (response.status === 401) throw new Error("Administrator login required.");
+    if (!response.ok) throw new Error("Menu catalogue could not be loaded.");
+    const data = await response.json();
+    setItems(data.items ?? []);
+  };
+  useEffect(() => {
+    let active = true;
+    fetch("/api/auth/me", { credentials:"same-origin", cache:"no-store" })
+      .then(async response => {
+        if (!response.ok) throw new Error("Sign in required.");
+        const profile = await response.json();
+        if (profile.role !== "staff") throw new Error("Administrator access required.");
+        await load();
+      })
+      .catch(() => { if (active) setLocation("/staff/login"); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [setLocation]);
+  const save = async (event: FormEvent<HTMLFormElement>, id?:string) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    setBusy(true); setMessage("");
+    const payload = {
+      name:String(data.get("name") ?? "").trim(),
+      category:String(data.get("category") ?? "").trim(),
+      price:data.get("price") === "" ? null : Number(data.get("price")),
+      isVegan:data.get("isVegan") === "on",
+      isAvailable:data.get("isAvailable") === "on",
+      aliases:[],
+    };
+    try {
+      const response = await fetch(id ? "/api/staff/menu/"+encodeURIComponent(id) : "/api/staff/menu", {
+        method:id ? "PATCH" : "POST",
+        credentials:"same-origin",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify(payload),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error ?? "Menu change could not be saved.");
+      await load();
+      if (!id) form.reset();
+      setMessage(id ? "Menu item saved and published." : "New menu item added and published.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Menu change failed.");
+    } finally { setBusy(false); }
+  };
+  if (loading) return <main className="min-h-screen bg-[#f5f6f2] p-8 text-sm text-[#69766e]">Verifying administrator access…</main>;
+  return <main className="min-h-screen bg-[#f5f6f2] text-[#20372b]">
+    <header className="flex flex-wrap items-center justify-between gap-3 border-b border-[#e5e9e2] bg-white px-4 py-4 sm:px-8">
+      <div><p className="text-[10px] font-bold uppercase tracking-[.18em] text-[#89948c]">Damien's Smoky Kitchen / Admin</p><h1 className="mt-1 text-xl font-extrabold">Menu management</h1></div>
+      <div className="flex gap-2"><button onClick={()=>setLocation("/admin/dashboard")} className="rounded-xl border border-[#dfe5dc] px-4 py-2.5 text-xs font-bold">Dashboard</button><button onClick={async()=>{await fetch("/api/auth/logout",{method:"POST",credentials:"same-origin"});setLocation("/staff/login");}} className="rounded-xl bg-[#20372b] px-4 py-2.5 text-xs font-bold text-white">Sign out</button></div>
+    </header>
+    <div className="mx-auto max-w-6xl space-y-5 px-4 py-7 sm:px-8">
+      <div className="rounded-2xl border border-[#f0d7b8] bg-[#fff8ed] p-4 text-xs leading-5 text-[#80552e]">Menu edits are saved to the restaurant database and reflected on the public website. Existing food photos are not replaced or generated.</div>
+      {message && <p role="status" className="rounded-xl bg-[#edf2eb] p-3 text-sm text-[#526a50]">{message}</p>}
+      <form onSubmit={event=>void save(event)} className="grid gap-3 rounded-2xl border border-[#e4e9e1] bg-white p-5 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="lg:col-span-1"><h2 className="text-sm font-extrabold">Add a dish</h2><p className="mt-1 text-xs text-[#89948c]">Create a menu entry.</p></div>
+        <input name="name" required maxLength={100} placeholder="Dish name" className="rounded-xl border border-[#dfe5dc] px-3 py-2.5 text-sm"/>
+        <input name="category" required maxLength={60} placeholder="Category" className="rounded-xl border border-[#dfe5dc] px-3 py-2.5 text-sm"/>
+        <input name="price" type="number" min="0" max="10000000" placeholder="Price (₦)" className="rounded-xl border border-[#dfe5dc] px-3 py-2.5 text-sm"/>
+        <div className="flex flex-wrap items-center gap-3"><label className="flex items-center gap-2 text-xs"><input type="checkbox" name="isVegan"/> Vegan</label><button disabled={busy} className="rounded-xl bg-[#20372b] px-4 py-2.5 text-xs font-bold text-white disabled:opacity-50">Add item</button></div>
+      </form>
+      <section className="overflow-hidden rounded-2xl border border-[#e4e9e1] bg-white">
+        <div className="border-b border-[#edf0ea] px-5 py-4"><h2 className="text-sm font-extrabold">Current menu</h2><p className="mt-1 text-xs text-[#89948c]">{items.length} items in the database · save each row to publish its changes</p></div>
+        <div className="divide-y divide-[#edf0ea]">
+          {items.map(item=><form key={item.id} onSubmit={event=>void save(event,item.id)} className="grid gap-2 p-4 sm:grid-cols-2 lg:grid-cols-[1.5fr_1fr_.7fr_auto_auto_auto] lg:items-center">
+            <input name="name" aria-label="Dish name" defaultValue={item.name} required maxLength={100} className="min-w-0 rounded-lg border border-[#dfe5dc] px-3 py-2 text-xs font-semibold"/>
+            <input name="category" aria-label="Category" defaultValue={item.category} required maxLength={60} className="min-w-0 rounded-lg border border-[#dfe5dc] px-3 py-2 text-xs"/>
+            <input name="price" aria-label="Price in naira" type="number" min="0" max="10000000" defaultValue={item.price ?? ""} className="min-w-0 rounded-lg border border-[#dfe5dc] px-3 py-2 text-xs"/>
+            <label className="flex items-center gap-2 text-[11px]"><input type="checkbox" name="isVegan" defaultChecked={item.isVegan}/> Vegan</label>
+            <label className="flex items-center gap-2 text-[11px]"><input type="checkbox" name="isAvailable" defaultChecked={item.isAvailable}/> Available</label>
+            <button disabled={busy} className="rounded-lg bg-[#20372b] px-3 py-2 text-xs font-bold text-white disabled:opacity-50">Save</button>
+          </form>)}
         </div>
       </section>
     </div>
