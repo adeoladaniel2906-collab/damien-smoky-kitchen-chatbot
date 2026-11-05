@@ -709,10 +709,74 @@ async function handleAuth(request: Request, env: Env, url: URL): Promise<Respons
   return authResponse({ ok: true, role: "staff" }, 200, setSessionCookie(token));
 }
 
+type MenuDbRow = { id:string; name:string; category:string; price_ngn:number|null; aliases_json:string; is_vegan:number; is_available:number; sort_order:number; updated_at:string };
+function serializeMenuRow(row: MenuDbRow) {
+  let aliases: string[] = [];
+  try { const parsed: unknown = JSON.parse(row.aliases_json); if (Array.isArray(parsed)) aliases = parsed.filter((value): value is string => typeof value === "string"); } catch { aliases = []; }
+  return { id:row.id, name:row.name, category:row.category, displayCategory:row.category.startsWith("Vegan ") ? row.category.slice(6) : row.category, price:row.price_ngn, aliases, dietaryLabel:row.is_vegan ? "Vegan" : undefined, isVegan:Boolean(row.is_vegan), isAvailable:Boolean(row.is_available), sortOrder:row.sort_order, updatedAt:row.updated_at };
+}
+async function readMenu(env: Env, includeUnavailable = false) {
+  const query = includeUnavailable
+    ? "SELECT id,name,category,price_ngn,aliases_json,is_vegan,is_available,sort_order,updated_at FROM menu_items ORDER BY sort_order,name"
+    : "SELECT id,name,category,price_ngn,aliases_json,is_vegan,is_available,sort_order,updated_at FROM menu_items WHERE is_available = 1 ORDER BY sort_order,name";
+  const result = await env.DB.prepare(query).all<MenuDbRow>();
+  return (result.results ?? []).map(serializeMenuRow);
+}
+async function handleStaffMenu(request: Request, env: Env, url: URL, actor: string): Promise<Response> {
+  if (request.headers.get("Origin") !== url.origin) return authResponse({ error:"Request origin is not allowed." },403);
+  if (request.method === "GET" && url.pathname === "/api/staff/menu") {
+    return authResponse({ items:await readMenu(env,true) },200,undefined,{"Cache-Control":"no-store"});
+  }
+  if (request.method !== "POST" && request.method !== "PATCH") return authResponse({ error:"Method not allowed." },405);
+  let body: Record<string, unknown>;
+  try {
+    const raw=await readLimitedBody(request);
+    if (!raw || raw.length>4096) return authResponse({ error:"Invalid request." },400);
+    const parsed: unknown=JSON.parse(raw);
+    if (!parsed || typeof parsed!=="object" || Array.isArray(parsed)) return authResponse({ error:"Invalid request." },400);
+    body=parsed as Record<string,unknown>;
+  } catch { return authResponse({ error:"Invalid request." },400); }
+  const name=typeof body.name==="string"?body.name.trim():"";
+  const category=typeof body.category==="string"?body.category.trim():"";
+  const price=body.price;
+  const aliases=Array.isArray(body.aliases)?body.aliases.filter((value):value is string=>typeof value==="string").map(value=>value.trim()).filter(Boolean).slice(0,20):[];
+  const vegan=body.isVegan===true;
+  const available=body.isAvailable!==false;
+  if (request.method==="POST") {
+    if (!name || name.length>100 || !category || category.length>60 || !(price===null || (Number.isInteger(price) && Number(price)>=0 && Number(price)<=10000000))) return authResponse({error:"Enter a valid item name, category and price."},400);
+    const id=crypto.randomUUID();
+    const max=await env.DB.prepare("SELECT COALESCE(MAX(sort_order),0) AS max_order FROM menu_items").first<{max_order:number}>();
+    await env.DB.batch([
+      env.DB.prepare("INSERT INTO menu_items (id,name,category,price_ngn,aliases_json,is_vegan,is_available,sort_order) VALUES (?,?,?,?,?,?,?,?)").bind(id,name,category,price,JSON.stringify(aliases),vegan?1:0,available?1:0,(max?.max_order??0)+1),
+      env.DB.prepare("INSERT INTO staff_audit_logs (actor,action,target_id) VALUES (?,?,?)").bind(actor,"menu.item_created:"+name,id)
+    ]);
+    const created=await env.DB.prepare("SELECT id,name,category,price_ngn,aliases_json,is_vegan,is_available,sort_order,updated_at FROM menu_items WHERE id=?").bind(id).first<MenuDbRow>();
+    return authResponse({item:created?serializeMenuRow(created):null},201,undefined,{"Cache-Control":"no-store"});
+  }
+  const id=decodeURIComponent(url.pathname.slice("/api/staff/menu/".length));
+  if (!id || id.length>180) return authResponse({error:"Invalid menu item identifier."},400);
+  const existing=await env.DB.prepare("SELECT id,name,category,price_ngn,aliases_json,is_vegan,is_available,sort_order,updated_at FROM menu_items WHERE id=?").bind(id).first<MenuDbRow>();
+  if (!existing) return authResponse({error:"Menu item not found."},404);
+  const nextName=body.name===undefined?existing.name:name;
+  const nextCategory=body.category===undefined?existing.category:category;
+  const nextPrice=body.price===undefined?existing.price_ngn:price;
+  const nextAliases=body.aliases===undefined?JSON.parse(existing.aliases_json):aliases;
+  const nextVegan=body.isVegan===undefined?Boolean(existing.is_vegan):vegan;
+  const nextAvailable=body.isAvailable===undefined?Boolean(existing.is_available):available;
+  if (!nextName || nextName.length>100 || !nextCategory || nextCategory.length>60 || !(nextPrice===null || (Number.isInteger(nextPrice) && Number(nextPrice)>=0 && Number(nextPrice)<=10000000)) || !Array.isArray(nextAliases)) return authResponse({error:"Menu item details are invalid."},400);
+  await env.DB.batch([
+    env.DB.prepare("UPDATE menu_items SET name=?,category=?,price_ngn=?,aliases_json=?,is_vegan=?,is_available=?,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=?").bind(nextName,nextCategory,nextPrice,JSON.stringify(nextAliases),nextVegan?1:0,nextAvailable?1:0,id),
+    env.DB.prepare("INSERT INTO staff_audit_logs (actor,action,target_id) VALUES (?,?,?)").bind(actor,"menu.item_updated:"+nextName,id)
+  ]);
+  const updated=await env.DB.prepare("SELECT id,name,category,price_ngn,aliases_json,is_vegan,is_available,sort_order,updated_at FROM menu_items WHERE id=?").bind(id).first<MenuDbRow>();
+  return authResponse({item:updated?serializeMenuRow(updated):null},200,undefined,{"Cache-Control":"no-store"});
+}
+
 type StaffOrderRow = { id: string; customer_name: string; customer_phone: string; delivery_address: string; subtotal_ngn: number; delivery_fee_ngn: number | null; status: string; created_at: string; updated_at: string };
 async function handleStaffOperations(request: Request, env: Env, url: URL): Promise<Response> {
   const session = await currentSession(request, env);
   if (!session || session.role !== "staff") return authResponse({ error: "Staff authentication required." }, 401);
+  if (url.pathname === "/api/staff/menu" || url.pathname.startsWith("/api/staff/menu/")) return handleStaffMenu(request,env,url,session.user_id);
   if (request.method === "GET" && url.pathname === "/api/staff/orders") {
     const result = await env.DB.prepare("SELECT id, customer_name, customer_phone, delivery_address, subtotal_ngn, delivery_fee_ngn, status, created_at, updated_at FROM orders ORDER BY created_at DESC LIMIT 50").all<StaffOrderRow>();
     const orders = result.results ?? [];
@@ -781,6 +845,11 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     if (url.pathname.startsWith("/api/auth/")) return withSecurityHeaders(await handleAuth(request, env, url));
+    if (url.pathname === "/api/menu") {
+      if (request.method !== "GET") return withSecurityHeaders(Response.json({error:"Method not allowed."},{status:405}));
+      const items=await readMenu(env,false);
+      return withSecurityHeaders(Response.json({items},{headers:{"Cache-Control":"public, max-age=60, stale-while-revalidate=300"}}));
+    }
     if (url.pathname.startsWith("/api/staff/")) return withSecurityHeaders(await handleStaffOperations(request, env, url));
 
     if (url.pathname === "/api/orders/status") {
