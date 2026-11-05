@@ -20,11 +20,28 @@ test("menu photos are unique, attributed, licensed and attached only to matching
   assert.equal(new Set(photos.map((photo) => photo.url)).size, photos.length, "no photograph may be reused for multiple menu entries");
   assert.deepEqual(sources.map((source) => source.menuItemId).sort(), Object.keys(map).sort());
 
-  for (const photo of photos) {
+  assert.equal(new Set(photos.map((photo) => photo.sourceUrl)).size, photos.length, "no source page may be reused for multiple menu entries");
+
+  const allowedLicenses = new Map([
+    ["CC BY-SA 4.0", "https://creativecommons.org/licenses/by-sa/4.0/"],
+    ["CC BY 4.0", "https://creativecommons.org/licenses/by/4.0/"],
+    ["CC BY-SA 3.0", "https://creativecommons.org/licenses/by-sa/3.0/"],
+    ["CC BY 2.0", "https://creativecommons.org/licenses/by/2.0/"],
+    ["CC0 1.0", "https://creativecommons.org/publicdomain/zero/1.0/"],
+  ]);
+  const sourceById = new Map(sources.map((source) => [source.menuItemId, source]));
+
+  for (const [id, photo] of Object.entries(map)) {
+    const source = sourceById.get(id);
     assert.match(photo.url, /^https:\/\/(?:upload\.wikimedia\.org\/|commons\.wikimedia\.org\/wiki\/Special:FilePath\/)/);
     assert.match(photo.sourceUrl, /^https:\/\/commons\.wikimedia\.org\/wiki\/File:/);
-    assert.match(photo.licenseUrl, /^https:\/\/creativecommons\.org\/licenses\//);
-    assert.equal(photo.license, "CC BY-SA 4.0");
+    assert.equal(allowedLicenses.get(photo.license), photo.licenseUrl, `unsupported or mismatched licence for ${id}`);
+    assert.equal(source.url, photo.url);
+    assert.equal(source.sourceUrl, photo.sourceUrl);
+    assert.equal(source.author, photo.author);
+    assert.equal(source.license, photo.license);
+    assert.equal(source.licenseUrl, photo.licenseUrl);
+    assert.equal(source.alt, photo.alt);
     assert.ok(photo.author.trim());
     assert.ok(photo.alt.trim());
   }
