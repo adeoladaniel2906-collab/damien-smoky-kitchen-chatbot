@@ -533,12 +533,13 @@
   },
   {
     "menuItemId": "Vegan Proteins:Peppered Tofu:800",
-    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Tofu%20stir-fry.jpeg?width=1200",
-    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Tofu_stir-fry.jpeg",
-    "author": "Miscellaneous contributor",
+    "file": "Stir fry tofu with pepper5.jpg",
+    "author": "Valenzuela400 (uploader/copyright holder)",
     "license": "CC BY-SA 4.0",
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
-    "alt": "Tofu stir-fry with vegetables"
+    "alt": "Tofu pieces seasoned with black pepper in a stir-fry",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Stir%20fry%20tofu%20with%20pepper5.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Stir_fry_tofu_with_pepper5.jpg"
   },
   {
     "menuItemId": "Vegan Proteins:Garden Egg Stew:500",
