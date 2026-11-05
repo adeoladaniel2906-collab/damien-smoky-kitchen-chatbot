@@ -121,7 +121,7 @@ function App() {
   }, [basket]);
 
   const count = basket.reduce((total, line) => total + line.quantity, 0);
-  const isStaffArea = location.startsWith("/staff");
+  const isStaffArea = location.startsWith("/staff") || location.startsWith("/admin");
   const add = (item: CatalogItem) => setBasket((current) => {
     const existing = current.find((line) => line.item.id === item.id);
     return existing
@@ -187,6 +187,7 @@ function App() {
       <Route path="/staff/login"><StaffLoginPage/></Route>
       <Route path="/staff-login"><StaffLoginPage/></Route>
       <Route path="/staff"><StaffPortalPage/></Route>
+      <Route path="/admin/dashboard"><StaffPortalPage/></Route>
       <Route path="/privacy"><PrivacyPolicyPage/></Route>
       <Route path="/terms"><TermsPage/></Route>
       <Route path="/cookies"><CookiePolicyPage/></Route>
@@ -604,7 +605,7 @@ function StaffLoginPage() {
       const response = await fetch("/api/auth/staff/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password, totpCode }) });
       const result = await response.json() as { error?: string };
       if (!response.ok) throw new Error(result.error ?? "Staff login failed.");
-      setLocation("/staff");
+      setLocation("/admin/dashboard");
     } catch (caught) { setError(caught instanceof Error ? caught.message : "Staff login failed."); }
     finally { setBusy(false); }
   };
@@ -625,8 +626,10 @@ function StaffPortalPage() {
   const [email, setEmail] = useState("");
   const [orders, setOrders] = useState<Array<{id:string;customer_name:string;customer_phone:string;delivery_address:string;subtotal_ngn:number;status:string;created_at:string;items:Array<{name:string;quantity:number;total:number}>}>>([]);
   const [logs, setLogs] = useState<Array<{id:number;actor:string;action:string;target_id:string|null;created_at:string}>>([]);
-  const [tab, setTab] = useState<"orders"|"activity">("orders");
+  const [section, setSection] = useState<"overview"|"orders"|"activity">("overview");
+  const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [busyOrder, setBusyOrder] = useState("");
   const load = async () => {
@@ -634,8 +637,8 @@ function StaffPortalPage() {
       fetch("/api/staff/orders", { credentials:"same-origin", cache:"no-store" }),
       fetch("/api/staff/logs", { credentials:"same-origin", cache:"no-store" })
     ]);
-    if (orderResponse.status === 401 || logResponse.status === 401) throw new Error("Your staff session has expired. Please sign in again.");
-    if (!orderResponse.ok || !logResponse.ok) throw new Error("The operations data could not be loaded.");
+    if (orderResponse.status === 401 || logResponse.status === 401) throw new Error("Your administrator session has expired. Please sign in again.");
+    if (!orderResponse.ok || !logResponse.ok) throw new Error("Dashboard data could not be loaded. Refresh and try again.");
     const orderData = await orderResponse.json();
     const logData = await logResponse.json();
     setOrders(orderData.orders ?? []);
@@ -644,14 +647,23 @@ function StaffPortalPage() {
   useEffect(() => {
     let active = true;
     fetch("/api/auth/me", { credentials:"same-origin", cache:"no-store" }).then(async response => {
-      if (!response.ok) throw new Error("Staff login required.");
+      if (!response.ok) throw new Error("Administrator login required.");
       const result = await response.json();
-      if (result.role !== "staff") throw new Error("Staff access required.");
+      if (result.role !== "staff") throw new Error("Administrator access required.");
       if (active) { setEmail(result.user.email); await load(); }
     }).catch(() => { if (active) setLocation("/staff/login"); }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [setLocation]);
-  const logout = async () => { await fetch("/api/auth/logout", { method:"POST", credentials:"same-origin" }); setLocation("/staff-login"); };
+  const logout = async () => {
+    await fetch("/api/auth/logout", { method:"POST", credentials:"same-origin" });
+    setLocation("/staff/login");
+  };
+  const refresh = async () => {
+    setRefreshing(true); setError("");
+    try { await load(); }
+    catch (caught) { setError(caught instanceof Error ? caught.message : "Refresh failed."); }
+    finally { setRefreshing(false); }
+  };
   const updateStatus = async (id:string, status:string) => {
     setBusyOrder(id); setError("");
     try {
@@ -665,29 +677,90 @@ function StaffPortalPage() {
   const money = (amount:number) => "₦"+amount.toLocaleString("en-NG");
   const pending = orders.filter(order => order.status === "pending").length;
   const active = orders.filter(order => ["accepted","preparing","dispatched"].includes(order.status)).length;
-  if (loading) return <main className="mx-auto max-w-7xl px-4 py-16 text-sm text-[#69766e]">Verifying your private staff session…</main>;
-  return <main className="min-h-[75vh] bg-[#f6f7f3] px-4 py-8 sm:px-6">
-    <div className="mx-auto max-w-7xl">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div><p className="text-xs font-bold uppercase tracking-[.18em] text-[#738174]">Private operations</p><h1 className="mt-2 text-3xl font-extrabold tracking-tight text-[#20372b] sm:text-4xl">Kitchen dashboard</h1><p className="mt-2 text-sm text-[#6b776e]">Signed in as {email}. Staff-only access.</p></div>
-        <button onClick={logout} className="rounded-xl border border-[#d9dfd6] bg-white px-4 py-2.5 text-sm font-semibold text-[#314739]">Sign out</button>
-      </div>
-      <div className="mt-7 grid gap-3 sm:grid-cols-3">
-        <div className="rounded-2xl border border-[#e4e9e1] bg-white p-5"><p className="text-xs font-semibold uppercase tracking-wide text-[#778478]">Orders shown</p><p className="mt-2 text-3xl font-extrabold text-[#20372b]">{orders.length}</p><p className="mt-1 text-xs text-[#7a867c]">Most recent 50 orders</p></div>
-        <div className="rounded-2xl border border-[#e4e9e1] bg-white p-5"><p className="text-xs font-semibold uppercase tracking-wide text-[#778478]">Awaiting review</p><p className="mt-2 text-3xl font-extrabold text-[#c45b2b]">{pending}</p><p className="mt-1 text-xs text-[#7a867c]">Pending restaurant confirmation</p></div>
-        <div className="rounded-2xl border border-[#e4e9e1] bg-white p-5"><p className="text-xs font-semibold uppercase tracking-wide text-[#778478]">In progress</p><p className="mt-2 text-3xl font-extrabold text-[#20372b]">{active}</p><p className="mt-1 text-xs text-[#7a867c]">Accepted, preparing or dispatched</p></div>
-      </div>
-      <div className="mt-7 flex items-center gap-2 border-b border-[#dfe5dc]">
-        <button onClick={()=>setTab("orders")} className={tab==="orders"?"border-b-2 border-[#df7139] px-4 py-3 text-sm font-bold text-[#20372b]":"px-4 py-3 text-sm font-semibold text-[#7a867c]"}>Orders</button>
-        <button onClick={()=>setTab("activity")} className={tab==="activity"?"border-b-2 border-[#df7139] px-4 py-3 text-sm font-bold text-[#20372b]":"px-4 py-3 text-sm font-semibold text-[#7a867c]"}>Audit activity</button>
-        <button onClick={()=>{load().catch(e=>setError(e.message));}} className="ml-auto rounded-lg px-3 py-2 text-xs font-semibold text-[#526a50]">Refresh</button>
-      </div>
-      {error && <p role="alert" className="mt-4 rounded-xl bg-[#fff0e5] p-3 text-sm text-[#8b401d]">{error}</p>}
-      {tab==="orders" ? <div className="mt-5 space-y-3">{orders.length===0 ? <div className="rounded-2xl border border-dashed border-[#cbd5c9] bg-white p-10 text-center"><p className="font-bold text-[#314739]">No saved orders yet</p><p className="mt-2 text-sm text-[#7a867c]">New order requests will appear here when online ordering is securely enabled.</p></div> : orders.map(order=><article key={order.id} className="rounded-2xl border border-[#e4e9e1] bg-white p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-wide text-[#7b887f]">Order · {order.id.slice(0,8)}</p><h2 className="mt-1 text-lg font-bold text-[#20372b]">{order.customer_name}</h2><p className="mt-1 text-sm text-[#66746a]">{order.customer_phone} · {order.delivery_address}</p><p className="mt-1 text-xs text-[#8a948c]">{new Date(order.created_at).toLocaleString()}</p></div><div className="text-right"><p className="text-lg font-extrabold text-[#20372b]">{money(order.subtotal_ngn)}</p><span className="mt-1 inline-block rounded-full bg-[#eef2eb] px-3 py-1 text-xs font-semibold capitalize text-[#526a50]">{order.status}</span></div></div>
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[#edf0ea] pt-3"><p className="text-xs text-[#69766e]">{order.items.map(item=>item.quantity+" × "+item.name).join(" · ")}</p><div className="flex flex-wrap gap-2">{order.status!=="completed"&&order.status!=="cancelled"&&<><select aria-label={"Update status for order "+order.id} disabled={busyOrder===order.id} value={order.status} onChange={e=>updateStatus(order.id,e.target.value)} className="rounded-lg border border-[#dfe5dc] bg-white px-3 py-2 text-xs font-semibold"><option value="pending">Pending</option><option value="accepted">Accepted</option><option value="preparing">Preparing</option><option value="dispatched">Dispatched</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select><span className="self-center text-[10px] text-[#89948c]">{busyOrder===order.id?"Saving…":"Status changes are audited"}</span></>}</div></div>
-      </article>)}</div> : <div className="mt-5 overflow-hidden rounded-2xl border border-[#e4e9e1] bg-white"><div className="border-b border-[#edf0ea] px-5 py-4"><h2 className="font-bold text-[#20372b]">Staff audit trail</h2><p className="mt-1 text-xs text-[#7a867c]">Order status changes only. Customer details and credentials are never written to this log.</p></div>{logs.length===0?<p className="p-6 text-sm text-[#7a867c]">No staff actions recorded yet.</p>:logs.map(log=><div key={log.id} className="flex flex-wrap justify-between gap-2 border-b border-[#f0f2ed] px-5 py-3 text-xs"><span className="font-semibold text-[#314739]">{log.action}</span><span className="text-[#7a867c]">{log.actor} · {new Date(log.created_at).toLocaleString()}</span></div>)}</div>}
-      <p className="mt-6 text-xs leading-5 text-[#89948c]">Customer information is displayed only inside this authenticated staff area. Keep this screen private and sign out on shared devices.</p>
+  const completed = orders.filter(order => order.status === "completed").length;
+  const filteredOrders = orders.filter(order => [order.customer_name, order.customer_phone, order.id, order.status].some(value => value.toLowerCase().includes(query.toLowerCase())));
+  const nav = [
+    { id:"overview" as const, label:"Overview", icon:"⌂" },
+    { id:"orders" as const, label:"Orders", icon:"▤" },
+    { id:"activity" as const, label:"Activity log", icon:"◷" }
+  ];
+  if (loading) return <main className="min-h-screen bg-[#f5f6f2] px-5 py-16 text-sm text-[#69766e]"><div className="mx-auto max-w-5xl rounded-2xl border border-[#e4e9e1] bg-white p-8">Verifying your private administrator session…</div></main>;
+  return <main className="min-h-screen bg-[#f5f6f2] text-[#20372b]">
+    <div className="mx-auto flex min-h-screen max-w-[1600px]">
+      <aside className="hidden w-64 shrink-0 flex-col border-r border-[#e5e9e2] bg-[#20372b] px-5 py-6 text-white md:flex">
+        <div className="flex items-center gap-3 px-2">
+          <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#e96d2c] text-xl font-black">D</span>
+          <span><strong className="block text-sm">Damien's</strong><span className="text-xs text-white/60">Smoky Kitchen</span></span>
+        </div>
+        <p className="mb-3 mt-10 px-3 text-[10px] font-bold uppercase tracking-[.2em] text-white/40">Workspace</p>
+        <nav className="space-y-1">
+          {nav.map(item=><button key={item.id} onClick={()=>setSection(item.id)} className={section===item.id?"flex w-full items-center gap-3 rounded-xl bg-white/12 px-3 py-3 text-left text-sm font-semibold text-white":"flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm text-white/65 transition hover:bg-white/8 hover:text-white"}><span className="w-5 text-center text-lg">{item.icon}</span>{item.label}{item.id==="orders"&&pending>0&&<span className="ml-auto rounded-full bg-[#e96d2c] px-2 py-0.5 text-[10px] font-bold">{pending}</span>}</button>)}
+        </nav>
+        <div className="mt-8 border-t border-white/10 pt-5">
+          <p className="px-3 text-[10px] font-bold uppercase tracking-[.2em] text-white/40">Coming next</p>
+          <div className="mt-2 space-y-1 text-sm text-white/40">
+            <div className="flex items-center gap-3 px-3 py-2"><span className="w-5 text-center">▦</span>Menu management</div>
+            <div className="flex items-center gap-3 px-3 py-2"><span className="w-5 text-center">♙</span>Staff & permissions</div>
+            <div className="flex items-center gap-3 px-3 py-2"><span className="w-5 text-center">⚙</span>Restaurant settings</div>
+          </div>
+        </div>
+        <div className="mt-auto rounded-xl border border-white/10 bg-white/5 p-3">
+          <p className="text-[10px] font-bold uppercase tracking-[.15em] text-[#f4b184]">Signed in</p>
+          <p className="mt-1 break-all text-xs text-white/80">{email}</p>
+          <p className="mt-2 text-[10px] text-white/45">Owner access · protected session</p>
+        </div>
+      </aside>
+      <section className="min-w-0 flex-1">
+        <header className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-3 border-b border-[#e5e9e2] bg-[#fbfcf9]/95 px-4 py-4 backdrop-blur sm:px-7 lg:px-10">
+          <div className="flex items-center gap-3">
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#20372b] text-sm font-black text-white md:hidden">D</span>
+            <div><p className="text-[10px] font-bold uppercase tracking-[.18em] text-[#8a958b]">Damien's Smoky Kitchen / Admin</p><h1 className="mt-0.5 text-lg font-extrabold tracking-tight sm:text-xl">{section==="overview"?"Overview":section==="orders"?"Order management":"Activity log"}</h1></div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="hidden rounded-full border border-[#e4e9e1] bg-white px-3 py-2 text-[11px] font-semibold text-[#68786e] sm:inline-flex">● Private workspace</span>
+            <button onClick={refresh} disabled={refreshing} className="rounded-xl border border-[#dfe5dc] bg-white px-3 py-2.5 text-xs font-bold text-[#314739] disabled:opacity-50">{refreshing?"Refreshing…":"↻ Refresh"}</button>
+            <button onClick={logout} className="rounded-xl bg-[#20372b] px-3 py-2.5 text-xs font-bold text-white transition hover:bg-[#315541]">Sign out</button>
+          </div>
+        </header>
+        <div className="border-b border-[#e5e9e2] bg-white px-4 py-2 md:hidden">
+          <nav className="flex gap-2 overflow-x-auto">{nav.map(item=><button key={item.id} onClick={()=>setSection(item.id)} className={section===item.id?"shrink-0 rounded-lg bg-[#20372b] px-3 py-2 text-xs font-bold text-white":"shrink-0 rounded-lg bg-[#f1f3ee] px-3 py-2 text-xs font-semibold text-[#657469]"}>{item.label}</button>)}</nav>
+        </div>
+        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-7 sm:py-8 lg:px-10">
+          {error && <p role="alert" className="mb-5 rounded-xl border border-[#f2d3c3] bg-[#fff0e5] p-3 text-sm text-[#8b401d]">{error}</p>}
+          <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+            <div><p className="text-sm text-[#718075]">{section==="overview"?"Here is the latest activity from your kitchen.":section==="orders"?"Review and update saved order requests.":"A record of recent administrator actions."}</p><p className="mt-1 text-xs text-[#9aa39b]">Live data · Last 50 saved orders</p></div>
+            <span className="rounded-full bg-[#edf2eb] px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[#526a50]">Admin account verified</span>
+          </div>
+          {section==="overview" && <>
+            <div className="mb-5 rounded-2xl border border-[#f0d7b8] bg-[#fff8ed] p-4 sm:flex sm:items-center sm:justify-between">
+              <div><p className="text-sm font-bold text-[#74451f]">Online ordering is currently disabled</p><p className="mt-1 text-xs leading-5 text-[#8a6749]">This dashboard will not accept or process customer orders until ordering is separately enabled and verified.</p></div>
+              <span className="mt-3 inline-flex rounded-lg bg-[#f6e7d2] px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-[#85552c] sm:mt-0">Orders off</span>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="rounded-2xl border border-[#e4e9e1] bg-white p-5"><p className="text-xs font-semibold text-[#7a887d]">Orders in current view</p><p className="mt-3 text-3xl font-extrabold">{orders.length}</p><p className="mt-1 text-[11px] text-[#9aa39b]">Latest 50 records maximum</p></div>
+              <div className="rounded-2xl border border-[#f0dfd3] bg-white p-5"><p className="text-xs font-semibold text-[#7a887d]">Awaiting review</p><p className="mt-3 text-3xl font-extrabold text-[#c65b2d]">{pending}</p><p className="mt-1 text-[11px] text-[#9aa39b]">Pending status</p></div>
+              <div className="rounded-2xl border border-[#e4e9e1] bg-white p-5"><p className="text-xs font-semibold text-[#7a887d]">In progress</p><p className="mt-3 text-3xl font-extrabold">{active}</p><p className="mt-1 text-[11px] text-[#9aa39b]">Accepted, preparing, dispatched</p></div>
+              <div className="rounded-2xl border border-[#e4e9e1] bg-white p-5"><p className="text-xs font-semibold text-[#7a887d]">Completed</p><p className="mt-3 text-3xl font-extrabold">{completed}</p><p className="mt-1 text-[11px] text-[#9aa39b]">Completed in current view</p></div>
+            </div>
+            <div className="mt-6 grid gap-5 xl:grid-cols-[1.5fr_1fr]">
+              <section className="overflow-hidden rounded-2xl border border-[#e4e9e1] bg-white">
+                <div className="flex items-center justify-between border-b border-[#edf0ea] px-5 py-4"><div><h2 className="text-sm font-extrabold">Recent orders</h2><p className="mt-1 text-xs text-[#89948c]">Most recent saved requests</p></div><button onClick={()=>setSection("orders")} className="text-xs font-bold text-[#c65b2d]">View all →</button></div>
+                {orders.length===0?<p className="p-8 text-sm text-[#89948c]">No saved orders found. Ordering is currently disabled.</p>:orders.slice(0,5).map(order=><div key={order.id} className="flex flex-wrap items-center justify-between gap-3 border-b border-[#f0f2ed] px-5 py-4 last:border-0"><div className="min-w-0"><p className="truncate text-sm font-bold">{order.customer_name}</p><p className="mt-1 text-[11px] text-[#89948c]">#{order.id.slice(0,8)} · {new Date(order.created_at).toLocaleDateString()}</p></div><div className="text-right"><p className="text-sm font-extrabold">{money(order.subtotal_ngn)}</p><span className="text-[10px] font-semibold capitalize text-[#758276]">{order.status}</span></div></div>)}
+              </section>
+              <section className="rounded-2xl border border-[#e4e9e1] bg-white p-5"><h2 className="text-sm font-extrabold">Workspace status</h2><div className="mt-4 space-y-4 text-xs"><div className="flex items-center justify-between gap-3"><span className="text-[#718075]">Administrator session</span><strong className="text-[#3f7652]">Verified</strong></div><div className="flex items-center justify-between gap-3"><span className="text-[#718075]">Audit logging</span><strong className="text-[#3f7652]">Available</strong></div><div className="flex items-center justify-between gap-3"><span className="text-[#718075]">Online ordering</span><strong className="text-[#b66a31]">Disabled</strong></div><div className="flex items-center justify-between gap-3"><span className="text-[#718075]">Menu editor</span><strong className="text-[#8a958b]">Not built</strong></div></div><div className="mt-5 rounded-xl bg-[#f5f6f2] p-3 text-[11px] leading-5 text-[#7a887d]">Revenue analytics are intentionally omitted until verified payment and order data are available.</div></section>
+            </div>
+          </>}
+          {section==="orders" && <section className="overflow-hidden rounded-2xl border border-[#e4e9e1] bg-white">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#edf0ea] p-5"><div><h2 className="text-sm font-extrabold">Saved orders</h2><p className="mt-1 text-xs text-[#89948c]">Search by customer, phone, order ID or status.</p></div><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search orders…" className="w-full rounded-xl border border-[#dfe5dc] bg-[#fbfcf9] px-3 py-2.5 text-xs outline-none focus:border-[#e96d2c] sm:max-w-xs"/></div>
+            {filteredOrders.length===0?<p className="p-8 text-center text-sm text-[#89948c]">{orders.length===0?"No saved orders found.":"No orders match that search."}</p>:<div className="divide-y divide-[#edf0ea]">{filteredOrders.map(order=><article key={order.id} className="p-5">
+              <div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wide text-[#89948c]">Order · {order.id.slice(0,8)}</p><h3 className="mt-1 text-sm font-extrabold">{order.customer_name}</h3><p className="mt-1 break-words text-xs text-[#718075]">{order.customer_phone} · {order.delivery_address}</p><p className="mt-1 text-[10px] text-[#9aa39b]">{new Date(order.created_at).toLocaleString()}</p></div><div className="text-right"><p className="text-base font-extrabold">{money(order.subtotal_ngn)}</p><span className="mt-1 inline-block rounded-full bg-[#eef2eb] px-3 py-1 text-[10px] font-bold capitalize text-[#526a50]">{order.status}</span></div></div>
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[#edf0ea] pt-3"><p className="text-xs leading-5 text-[#718075]">{order.items.map(item=>item.quantity+" × "+item.name).join(" · ")}</p><div className="flex flex-wrap gap-2">{order.status!=="completed"&&order.status!=="cancelled"&&<><select aria-label={"Update status for order "+order.id} disabled={busyOrder===order.id} value={order.status} onChange={e=>updateStatus(order.id,e.target.value)} className="rounded-lg border border-[#dfe5dc] bg-white px-3 py-2 text-xs font-semibold"><option value="pending">Pending</option><option value="accepted">Accepted</option><option value="preparing">Preparing</option><option value="dispatched">Dispatched</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select><span className="self-center text-[10px] text-[#89948c]">{busyOrder===order.id?"Saving…":"Changes are recorded"}</span></>}</div></div>
+            </article>)}</div>}
+          </section>}
+          {section==="activity" && <section className="overflow-hidden rounded-2xl border border-[#e4e9e1] bg-white"><div className="border-b border-[#edf0ea] px-5 py-4"><h2 className="text-sm font-extrabold">Administrator audit trail</h2><p className="mt-1 text-xs text-[#89948c]">Order status changes recorded by the backend.</p></div>{logs.length===0?<p className="p-8 text-sm text-[#89948c]">No administrator actions recorded yet.</p>:logs.map(log=><div key={log.id} className="flex flex-wrap justify-between gap-2 border-b border-[#f0f2ed] px-5 py-4 text-xs last:border-0"><span className="font-semibold text-[#314739]">{log.action}</span><span className="text-[#7a867c]">{log.actor} · {new Date(log.created_at).toLocaleString()}</span></div>)}</section>}
+          <p className="mt-6 text-[11px] leading-5 text-[#929d93]">Private administrator area. Customer information is shown only to an authenticated staff session. Sign out when using a shared device.</p>
+        </div>
+      </section>
     </div>
   </main>;
 }
