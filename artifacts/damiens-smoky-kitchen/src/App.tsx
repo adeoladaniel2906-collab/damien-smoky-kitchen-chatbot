@@ -173,7 +173,8 @@ function App() {
   if (!isOnline && !isLoaded) return <OfflinePage onRetry={() => window.location.reload()} />;
   if (!isLoaded) return <AppLoadingScreen />;
   // Staff has its own password + TOTP login. Every customer-facing route is Clerk-gated.
-  if (!isStaffArea && !isSignedIn) {
+  const isPublicLegalPage = ["/privacy", "/terms", "/cookies"].includes(location);
+  if (!isStaffArea && !isPublicLegalPage && !isSignedIn) {
     return <CustomerAuthPage mode={location === "/create-account" ? "register" : "login"} />;
   }
 
@@ -294,7 +295,7 @@ function Home({ onBrowse, onAdd, basketCount, menuItems }: { onBrowse: (query?: 
       <div className="overflow-hidden rounded-[2rem] bg-[#ffc94a]">
         <div className="grid min-h-[360px] lg:grid-cols-[1.05fr_.95fr]">
           <div className="flex flex-col justify-center p-7 sm:p-10 lg:p-14">
-            <span className="w-fit rounded-full bg-white/70 px-3 py-1.5 text-xs font-bold text-[#26372c]">DAM IEN'S SMOKY KITCHEN · IBAFO</span>
+            <span className="w-fit rounded-full bg-white/70 px-3 py-1.5 text-xs font-bold text-[#26372c]">DAMIEN'S SMOKY KITCHEN · IBAFO</span>
             <h1 className="mt-5 max-w-xl text-4xl font-extrabold leading-[1.02] tracking-tight text-[#202a23] sm:text-6xl">Your next favourite meal is closer.</h1>
             <p className="mt-4 max-w-md text-base leading-7 text-[#39463b]">Nigerian favourites, freshly prepared. Explore the menu, add your picks and review your basket in a few taps.</p>
             <div className="mt-7 flex flex-wrap gap-3">
