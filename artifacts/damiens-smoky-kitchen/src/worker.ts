@@ -50,6 +50,9 @@ interface Env {
   ORDERS_ENABLED?: string;
   CUSTOMER_AUTH_ENABLED?: string;
   STAFF_AUTH_ENABLED?: string;
+  PAYMENTS_ENABLED?: string;
+  PAYSTACK_SECRET_KEY?: string;
+  PUBLIC_APP_ORIGIN?: string;
 }
 
 type ChatMessage = {
@@ -245,16 +248,16 @@ async function handleChat(request: Request, env: Env): Promise<Response> {
 type OrderLineInput = { name?: unknown; category?: unknown; quantity?: unknown };
 type OrderPreviewInput = { name?: unknown; phone?: unknown; address?: unknown; state?: unknown; adultConfirmed?: unknown; items?: unknown };
 
-async function handleOrderPreview(request: Request, env: Env): Promise<Response> {
+async function handleOrderPreview(request: Request, env: Env, customer: CustomerProfile): Promise<Response> {
   const contentLength = Number(request.headers.get("content-length") ?? "0");
   if (contentLength > MAX_BODY_BYTES) {
     return Response.json({ error: "Request body is too large." }, { status: 413 });
   }
 
   const clientKey = request.headers.get("CF-Connecting-IP") ?? "unknown";
-  const rate = await env.CHAT_RATE_LIMIT.limit({ key: clientKey });
+  const rate = await env.ORDER_RATE_LIMIT.limit({ key: "preview:" + clientKey });
   if (!rate.success) {
-    return Response.json({ error: "Too many requests. Please try again shortly." }, {
+    return Response.json({ error: "Too many order reviews. Please try again shortly." }, {
       status: 429,
       headers: { "Retry-After": "60", "Cache-Control": "no-store" },
     });
@@ -323,12 +326,12 @@ async function handleOrderPreview(request: Request, env: Env): Promise<Response>
 }
 
 
-async function handleOrderCreate(request: Request, env: Env): Promise<Response> {
+async function handleOrderCreate(request: Request, env: Env, customer: CustomerProfile): Promise<Response> {
   const clientKey = request.headers.get("CF-Connecting-IP") ?? "unknown";
   const rate = await env.ORDER_RATE_LIMIT.limit({ key: clientKey });
   if (!rate.success) return Response.json({ error: "Too many order attempts. Please try again shortly." }, { status: 429, headers: { "Retry-After": "60", "Cache-Control": "no-store" } });
 
-  const preview = await handleOrderPreview(request.clone(), env);
+  const preview = await handleOrderPreview(request.clone(), env, customer);
   if (!preview.ok) return preview;
 
   const idempotencyKey = request.headers.get("Idempotency-Key");
@@ -340,13 +343,26 @@ async function handleOrderCreate(request: Request, env: Env): Promise<Response> 
   try { body = JSON.parse(await request.text()) as OrderPreviewInput; }
   catch { return Response.json({ error: "Request body must be valid JSON." }, { status: 400 }); }
 
-  const existing = await env.DB.prepare("SELECT id, subtotal_ngn, status FROM orders WHERE idempotency_key = ?")
-    .bind(idempotencyKey).first<{ id: string; subtotal_ngn: number; status: string }>();
-  if (existing) return Response.json({
-    ok: true, orderSubmitted: true, duplicate: true, orderId: existing.id,
-    status: existing.status, subtotal: existing.subtotal_ngn,
-    message: "This order request was already received. The restaurant must confirm it.",
-  }, { headers: { "Cache-Control": "no-store" } });
+  const normalizedRequest = {
+    customerId: customer.id,
+    address: (body.address as string).trim(),
+    state: "Lagos",
+    items: (body.items as OrderLineInput[]).map((item) => ({ name: item.name, category: item.category, quantity: item.quantity })),
+  };
+  const requestHashBytes = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(normalizedRequest))));
+  const requestHash = Array.from(requestHashBytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+  const existing = await env.DB.prepare("SELECT id, customer_id, request_hash, subtotal_ngn, status FROM orders WHERE idempotency_key = ?")
+    .bind(idempotencyKey).first<{ id: string; customer_id: string | null; request_hash: string | null; subtotal_ngn: number; status: string }>();
+  if (existing) {
+    if (existing.customer_id !== customer.id || existing.request_hash !== requestHash) {
+      return Response.json({ error: "This order request key cannot be reused. Start a new order request." }, { status: 409, headers: { "Cache-Control": "no-store" } });
+    }
+    return Response.json({
+      ok: true, orderSubmitted: true, duplicate: true, orderId: existing.id,
+      status: existing.status, subtotal: existing.subtotal_ngn,
+      message: "This order request was already received. The restaurant must confirm it.",
+    }, { headers: { "Cache-Control": "no-store" } });
+  }
 
   const items = body.items as OrderLineInput[];
   const menu = [...restaurantKnowledge.menu, ...restaurantKnowledge.drinksMenu, ...restaurantKnowledge.veganMenu];
@@ -361,15 +377,15 @@ async function handleOrderCreate(request: Request, env: Env): Promise<Response> 
 
   try {
     await env.DB.batch([
-      env.DB.prepare("INSERT INTO orders (id, idempotency_key, customer_name, customer_phone, delivery_address, delivery_state, subtotal_ngn, status, adult_confirmed_at) VALUES (?, ?, ?, ?, ?, 'Lagos', ?, 'pending', ?)")
-        .bind(orderId, idempotencyKey, (body.name as string).trim(), (body.phone as string).trim(), (body.address as string).trim(), subtotal, new Date().toISOString()),
+      env.DB.prepare("INSERT INTO orders (id, idempotency_key, customer_id, request_hash, customer_name, customer_phone, delivery_address, delivery_state, subtotal_ngn, status, adult_confirmed_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'Lagos', ?, 'pending', ?)")
+        .bind(orderId, idempotencyKey, customer.id, requestHash, customer.name, customer.phone, (body.address as string).trim(), subtotal, new Date().toISOString()),
       ...lines.map((line) => env.DB.prepare("INSERT INTO order_items (order_id, item_name, category, quantity, unit_price_ngn, line_total_ngn) VALUES (?, ?, ?, ?, ?, ?)")
         .bind(orderId, line.name, line.category, line.quantity, line.unitPrice, line.lineTotal)),
     ]);
   } catch (error) {
-    const duplicate = await env.DB.prepare("SELECT id, subtotal_ngn, status FROM orders WHERE idempotency_key = ?")
-      .bind(idempotencyKey).first<{ id: string; subtotal_ngn: number; status: string }>();
-    if (duplicate) return Response.json({
+    const duplicate = await env.DB.prepare("SELECT id, customer_id, request_hash, subtotal_ngn, status FROM orders WHERE idempotency_key = ?")
+      .bind(idempotencyKey).first<{ id: string; customer_id: string | null; request_hash: string | null; subtotal_ngn: number; status: string }>();
+    if (duplicate?.customer_id === customer.id && duplicate.request_hash === requestHash) return Response.json({
       ok: true, orderSubmitted: true, duplicate: true, orderId: duplicate.id,
       status: duplicate.status, subtotal: duplicate.subtotal_ngn,
       message: "This order request was already received. The restaurant must confirm it.",
@@ -382,6 +398,152 @@ async function handleOrderCreate(request: Request, env: Env): Promise<Response> 
     ok: true, orderSubmitted: true, duplicate: false, orderId, status: "pending", subtotal,
     message: "Your order request has been saved. The restaurant must confirm availability and the delivery fee before the order is accepted.",
   }, { status: 201, headers: { "Cache-Control": "no-store" } });
+}
+
+
+type CustomerOrderRow = {
+  id: string; status: string; subtotal_ngn: number; delivery_fee_ngn: number | null;
+  delivery_fee_confirmed_at: string | null; payment_status: string; payment_reference: string | null;
+  customer_accepted_total_ngn: number | null; created_at: string; updated_at: string;
+};
+type PaystackVerifyResponse = {
+  status?: boolean;
+  data?: { status?: string; reference?: string; amount?: number; currency?: string;
+    metadata?: { order_id?: string; customer_id?: string } | null };
+};
+
+function paymentConfigurationAvailable(env: Env): boolean {
+  return env.PAYMENTS_ENABLED === "true" && Boolean(env.PAYSTACK_SECRET_KEY?.startsWith("sk_")) && Boolean(env.PUBLIC_APP_ORIGIN);
+}
+async function readJsonObject(request: Request, maxBytes = 4096): Promise<Record<string, unknown> | null> {
+  const raw = await readLimitedBody(request);
+  if (raw === null || new TextEncoder().encode(raw).byteLength > maxBytes) return null;
+  try { const value: unknown = JSON.parse(raw); return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null; }
+  catch { return null; }
+}
+export async function paystackSignatureIsValid(rawBody: string, signature: string, secret: string): Promise<boolean> {
+  if (!/^[a-f0-9]{128}$/i.test(signature)) return false;
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-512" }, false, ["sign"]);
+  const digest = new Uint8Array(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(rawBody)));
+  const expected = Array.from(digest, byte => byte.toString(16).padStart(2, "0")).join("");
+  let mismatch = expected.length ^ signature.length;
+  const supplied = signature.toLowerCase();
+  for (let i = 0; i < Math.min(expected.length, supplied.length); i++) mismatch |= expected.charCodeAt(i) ^ supplied.charCodeAt(i);
+  return mismatch === 0;
+}
+async function getCustomerOrder(env: Env, orderId: string, customerId: string): Promise<CustomerOrderRow | null> {
+  return env.DB.prepare("SELECT id, status, subtotal_ngn, delivery_fee_ngn, delivery_fee_confirmed_at, payment_status, payment_reference, customer_accepted_total_ngn, created_at, updated_at FROM orders WHERE id = ? AND customer_id = ?")
+    .bind(orderId, customerId).first<CustomerOrderRow>();
+}
+async function handleCustomerOrderRead(env: Env, url: URL, customer: CustomerProfile): Promise<Response> {
+  if (url.pathname === "/api/orders/mine") {
+    const result = await env.DB.prepare("SELECT id, status, subtotal_ngn, delivery_fee_ngn, payment_status, created_at, updated_at FROM orders WHERE customer_id = ? ORDER BY created_at DESC LIMIT 50")
+      .bind(customer.id).all<Omit<CustomerOrderRow, "delivery_fee_confirmed_at" | "payment_reference" | "customer_accepted_total_ngn">>();
+    return Response.json({ orders: result.results ?? [] }, { headers: { "Cache-Control": "no-store" } });
+  }
+  const orderId = decodeURIComponent(url.pathname.slice("/api/orders/".length));
+  if (!/^[0-9a-f-]{36}$/i.test(orderId)) return Response.json({ error: "Invalid order identifier." }, { status: 400 });
+  const order = await getCustomerOrder(env, orderId, customer.id);
+  if (!order) return Response.json({ error: "Order not found." }, { status: 404, headers: { "Cache-Control": "no-store" } });
+  const lines = await env.DB.prepare("SELECT item_name, category, quantity, unit_price_ngn, line_total_ngn FROM order_items WHERE order_id = ? ORDER BY id")
+    .bind(orderId).all<{ item_name: string; category: string; quantity: number; unit_price_ngn: number; line_total_ngn: number }>();
+  return Response.json({ order, items: lines.results ?? [] }, { headers: { "Cache-Control": "no-store" } });
+}
+async function handlePaystackInitialize(request: Request, env: Env, customer: CustomerProfile, orderId: string): Promise<Response> {
+  if (!paymentConfigurationAvailable(env)) return Response.json({ error: "Online payments are not enabled." }, { status: 503, headers: { "Cache-Control": "no-store" } });
+  const rate = await env.ORDER_RATE_LIMIT.limit({ key: "pay-init:" + customer.id });
+  if (!rate.success) return Response.json({ error: "Too many payment attempts. Please wait and try again." }, { status: 429, headers: { "Retry-After": "60", "Cache-Control": "no-store" } });
+  const body = await readJsonObject(request);
+  if (!body || !Number.isSafeInteger(body.acceptedTotalNgn)) return Response.json({ error: "Confirm the exact order total before continuing to payment." }, { status: 400 });
+  const order = await env.DB.prepare("SELECT o.id, o.status, o.subtotal_ngn, o.delivery_fee_ngn, o.delivery_fee_confirmed_at, o.payment_status, o.payment_reference, o.payment_authorization_url, c.email FROM orders o JOIN customer_accounts c ON c.id = o.customer_id WHERE o.id = ? AND o.customer_id = ?")
+    .bind(orderId, customer.id).first<{ id: string; status: string; subtotal_ngn: number; delivery_fee_ngn: number | null; delivery_fee_confirmed_at: string | null; payment_status: string; payment_reference: string | null; payment_authorization_url: string | null; email: string }>();
+  if (!order) return Response.json({ error: "Order not found." }, { status: 404, headers: { "Cache-Control": "no-store" } });
+  if (order.status !== "accepted" || order.delivery_fee_ngn === null || !order.delivery_fee_confirmed_at) return Response.json({ error: "The restaurant must accept the order and confirm its delivery fee before payment." }, { status: 409, headers: { "Cache-Control": "no-store" } });
+  const totalNgn = order.subtotal_ngn + order.delivery_fee_ngn;
+  if (body.acceptedTotalNgn !== totalNgn) return Response.json({ error: "The confirmed order total changed. Review and accept the latest total." }, { status: 409, headers: { "Cache-Control": "no-store" } });
+  if (order.payment_status === "paid") return Response.json({ error: "This order has already been paid." }, { status: 409 });
+  if (order.payment_status === "pending" && order.payment_authorization_url && order.payment_reference) return Response.json({ authorizationUrl: order.payment_authorization_url, reference: order.payment_reference, totalNgn }, { headers: { "Cache-Control": "no-store" } });
+  const reference = "dsk_" + crypto.randomUUID().replaceAll("-", "");
+  const reserved = await env.DB.prepare("UPDATE orders SET payment_status = 'initializing', payment_reference = ?, payment_authorization_url = NULL, payment_access_code = NULL, customer_accepted_total_ngn = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ? AND customer_id = ? AND status = 'accepted' AND delivery_fee_confirmed_at IS NOT NULL AND payment_status IN ('unpaid', 'failed')")
+    .bind(reference, totalNgn, orderId, customer.id).run() as { meta?: { changes?: number } };
+  if (reserved.meta?.changes !== 1) return Response.json({ error: "A payment attempt is already in progress. Refresh the order status before retrying." }, { status: 409, headers: { "Cache-Control": "no-store" } });
+  let providerResponse: Response;
+  try {
+    providerResponse = await fetch("https://api.paystack.co/transaction/initialize", {
+      method: "POST", headers: { "Authorization": "Bearer " + env.PAYSTACK_SECRET_KEY, "Content-Type": "application/json" },
+      body: JSON.stringify({ email: order.email, amount: totalNgn * 100, currency: "NGN", reference,
+        callback_url: (env.PUBLIC_APP_ORIGIN as string) + "/checkout?payment=return",
+        metadata: { order_id: order.id, customer_id: customer.id } }),
+    });
+  } catch {
+    await env.DB.prepare("UPDATE orders SET payment_status = 'failed', updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ? AND payment_reference = ? AND payment_status = 'initializing'").bind(orderId, reference).run();
+    return Response.json({ error: "The payment provider could not be reached. No payment confirmation was recorded." }, { status: 502, headers: { "Cache-Control": "no-store" } });
+  }
+  let provider: { status?: boolean; data?: { reference?: string; authorization_url?: string; access_code?: string } };
+  try { provider = await providerResponse.json() as typeof provider; } catch { provider = {}; }
+  let authorizationUrl: URL | null = null;
+  try { authorizationUrl = new URL(provider.data?.authorization_url ?? ""); } catch { /* invalid provider URL */ }
+  if (!providerResponse.ok || provider.status !== true || provider.data?.reference !== reference || !provider.data?.access_code ||
+      authorizationUrl?.protocol !== "https:" || authorizationUrl.hostname !== "checkout.paystack.com") {
+    await env.DB.prepare("UPDATE orders SET payment_status = 'failed', updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ? AND payment_reference = ? AND payment_status = 'initializing'").bind(orderId, reference).run();
+    return Response.json({ error: "The payment provider did not return a valid checkout session." }, { status: 502, headers: { "Cache-Control": "no-store" } });
+  }
+  await env.DB.prepare("UPDATE orders SET payment_status = 'pending', payment_access_code = ?, payment_authorization_url = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ? AND payment_reference = ? AND payment_status = 'initializing'")
+    .bind(provider.data.access_code, authorizationUrl.toString(), orderId, reference).run();
+  return Response.json({ authorizationUrl: authorizationUrl.toString(), reference, totalNgn }, { headers: { "Cache-Control": "no-store" } });
+}
+async function confirmPaystackPayment(env: Env, reference: string, eventKey: string): Promise<boolean> {
+  if (!env.PAYSTACK_SECRET_KEY?.startsWith("sk_")) return false;
+  const order = await env.DB.prepare("SELECT id, customer_id, payment_status, customer_accepted_total_ngn FROM orders WHERE payment_reference = ?")
+    .bind(reference).first<{ id: string; customer_id: string; payment_status: string; customer_accepted_total_ngn: number | null }>();
+  if (!order || !order.customer_id || order.customer_accepted_total_ngn === null) return false;
+  if (order.payment_status === "paid") return true;
+  let response: Response;
+  try { response = await fetch("https://api.paystack.co/transaction/verify/" + encodeURIComponent(reference), { headers: { "Authorization": "Bearer " + env.PAYSTACK_SECRET_KEY } }); }
+  catch { return false; }
+  if (!response.ok) return false;
+  let result: PaystackVerifyResponse;
+  try { result = await response.json() as PaystackVerifyResponse; } catch { return false; }
+  const data = result.data;
+  if (result.status !== true || data?.status !== "success" || data.reference !== reference ||
+      data.amount !== order.customer_accepted_total_ngn * 100 || data.currency !== "NGN" ||
+      (data.metadata?.order_id && data.metadata.order_id !== order.id) ||
+      (data.metadata?.customer_id && data.metadata.customer_id !== order.customer_id)) return false;
+  await env.DB.batch([
+    env.DB.prepare("INSERT OR IGNORE INTO payment_events (provider, provider_event_key, order_id, payment_reference, event_type) VALUES ('paystack', ?, ?, ?, 'charge.success')").bind(eventKey, order.id, reference),
+    env.DB.prepare("UPDATE orders SET payment_status = 'paid', payment_paid_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ? AND payment_reference = ? AND customer_accepted_total_ngn = ? AND payment_status IN ('pending', 'initializing')")
+      .bind(order.id, reference, order.customer_accepted_total_ngn),
+  ]);
+  const current = await env.DB.prepare("SELECT payment_status FROM orders WHERE id = ? AND payment_reference = ?").bind(order.id, reference).first<{ payment_status: string }>();
+  return current?.payment_status === "paid";
+}
+async function handlePaystackVerify(request: Request, env: Env, customer: CustomerProfile, orderId: string): Promise<Response> {
+  if (!paymentConfigurationAvailable(env)) return Response.json({ error: "Online payments are not enabled." }, { status: 503, headers: { "Cache-Control": "no-store" } });
+  const body = await readJsonObject(request);
+  const reference = typeof body?.reference === "string" ? body.reference : "";
+  if (!/^[A-Za-z0-9_-]{12,100}$/.test(reference)) return Response.json({ error: "Invalid payment reference." }, { status: 400 });
+  const order = await getCustomerOrder(env, orderId, customer.id);
+  if (!order || order.payment_reference !== reference) return Response.json({ error: "Payment reference not found for this order." }, { status: 404, headers: { "Cache-Control": "no-store" } });
+  if (!(await confirmPaystackPayment(env, reference, "verify:" + reference))) return Response.json({ error: "Payment has not been verified. Do not retry payment until the status is checked." }, { status: 409, headers: { "Cache-Control": "no-store" } });
+  return Response.json({ ok: true, paymentStatus: "paid" }, { headers: { "Cache-Control": "no-store" } });
+}
+async function handlePaystackWebhook(request: Request, env: Env): Promise<Response> {
+  const secret = env.PAYSTACK_SECRET_KEY;
+  if (!secret?.startsWith("sk_")) return Response.json({ error: "Webhook is not configured." }, { status: 503 });
+  const rawBody = await readLimitedBody(request);
+  if (rawBody === null) return Response.json({ error: "Invalid webhook body." }, { status: 413 });
+  const signature = request.headers.get("x-paystack-signature") ?? "";
+  if (!(await paystackSignatureIsValid(rawBody, signature, secret))) return Response.json({ error: "Invalid webhook signature." }, { status: 401 });
+  let event: { event?: string; data?: { id?: number; reference?: string } };
+  try { event = JSON.parse(rawBody) as typeof event; } catch { return Response.json({ error: "Invalid webhook JSON." }, { status: 400 }); }
+  if (event.event !== "charge.success") return Response.json({ received: true });
+  const reference = typeof event.data?.reference === "string" ? event.data.reference : "";
+  if (!reference) return Response.json({ error: "Missing payment reference." }, { status: 400 });
+  const eventKey = "webhook:" + event.event + ":" + String(event.data?.id ?? reference);
+  const alreadyProcessed = await env.DB.prepare("SELECT id FROM payment_events WHERE provider_event_key = ?").bind(eventKey).first<{ id: number }>();
+  if (alreadyProcessed) return Response.json({ received: true, duplicate: true });
+  if (!(await confirmPaystackPayment(env, reference, eventKey))) return Response.json({ error: "Payment verification is pending." }, { status: 503 });
+  return Response.json({ received: true });
 }
 
 
@@ -728,6 +890,19 @@ async function handleStaffOperations(request: Request, env: Env, url: URL): Prom
     const result = await env.DB.prepare("SELECT id, actor, action, target_id, created_at FROM staff_audit_logs ORDER BY id DESC LIMIT 100").all<{ id: number; actor: string; action: string; target_id: string | null; created_at: string }>();
     return authResponse({ logs: result.results ?? [] });
   }
+  if (request.method === "PATCH" && /^\/api\/staff\/orders\/[0-9a-f-]{36}\/delivery-fee$/i.test(url.pathname)) {
+    if (request.headers.get("Origin") !== url.origin) return authResponse({ error: "Request origin is not allowed." }, 403);
+    const id = url.pathname.split("/")[4];
+    const body = await readJsonObject(request, 2048);
+    const fee = body?.deliveryFeeNgn;
+    if (!Number.isSafeInteger(fee) || Number(fee) < 0 || Number(fee) > 500000) return authResponse({ error: "Enter a valid delivery fee in naira." }, 400);
+    const update = await env.DB.prepare("UPDATE orders SET delivery_fee_ngn = ?, delivery_fee_confirmed_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ? AND status = 'pending' AND payment_status IN ('unpaid', 'failed')")
+      .bind(Number(fee), id).run() as { meta?: { changes?: number } };
+    if (update.meta?.changes !== 1) return authResponse({ error: "Delivery fee can only be confirmed for an unpaid pending order." }, 409);
+    await env.DB.prepare("INSERT INTO staff_audit_logs (actor, action, target_id) VALUES (?, ?, ?)")
+      .bind(session.user_id, "order.delivery_fee.confirmed:" + Number(fee), id).run();
+    return authResponse({ ok: true, deliveryFeeNgn: Number(fee), deliveryFeeConfirmed: true });
+  }
   if (request.method === "PATCH" && url.pathname.startsWith("/api/staff/orders/")) {
     if (request.headers.get("Origin") !== url.origin) return authResponse({ error: "Request origin is not allowed." }, 403);
     const id = decodeURIComponent(url.pathname.slice("/api/staff/orders/".length));
@@ -741,7 +916,7 @@ async function handleStaffOperations(request: Request, env: Env, url: URL): Prom
       body = parsed as Record<string, unknown>;
     } catch { return authResponse({ error: "Invalid request." }, 400); }
     const next = typeof body.status === "string" ? body.status : "";
-    const existing = await env.DB.prepare("SELECT status FROM orders WHERE id = ?").bind(id).first<{ status: string }>();
+    const existing = await env.DB.prepare("SELECT status, delivery_fee_confirmed_at FROM orders WHERE id = ?").bind(id).first<{ status: string; delivery_fee_confirmed_at: string | null }>();
     if (!existing) return authResponse({ error: "Order not found." }, 404);
     if (existing.status === next) return authResponse({ ok: true, status: next });
     const transitions: Record<string, string[]> = {
@@ -752,6 +927,7 @@ async function handleStaffOperations(request: Request, env: Env, url: URL): Prom
       completed: [],
       cancelled: []
     };
+    if (next === "accepted" && !existing.delivery_fee_confirmed_at) return authResponse({ error: "Confirm the delivery fee before accepting this order." }, 409);
     if (!Object.prototype.hasOwnProperty.call(transitions, existing.status) || !transitions[existing.status].includes(next)) return authResponse({ error: "This order status transition is not allowed." }, 409);
     await env.DB.batch([
       env.DB.prepare("UPDATE orders SET status = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?").bind(next, id),
@@ -783,9 +959,45 @@ export default {
     if (url.pathname.startsWith("/api/auth/")) return withSecurityHeaders(await handleAuth(request, env, url));
     if (url.pathname.startsWith("/api/staff/")) return withSecurityHeaders(await handleStaffOperations(request, env, url));
 
+    if (url.pathname === "/api/payments/paystack/webhook") {
+      if (request.method !== "POST") return withSecurityHeaders(Response.json({ error: "Method not allowed." }, { status: 405 }));
+      return withSecurityHeaders(await handlePaystackWebhook(request, env));
+    }
+
     if (url.pathname === "/api/orders/status") {
       if (request.method !== "GET") return withSecurityHeaders(Response.json({ error: "Method not allowed." }, { status: 405 }));
-      return withSecurityHeaders(Response.json({ enabled: onlineOrderingAvailable(env) }, { headers: { "Cache-Control": "no-store" } }));
+      return withSecurityHeaders(Response.json({ enabled: onlineOrderingAvailable(env), paymentsEnabled: paymentConfigurationAvailable(env) }, { headers: { "Cache-Control": "no-store" } }));
+    }
+
+    if (url.pathname === "/api/orders/mine" || /^\/api\/orders\/[0-9a-f-]{36}$/i.test(url.pathname)) {
+      if (request.method !== "GET") return withSecurityHeaders(Response.json({ error: "Method not allowed." }, { status: 405 }));
+      if (!customerAuthAvailable(env)) return withSecurityHeaders(Response.json({ error: "Customer sign-in is not configured." }, { status: 503, headers: { "Cache-Control": "no-store" } }));
+      try {
+        const identity = await getClerkIdentity(request, env, url);
+        if (!identity) return withSecurityHeaders(Response.json({ error: "A verified customer sign-in is required." }, { status: 401, headers: { "Cache-Control": "no-store" } }));
+        const customer = await getCustomerProfileByClerkId(env, identity.userId);
+        if (!customer) return withSecurityHeaders(Response.json({ error: "Customer profile not found." }, { status: 403, headers: { "Cache-Control": "no-store" } }));
+        return withSecurityHeaders(await handleCustomerOrderRead(env, url, customer));
+      } catch {
+        return withSecurityHeaders(Response.json({ error: "We could not verify your customer session." }, { status: 503, headers: { "Cache-Control": "no-store" } }));
+      }
+    }
+
+    const paymentRoute = url.pathname.match(/^\/api\/orders\/([0-9a-f-]{36})\/payment\/(initialize|verify)$/i);
+    if (paymentRoute) {
+      if (request.method !== "POST") return withSecurityHeaders(Response.json({ error: "Method not allowed." }, { status: 405 }));
+      if (request.headers.get("Origin") !== url.origin) return withSecurityHeaders(Response.json({ error: "Request origin is not allowed." }, { status: 403, headers: { "Cache-Control": "no-store" } }));
+      if (!customerAuthAvailable(env)) return withSecurityHeaders(Response.json({ error: "Customer sign-in is not configured." }, { status: 503, headers: { "Cache-Control": "no-store" } }));
+      try {
+        const identity = await getClerkIdentity(request, env, url);
+        if (!identity) return withSecurityHeaders(Response.json({ error: "A verified customer sign-in is required." }, { status: 401, headers: { "Cache-Control": "no-store" } }));
+        const customer = await getCustomerProfileByClerkId(env, identity.userId);
+        if (!customer) return withSecurityHeaders(Response.json({ error: "Customer profile not found." }, { status: 403, headers: { "Cache-Control": "no-store" } }));
+        const handler = paymentRoute[2] === "initialize" ? handlePaystackInitialize : handlePaystackVerify;
+        return withSecurityHeaders(await handler(request, env, customer, paymentRoute[1]));
+      } catch {
+        return withSecurityHeaders(Response.json({ error: "We could not safely process this payment request." }, { status: 503, headers: { "Cache-Control": "no-store" } }));
+      }
     }
 
     if (url.pathname === "/api/orders") {
@@ -793,14 +1005,30 @@ export default {
       const origin = request.headers.get("Origin");
       if (origin !== url.origin) return withSecurityHeaders(Response.json({ error: "Request origin is not allowed." }, { status: 403, headers: { "Cache-Control": "no-store" } }));
       if (!onlineOrderingAvailable(env)) return withSecurityHeaders(Response.json({ error: "Online ordering is temporarily unavailable while secure customer-data processing is being completed." }, { status: 503, headers: { "Cache-Control": "no-store" } }));
-      return withSecurityHeaders(await handleOrderCreate(request, env));
+      try {
+        const identity = await getClerkIdentity(request, env, url);
+        if (!identity) return withSecurityHeaders(Response.json({ error: "A verified customer sign-in is required." }, { status: 401, headers: { "Cache-Control": "no-store" } }));
+        const customer = await getCustomerProfileByClerkId(env, identity.userId);
+        if (!customer) return withSecurityHeaders(Response.json({ error: "Complete customer profile setup before placing an order." }, { status: 403, headers: { "Cache-Control": "no-store" } }));
+        return withSecurityHeaders(await handleOrderCreate(request, env, customer));
+      } catch {
+        return withSecurityHeaders(Response.json({ error: "We could not verify your customer session." }, { status: 503, headers: { "Cache-Control": "no-store" } }));
+      }
     }
 
     if (url.pathname === "/api/orders/preview") {
       if (request.method !== "POST") return withSecurityHeaders(Response.json({ error: "Method not allowed." }, { status: 405 }));
       if (request.headers.get("Origin") !== url.origin) return withSecurityHeaders(Response.json({ error: "Request origin is not allowed." }, { status: 403, headers: { "Cache-Control": "no-store" } }));
       if (!onlineOrderingAvailable(env)) return withSecurityHeaders(Response.json({ error: "Order review is temporarily unavailable." }, { status: 503, headers: { "Cache-Control": "no-store" } }));
-      return withSecurityHeaders(await handleOrderPreview(request, env));
+      try {
+        const identity = await getClerkIdentity(request, env, url);
+        if (!identity) return withSecurityHeaders(Response.json({ error: "A verified customer sign-in is required." }, { status: 401, headers: { "Cache-Control": "no-store" } }));
+        const customer = await getCustomerProfileByClerkId(env, identity.userId);
+        if (!customer) return withSecurityHeaders(Response.json({ error: "Complete customer profile setup before reviewing an order." }, { status: 403, headers: { "Cache-Control": "no-store" } }));
+        return withSecurityHeaders(await handleOrderPreview(request, env, customer));
+      } catch {
+        return withSecurityHeaders(Response.json({ error: "We could not verify your customer session." }, { status: 503, headers: { "Cache-Control": "no-store" } }));
+      }
     }
 
     if (url.pathname === "/api/chat") {
