@@ -22,6 +22,34 @@ test("service worker caches the app shell but never caches API responses", async
   assert.match(worker, /if \(url\.pathname\.startsWith\("\/api\/"\)\) return/);
 });
 
+test("homepage hero is compact on mobile while retaining the larger desktop layout", async () => {
+  const app = await read("../src/App.tsx");
+  assert.match(app, /grid min-h-0 lg:min-h-\[360px\] lg:grid-cols/);
+  assert.match(app, /relative min-h-\[180px\] sm:min-h-\[260px\] lg:min-h-full/);
+  assert.match(app, /p-5 sm:p-10 lg:p-14/);
+  assert.match(app, /sm:mt-5 sm:text-6xl/);
+});
+
+test("menu basket stays visible above mobile safe areas and content can scroll clear of it", async () => {
+  const app = await read("../src/App.tsx");
+  const css = await read("../src/index.css");
+  assert.match(app, /dsk-basket-bar fixed/);
+  assert.match(app, /aria-live="polite"/);
+  assert.match(app, /pt-8 pb-32 sm:px-6/);
+  assert.match(css, /\.dsk-basket-bar \{ bottom: calc\(env\(safe-area-inset-bottom, 0px\) \+ 1rem\); \}/);
+});
+
+test("menu loading clearly reports live refresh and saved-menu fallback states", async () => {
+  const app = await read("../src/App.tsx");
+  assert.match(app, /type MenuLoadStatus = 'loading' \| 'ready' \| 'fallback'/);
+  assert.match(app, /setMenuLoadStatus\('loading'\)/);
+  assert.match(app, /setMenuLoadStatus\('ready'\)/);
+  assert.match(app, /setMenuLoadStatus\('fallback'\)/);
+  assert.match(app, /Showing the saved menu while checking for the latest updates/);
+  assert.match(app, /The live menu could not be reached/);
+  assert.match(app, /Checking the kitchen information…/);
+});
+
 test("mobile viewport permits zoom and accounts for device safe areas", async () => {
   const html = await read("../index.html");
   const css = await read("../src/index.css");

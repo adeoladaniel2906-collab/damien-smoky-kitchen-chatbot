@@ -10,6 +10,7 @@ import { CookiePolicyPage, PrivacyPolicyPage, TermsPage } from '@/pages/LegalPag
 type CatalogItem = MenuItem & { id: string; displayCategory: string; dietaryLabel?: 'Vegan' };
 type BasketLine = { item: CatalogItem; quantity: number };
 type ChatMessage = { role: 'user' | 'assistant'; content: string };
+type MenuLoadStatus = 'loading' | 'ready' | 'fallback';
 
 const displayCategory = (category: string) => category.startsWith('Vegan ') ? category.slice('Vegan '.length) : category;
 // The regular menu already contains the complete drinks list. Do not append drinksMenu again.
@@ -115,24 +116,28 @@ function App() {
   });
 
   const [menuItems, setMenuItems] = useState<CatalogItem[]>(catalog);
+  const [menuLoadStatus, setMenuLoadStatus] = useState<MenuLoadStatus>('loading');
   useEffect(() => {
     let active = true;
+    setMenuLoadStatus('loading');
     fetch("/api/menu", { cache:"no-store" })
       .then(response => response.ok ? response.json() : Promise.reject(new Error("Menu unavailable")))
       .then(data => {
-        if (!active || !Array.isArray(data.items)) return;
+        if (!Array.isArray(data.items)) throw new Error("Menu response is invalid");
+        if (!active) return;
         const items: CatalogItem[] = data.items.map((item: any) => ({
           ...item,
           displayCategory: item.displayCategory ?? displayCategory(item.category),
           dietaryLabel: item.dietaryLabel,
         }));
         setMenuItems(items);
+        setMenuLoadStatus('ready');
         setBasket(current => current.flatMap(line => {
           const fresh = items.find(item => item.id === line.item.id);
           return fresh ? [{ ...line, item:fresh }] : [];
         }));
       })
-      .catch(() => { /* Keep the bundled menu as an offline fallback. */ });
+      .catch(() => { if (active) setMenuLoadStatus('fallback'); /* Keep the bundled menu as an offline fallback. */ });
     return () => { active = false; };
   }, []);
   const [search, setSearch] = useState('');
@@ -172,8 +177,9 @@ function App() {
 
   if (!isOnline && !isLoaded) return <OfflinePage onRetry={() => window.location.reload()} />;
   if (!isLoaded) return <AppLoadingScreen />;
-  // Staff has its own password + TOTP login. Every customer-facing route is Clerk-gated.
-  if (!isStaffArea && !isSignedIn) {
+  // Staff has its own password + TOTP login. Public legal pages do not require customer sign-in.
+  const isPublicLegalPage = ["/privacy", "/terms", "/cookies"].includes(location);
+  if (!isStaffArea && !isPublicLegalPage && !isSignedIn) {
     return <CustomerAuthPage mode={location === "/create-account" ? "register" : "login"} />;
   }
 
@@ -191,15 +197,15 @@ function App() {
         <form onSubmit={(event) => { event.preventDefault(); openMenu(search); }} className="flex min-w-0 flex-1 items-center gap-2 rounded-xl bg-[#f0ece2] px-3 py-2.5">
           <Search size={18} className="shrink-0 text-[#68786e]"/><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search dishes and drinks" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-[#89948c]" aria-label="Search dishes and drinks"/><button className="hidden text-xs font-semibold text-[#e96d2c] sm:block">Search</button>
         </form>
-        <nav className="hidden items-center gap-5 lg:flex"><Link href="/menu" className={location === '/menu' ? 'text-sm font-semibold text-[#e96d2c]' : 'text-sm hover:text-[#e96d2c]'}>Menu</Link><Link href="/delivery" className="text-sm hover:text-[#e96d2c]">Delivery</Link><Link href="/assistant" className="text-sm hover:text-[#e96d2c]">Ask the kitchen</Link><button type="button" onClick={handleSignOut} className="text-sm font-semibold text-[#8a6254] hover:text-[#e96d2c]">Sign out</button></nav>
+        <nav aria-label="Main navigation" className="hidden items-center gap-3 lg:flex"><Link href="/menu" className={location === '/menu' ? 'rounded-full bg-[#fff0cf] px-3 py-2 text-sm font-bold text-[#b64a1a]' : 'rounded-full px-3 py-2 text-sm font-bold text-[#526a50] hover:bg-[#fff0cf]'}>Menu</Link><Link href="/delivery" className="rounded-full px-3 py-2 text-sm font-medium text-[#526a50] hover:bg-[#f0ece2]">Delivery</Link><Link href="/assistant" className="rounded-full bg-[#fff0cf] px-3 py-2 text-sm font-semibold text-[#8a6c36] transition hover:bg-[#ffe7ad]">Ask the kitchen</Link><button type="button" onClick={handleSignOut} className="px-2 py-2 text-sm font-semibold text-[#8a6254] hover:text-[#e96d2c]">Sign out</button></nav>
         <Link href="/checkout" className="relative grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#21382d] text-white hover:bg-[#315541]" aria-label={`Basket, ${count} items`}><ShoppingBag size={19}/>{count > 0 && <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-[#e96d2c] px-1 text-[10px] font-bold">{count}</span>}</Link>
       </div>
-      <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 border-t border-[#ece7dc] px-4 py-2.5 text-xs lg:hidden"><Link href="/menu">Menu</Link><Link href="/delivery">Delivery</Link><Link href="/assistant">Kitchen assistant</Link><button type="button" onClick={handleSignOut} className="font-semibold text-[#8a6254]">Sign out</button></nav>
+      <nav aria-label="Mobile navigation" className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 border-t border-[#ece7dc] px-4 py-2.5 text-xs lg:hidden"><Link href="/menu" className="rounded-full bg-[#fff0cf] px-3 py-2 font-bold text-[#b64a1a]">Menu</Link><Link href="/delivery" className="rounded-full px-2 py-2 font-medium text-[#526a50]">Delivery</Link><Link href="/assistant" className="rounded-full bg-[#fff0cf] px-3 py-2 font-semibold text-[#8a6c36]">Ask the kitchen</Link><button type="button" onClick={handleSignOut} className="px-2 py-2 font-semibold text-[#8a6254]">Sign out</button></nav>
     </header>}
 
     <Switch>
       <Route path="/"><Home onBrowse={openMenu} onAdd={add} basketCount={count} menuItems={menuItems}/></Route>
-      <Route path="/menu"><MenuPage search={search} setSearch={setSearch} add={add} basket={basket} activeCategory={menuCategory} setActiveCategory={setMenuCategory} menuItems={menuItems}/></Route>
+      <Route path="/menu"><MenuPage search={search} setSearch={setSearch} add={add} basket={basket} activeCategory={menuCategory} setActiveCategory={setMenuCategory} menuItems={menuItems} menuLoadStatus={menuLoadStatus}/></Route>
       <Route path="/delivery"><DeliveryPage/></Route>
       <Route path="/assistant"><AssistantPage basket={basket}/></Route>
       <Route path="/checkout"><CheckoutPage basket={basket} change={change} remove={remove} clear={() => setBasket([])}/></Route>
@@ -292,18 +298,18 @@ function Home({ onBrowse, onAdd, basketCount, menuItems }: { onBrowse: (query?: 
   return <main className="bg-[#f7f8f4]">
     <section className="mx-auto max-w-7xl px-4 pb-5 pt-5 sm:px-6">
       <div className="overflow-hidden rounded-[2rem] bg-[#ffc94a]">
-        <div className="grid min-h-[360px] lg:grid-cols-[1.05fr_.95fr]">
-          <div className="flex flex-col justify-center p-7 sm:p-10 lg:p-14">
-            <span className="w-fit rounded-full bg-white/70 px-3 py-1.5 text-xs font-bold text-[#26372c]">DAM IEN'S SMOKY KITCHEN · IBAFO</span>
-            <h1 className="mt-5 max-w-xl text-4xl font-extrabold leading-[1.02] tracking-tight text-[#202a23] sm:text-6xl">Your next favourite meal is closer.</h1>
-            <p className="mt-4 max-w-md text-base leading-7 text-[#39463b]">Nigerian favourites, freshly prepared. Explore the menu, add your picks and review your basket in a few taps.</p>
-            <div className="mt-7 flex flex-wrap gap-3">
+        <div className="grid min-h-0 lg:min-h-[360px] lg:grid-cols-[1.05fr_.95fr]">
+          <div className="flex flex-col justify-center p-5 sm:p-10 lg:p-14">
+            <span className="w-fit rounded-full bg-white/70 px-3 py-1.5 text-xs font-bold text-[#26372c]">DAMIEN'S SMOKY KITCHEN · IBAFO</span>
+            <h1 className="mt-3 max-w-xl text-3xl font-extrabold leading-[1.02] tracking-tight text-[#202a23] sm:mt-5 sm:text-6xl">Your next favourite meal is closer.</h1>
+            <p className="mt-3 max-w-md text-sm leading-6 text-[#39463b] sm:mt-4 sm:text-base sm:leading-7">Nigerian favourites, freshly prepared. Explore the menu, add your picks and review your basket in a few taps.</p>
+            <div className="mt-5 flex flex-wrap gap-3 sm:mt-7">
               <button onClick={() => onBrowse()} className="inline-flex items-center gap-2 rounded-full bg-[#26372c] px-6 py-3.5 text-sm font-bold text-white transition hover:bg-[#3c5543]">Explore the menu <ArrowRight size={17}/></button>
               <Link href="/delivery" className="inline-flex items-center gap-2 rounded-full border border-[#26372c]/25 bg-white/55 px-6 py-3.5 text-sm font-bold text-[#26372c] hover:bg-white/80">Delivery information</Link>
             </div>
-            <div className="mt-8 flex flex-wrap gap-x-5 gap-y-2 text-xs font-semibold text-[#39463b]"><span className="inline-flex items-center gap-1.5"><Clock3 size={14}/> Daily, 9 AM–9 PM</span><span className="inline-flex items-center gap-1.5"><Truck size={14}/> Lagos delivery</span><span className="inline-flex items-center gap-1.5"><MapPin size={14}/> Ibafo, Ogun State</span></div>
+            <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-xs font-semibold text-[#39463b] sm:mt-8"><span className="inline-flex items-center gap-1.5"><Clock3 size={14}/> Daily, 9 AM–9 PM</span><span className="inline-flex items-center gap-1.5"><Truck size={14}/> Lagos delivery</span><span className="inline-flex items-center gap-1.5"><MapPin size={14}/> Ibafo, Ogun State</span></div>
           </div>
-          <div className="relative min-h-[260px] lg:min-h-full">
+          <div className="relative min-h-[180px] sm:min-h-[260px] lg:min-h-full">
             <img src={photoUrl} alt="Freshly prepared Nigerian food served at a table" className="absolute inset-0 h-full w-full object-cover"/>
             <div className="absolute inset-0 bg-gradient-to-t from-[#172c21]/25 to-transparent"/>
             <div className="absolute bottom-5 left-5 rounded-2xl bg-white/95 px-4 py-3 shadow-lg backdrop-blur-sm sm:bottom-7 sm:left-7"><p className="text-[10px] font-bold uppercase tracking-widest text-[#68786e]">Made with care</p><p className="mt-1 text-sm font-extrabold text-[#26372c]">Good food. No guesswork.</p></div>
@@ -313,7 +319,7 @@ function Home({ onBrowse, onAdd, basketCount, menuItems }: { onBrowse: (query?: 
     </section>
     <section className="mx-auto max-w-7xl px-4 py-7 sm:px-6">
       <div className="flex items-end justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-widest text-[#71816f]">What are you craving?</p><h2 className="mt-1 text-2xl font-extrabold tracking-tight text-[#26372c] sm:text-3xl">Explore categories</h2></div><Link href="/menu" className="text-sm font-bold text-[#526a50] hover:underline">View all</Link></div>
-      <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-9">{quickCategories.map((category) => <button key={category} onClick={() => onBrowse(category)} className="group rounded-2xl border border-[#e7e9e2] bg-white px-3 py-4 text-left transition hover:-translate-y-1 hover:border-[#ffc94a] hover:shadow-md"><span className="grid h-10 w-10 place-items-center rounded-full bg-[#fff3c9] text-[#4d6048] transition group-hover:bg-[#ffc94a]"><Utensils size={18}/></span><span className="mt-3 block text-sm font-bold text-[#29382d]">{category}</span><span className="mt-1 block text-[11px] text-[#7a857b]">Explore dishes</span></button>)}</div>
+      <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">{quickCategories.map((category) => { const categoryPhoto = menuItems.find((item) => item.displayCategory === category && menuPhotoFor(item)); const photo = categoryPhoto ? menuPhotoFor(categoryPhoto) : undefined; return <button key={category} onClick={() => onBrowse(category)} className="group overflow-hidden rounded-2xl border border-[#e7e9e2] bg-white text-left transition hover:-translate-y-1 hover:border-[#ffc94a] hover:shadow-md"><span className="relative block aspect-[16/9] overflow-hidden bg-[#f0ece2]">{photo ? <img src={photo.url} alt="" loading="lazy" className="h-full w-full object-cover transition duration-500 group-hover:scale-105"/> : <span className="grid h-full w-full place-items-center text-[#526a50]"><Utensils size={24}/></span>}<span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/65 to-transparent px-3 pb-2 pt-7 text-sm font-bold text-white">{category}</span></span><span className="block px-3 py-2 text-[11px] text-[#7a857b]">Explore dishes</span></button>; })}</div>
     </section>
     <section className="mx-auto max-w-7xl px-4 py-7 sm:px-6">
       <div className="flex items-end justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-widest text-[#71816f]">Picked from our kitchen</p><h2 className="mt-1 text-2xl font-extrabold tracking-tight text-[#26372c] sm:text-3xl">Popular right now</h2><p className="mt-1 text-sm text-[#7a857b]">Restaurant menu prices, clearly displayed.</p></div><span className="rounded-full bg-[#e9eee5] px-3 py-2 text-xs font-bold text-[#526a50]">{basketCount} in your basket</span></div>
@@ -380,7 +386,7 @@ function MenuMotionFeature() {
   </section>;
 }
 
-function MenuPage({ search, setSearch, add, basket, activeCategory, setActiveCategory, menuItems }: { search: string; setSearch: (value: string) => void; add: (item: CatalogItem) => void; basket: BasketLine[]; activeCategory: string; setActiveCategory: (value: string) => void; menuItems: CatalogItem[] }) {
+function MenuPage({ search, setSearch, add, basket, activeCategory, setActiveCategory, menuItems, menuLoadStatus }: { search: string; setSearch: (value: string) => void; add: (item: CatalogItem) => void; basket: BasketLine[]; activeCategory: string; setActiveCategory: (value: string) => void; menuItems: CatalogItem[]; menuLoadStatus: MenuLoadStatus }) {
   const active = activeCategory;
   const setActive = setActiveCategory;
   const categories = Array.from(new Set(menuItems.map(item => item.displayCategory)));
@@ -390,7 +396,7 @@ function MenuPage({ search, setSearch, add, basket, activeCategory, setActiveCat
     ? categories.map((category) => ({ category, items: filtered.filter((item) => item.displayCategory === category) })).filter((group) => group.items.length > 0)
     : [{ category: active, items: filtered }];
   const basketCount = basket.reduce((sum, line) => sum + line.quantity, 0);
-  return <main className="mx-auto max-w-7xl bg-[#f7f8f4] px-4 py-8 sm:px-6">
+  return <main className="mx-auto max-w-7xl bg-[#f7f8f4] px-4 pt-8 pb-32 sm:px-6">
     <div className="flex flex-wrap items-end justify-between gap-4">
       <div><p className="text-xs font-bold uppercase tracking-widest text-[#71816f]">Damien's Smoky Kitchen</p><h1 className="mt-2 text-3xl font-extrabold tracking-tight text-[#26372c] sm:text-4xl">Explore the menu</h1><p className="mt-2 text-sm text-[#69766e]">Browse every dish, see the price and add your favourites to your basket.</p></div>
       <div className="rounded-2xl bg-[#fff0cf] px-4 py-3 text-xs font-semibold text-[#39463b]">Minimum delivery order <strong className="ml-1">₦3,000</strong></div>
@@ -399,13 +405,13 @@ function MenuPage({ search, setSearch, add, basket, activeCategory, setActiveCat
     <div className="sticky top-[72px] z-20 -mx-4 mt-6 border-y border-[#e7e9e2] bg-[#f7f8f4]/95 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-2xl sm:border">
       <div className="flex gap-2 overflow-x-auto pb-1">{categoriesWithAll.map((category) => <button key={category} onClick={() => setActive(category)} className={active === category ? 'shrink-0 rounded-full bg-[#26372c] px-4 py-2.5 text-xs font-bold text-white' : 'shrink-0 rounded-full border border-[#dfe4dc] bg-white px-4 py-2.5 text-xs font-semibold text-[#526a50] transition hover:border-[#ffc94a]'}>{category}</button>)}</div>
     </div>
-    <div className="mt-6 flex items-center justify-between gap-3"><p className="text-sm font-semibold text-[#526a50]">{filtered.length} menu items</p><p className="text-xs text-[#7a857b]">Prices in Nigerian naira</p></div>
+    <div className="mt-6 flex flex-wrap items-center justify-between gap-3"><p className="text-sm font-semibold text-[#526a50]">{filtered.length} menu items</p><p className="text-xs text-[#7a857b]">Prices in Nigerian naira</p></div>{menuLoadStatus === "loading" && <p role="status" aria-live="polite" className="mt-3 rounded-xl bg-[#eef2eb] px-4 py-3 text-xs text-[#526a50]">Showing the saved menu while checking for the latest updates…</p>}{menuLoadStatus === "fallback" && <p role="status" aria-live="polite" className="mt-3 rounded-xl bg-[#fff0cf] px-4 py-3 text-xs text-[#80552e]">The live menu could not be reached. You can still browse the saved menu; prices and availability may need confirmation.</p>}
     <div className="mt-4 space-y-10">{displayedGroups.map((group) => <section key={group.category} aria-labelledby={`menu-group-${group.category.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`}><div className="mb-4 flex items-center justify-between gap-3"><h2 id={`menu-group-${group.category.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`} className="text-xl font-extrabold tracking-tight text-[#26372c]">{group.category}</h2><span className="text-xs font-semibold text-[#7a857b]">{group.items.length} items</span></div><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{group.items.map((item) => <article key={item.id} className="group overflow-hidden rounded-3xl border border-[#e7e9e2] bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
       <div className="relative h-44 overflow-hidden bg-[#eef0e9]"><img src={menuVisual(item)} alt={menuPhotoFor(item)?.alt ?? `${item.name} menu illustration`} loading="lazy" onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = menuIllustration(item); }} className="h-full w-full object-cover transition duration-500 group-hover:scale-105"/><div className="absolute left-3 top-3 flex gap-2"><span className="rounded-full bg-white/95 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[#526a50]">{item.displayCategory}</span>{item.dietaryLabel && <span className="rounded-full bg-[#e8eee6]/95 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[#526a50]">Vegan</span>}</div></div>
       <div className="p-4">{menuImageCredit(item)}<h3 className="min-h-10 font-bold leading-snug text-[#29382d]">{item.name}</h3><div className="mt-4 flex items-center justify-between gap-3"><strong className="text-base text-[#26372c]">{item.price === null ? 'Ask for price' : money(item.price)}</strong>{item.price !== null && <button onClick={() => add(item)} aria-label={`Add ${item.name} to basket`} className="inline-flex shrink-0 items-center gap-2 rounded-full bg-[#ffc94a] px-4 py-2.5 text-xs font-bold text-[#26372c] transition hover:bg-[#f4b923]"><Plus size={15}/> Add</button>}</div></div>
     </article>)}</div></section>)}</div>
     {filtered.length === 0 && <p className="rounded-2xl bg-white p-8 text-center text-sm text-[#69766e]">No menu items match that search.</p>}
-    <aside className="fixed bottom-4 left-1/2 z-30 flex w-[min(92vw,560px)] -translate-x-1/2 items-center justify-between rounded-2xl bg-[#26372c] px-5 py-4 text-white shadow-xl"><span className="text-sm font-semibold">{basketCount} items in basket</span><Link href="/checkout" className="inline-flex items-center gap-2 rounded-xl bg-[#ffc94a] px-4 py-2.5 text-sm font-bold text-[#26372c]">Review basket <ArrowRight size={16}/></Link></aside>
+    <aside className="dsk-basket-bar fixed left-1/2 z-30 flex w-[min(92vw,560px)] -translate-x-1/2 items-center justify-between gap-3 rounded-2xl bg-[#26372c] px-4 py-3 text-white shadow-xl" aria-live="polite"><span className="text-sm font-semibold">{basketCount} items in basket</span><Link href="/checkout" aria-label={`Review basket with ${basketCount} items`} className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-[#ffc94a] px-4 py-2.5 text-sm font-bold text-[#26372c]">Review basket <ArrowRight size={16}/></Link></aside>
   </main>;
 }
 
@@ -502,6 +508,7 @@ function CheckoutPage({ basket, change, remove, clear }: { basket: BasketLine[];
   const [busy, setBusy] = useState(false);
   const [ordersEnabled, setOrdersEnabled] = useState(false);
   const [orderStatusLoading, setOrderStatusLoading] = useState(true);
+  const [orderStatusError, setOrderStatusError] = useState(false);
   const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
   const [confirmation, setConfirmation] = useState<{ orderId: string; message: string } | null>(null);
 
@@ -510,7 +517,7 @@ function CheckoutPage({ basket, change, remove, clear }: { basket: BasketLine[];
     fetch('/api/orders/status', { cache: 'no-store' })
       .then(response => response.ok ? response.json() : Promise.reject(new Error('Checkout status unavailable')))
       .then(result => { if (active) setOrdersEnabled(result.enabled === true); })
-      .catch(() => { if (active) setOrdersEnabled(false); })
+      .catch(() => { if (active) { setOrdersEnabled(false); setOrderStatusError(true); } })
       .finally(() => { if (active) setOrderStatusLoading(false); });
     return () => { active = false; };
   }, []);
@@ -546,7 +553,7 @@ function CheckoutPage({ basket, change, remove, clear }: { basket: BasketLine[];
         <div className="flex justify-between border-b border-[#eee9df] pb-4"><span className="text-sm">Food subtotal</span><strong>{money(subtotal)}</strong></div>
         <p className="py-4 text-xs leading-5 text-[#69766e]">Minimum delivery order: {money(restaurantKnowledge.minimumDeliveryOrder)}. Delivery is limited to Lagos State.</p>
         {!meetsMinimum && <p className="mb-4 rounded-xl bg-[#fff0e5] p-3 text-xs text-[#8b401d]">Add {money(restaurantKnowledge.minimumDeliveryOrder - subtotal)} more to meet the delivery minimum.</p>}
-        {orderStatusLoading ? <p className="rounded-xl bg-[#e8eee6] p-4 text-xs leading-5 text-[#52645a]">Checking secure checkout availability…</p> : !ordersEnabled ? <div className="rounded-xl bg-[#e8eee6] p-4 text-sm leading-6 text-[#52645a]"><strong className="block text-[#21382d]">Online ordering is temporarily unavailable.</strong><p className="mt-2">We are completing the data-protection and secure order-processing setup. Your name, phone number and delivery address are not being requested or submitted here. You can still browse the menu.</p></div> : <form onSubmit={submitOrder} className="space-y-3">
+        {orderStatusLoading ? <p className="rounded-xl bg-[#e8eee6] p-4 text-xs leading-5 text-[#52645a]" role="status">Checking secure checkout availability…</p> : orderStatusError ? <div className="rounded-xl bg-[#fff0e5] p-4 text-sm leading-6 text-[#8b401d]" role="alert"><strong className="block text-[#21382d]">We could not check checkout availability.</strong><p className="mt-2">Your basket is safe. Check your connection and reload this page before trying again.</p></div> : !ordersEnabled ? <div className="rounded-xl bg-[#e8eee6] p-4 text-sm leading-6 text-[#52645a]"><strong className="block text-[#21382d]">Online ordering is temporarily unavailable.</strong><p className="mt-2">We are completing the data-protection and secure order-processing setup. Your name, phone number and delivery address are not being requested or submitted here. You can still browse the menu.</p></div> : <form onSubmit={submitOrder} className="space-y-3">
           <label className="block text-xs font-semibold">Your name<input required maxLength={100} value={name} onChange={(event) => setName(event.target.value)} className="mt-1 w-full rounded-xl bg-[#f0ece2] px-3 py-3 text-sm font-normal outline-none focus:ring-2 focus:ring-[#e96d2c]"/></label>
           <label className="block text-xs font-semibold">Phone number<input required maxLength={24} value={phone} onChange={(event) => setPhone(event.target.value)} className="mt-1 w-full rounded-xl bg-[#f0ece2] px-3 py-3 text-sm font-normal outline-none focus:ring-2 focus:ring-[#e96d2c]"/></label>
           <label className="block text-xs font-semibold">Delivery address in Lagos<input required maxLength={300} value={address} onChange={(event) => setAddress(event.target.value)} className="mt-1 w-full rounded-xl bg-[#f0ece2] px-3 py-3 text-sm font-normal outline-none focus:ring-2 focus:ring-[#e96d2c]"/></label>
@@ -614,11 +621,12 @@ function StaffLoginPage() {
   const [busy, setBusy] = useState(false);
   const [staffEnabled, setStaffEnabled] = useState(false);
   const [statusLoading, setStatusLoading] = useState(true);
+  const [statusError, setStatusError] = useState(false);
   useEffect(() => {
     let active = true;
-    fetch("/api/auth/status", { cache: "no-store" }).then(response => response.json()).then(result => {
+    fetch("/api/auth/status", { cache: "no-store" }).then(response => response.ok ? response.json() : Promise.reject(new Error("Staff status unavailable"))).then(result => {
       if (active) setStaffEnabled(result.staffEnabled === true);
-    }).catch(() => { if (active) setStaffEnabled(false); }).finally(() => { if (active) setStatusLoading(false); });
+    }).catch(() => { if (active) { setStaffEnabled(false); setStatusError(true); } }).finally(() => { if (active) setStatusLoading(false); });
     return () => { active = false; };
   }, []);
   const submit = async (event: FormEvent) => {
@@ -634,7 +642,7 @@ function StaffLoginPage() {
     finally { setBusy(false); }
   };
   return <AuthShell title="Administrator & staff sign in" subtitle="Private staff access. Use your authorised account password and six-digit authenticator code.">
-    {statusLoading ? <p className="mt-6 text-sm text-[#69766e]">Checking staff access…</p> : !staffEnabled ? <div className="mt-6 rounded-2xl bg-[#e8eee6] p-4 text-sm leading-6 text-[#52645a]"><strong className="block text-[#21382d]">Staff sign-in is not enabled yet.</strong><span className="mt-2 block">The administrator must configure the staff password and authenticator secret, then benchmark the Worker password-hashing workload before access can be enabled.</span></div> : <form onSubmit={submit} className="mt-7 space-y-4">
+    {statusLoading ? <p className="mt-6 text-sm text-[#69766e]" role="status">Checking staff access…</p> : statusError ? <div className="mt-6 rounded-2xl bg-[#fff0e5] p-4 text-sm leading-6 text-[#8b401d]" role="alert"><strong className="block text-[#21382d]">We could not check staff sign-in.</strong><span className="mt-2 block">Check your connection and try again. This does not necessarily mean staff access is disabled.</span><button type="button" onClick={() => window.location.reload()} className="mt-3 rounded-lg bg-white px-3 py-2 text-xs font-bold text-[#8b401d]">Try again</button></div> : !staffEnabled ? <div className="mt-6 rounded-2xl bg-[#e8eee6] p-4 text-sm leading-6 text-[#52645a]"><strong className="block text-[#21382d]">Staff sign-in is not enabled yet.</strong><span className="mt-2 block">The administrator must configure the staff password and authenticator secret, then benchmark the Worker password-hashing workload before access can be enabled.</span></div> : <form onSubmit={submit} className="mt-7 space-y-4">
       <label className="block text-xs font-semibold">Authorised staff email<input required type="email" autoComplete="username" value={email} onChange={e => setEmail(e.target.value)} className="mt-1.5 w-full rounded-xl border border-[#e5dfd3] bg-[#fbf8f1] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#e96d2c]"/></label>
       <label className="block text-xs font-semibold">Password<input required type="password" autoComplete="current-password" minLength={12} maxLength={128} value={password} onChange={e => setPassword(e.target.value)} className="mt-1.5 w-full rounded-xl border border-[#e5dfd3] bg-[#fbf8f1] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#e96d2c]"/></label>
       <label className="block text-xs font-semibold">Authenticator code<input required type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={totpCode} onChange={e => setTotpCode(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="6-digit code" className="mt-1.5 w-full rounded-xl border border-[#e5dfd3] bg-[#fbf8f1] px-3 py-3 text-sm tracking-[0.25em] outline-none focus:ring-2 focus:ring-[#e96d2c]"/><span className="mt-1 block text-[11px] font-normal text-[#7b887f]">Open your authenticator app to get the current code.</span></label>

@@ -546,6 +546,7 @@ body { background: #f7f8f4; color: #26372c; }
 
 /* Mobile browser and installed-PWA safe areas (iOS notch/home indicator). */
 #root { min-height: 100dvh; }
+.dsk-basket-bar { bottom: calc(env(safe-area-inset-bottom, 0px) + 1rem); }
 .dsk-app-header { top: env(safe-area-inset-top, 0px); }
 .dsk-app-footer { padding-bottom: env(safe-area-inset-bottom, 0px); }
 @media (prefers-reduced-motion: reduce) {

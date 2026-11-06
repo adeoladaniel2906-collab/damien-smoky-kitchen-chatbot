@@ -54,6 +54,17 @@ test("menu photos are unique, attributed, licensed and attached only to matching
   assert.ok(map["Rice:Jollof Rice:800"].sourceUrl.includes("A_Nigeria_Jollof_Rice_with_chicken.jpg"), "restore the original Nigerian jollof photograph");
 });
 
+test("every homepage category card can use a distinct assigned food photograph", async () => {
+  const app = await read("../src/App.tsx");
+  const map = JSON.parse(await read("../src/chatbot/menu-image-map.json"));
+  const items = [...restaurantKnowledge.menu, ...restaurantKnowledge.veganMenu];
+  const categories = new Set(items.map((item) => item.category.replace(/^Vegan /, "")));
+  const photographedCategories = new Set(Object.keys(map).map((id) => id.split(":")[0].replace(/^Vegan /, "")));
+  assert.deepEqual([...categories].filter((category) => !photographedCategories.has(category)), []);
+  assert.match(app, /menuItems\.find\(\(item\) => item\.displayCategory === category && menuPhotoFor\(item\)\)/);
+  assert.match(app, /photo \? <img src=\{photo\.url\} alt="" loading="lazy"/);
+});
+
 test("menu entries without verified matching photographs keep unique branded illustrations", async () => {
   const app = await read("../src/App.tsx");
   assert.match(app, /const menuIllustration = \(item: CatalogItem\)/);
