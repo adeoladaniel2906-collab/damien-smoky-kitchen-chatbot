@@ -33,3 +33,13 @@ test("checkout status lookup failures are distinct from deliberately disabled on
   assert.match(app, /Your basket is safe/);
   assert.match(app, /We are completing the data-protection and secure order-processing setup/);
 });
+
+test("navigation gives the menu priority and keeps the kitchen assistant discoverable", async () => {
+  const app = await read("../src/App.tsx");
+  assert.match(app, /aria-label="Main navigation"/);
+  assert.match(app, /aria-label="Mobile navigation"/);
+  assert.match(app, /href="\/menu" className=\{location === '\/menu'/);
+  assert.match(app, /href="\/assistant" className="rounded-full bg-\[#fff0cf\]/);
+  assert.match(app, /Ask the kitchen/);
+  assert.match(app, /<Link href="\/assistant">Ask the kitchen<\/h2>/);
+});
