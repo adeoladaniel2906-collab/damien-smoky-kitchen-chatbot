@@ -390,7 +390,7 @@ function MenuPage({ search, setSearch, add, basket, activeCategory, setActiveCat
     ? categories.map((category) => ({ category, items: filtered.filter((item) => item.displayCategory === category) })).filter((group) => group.items.length > 0)
     : [{ category: active, items: filtered }];
   const basketCount = basket.reduce((sum, line) => sum + line.quantity, 0);
-  return <main className="mx-auto max-w-7xl bg-[#f7f8f4] px-4 py-8 sm:px-6">
+  return <main className="mx-auto max-w-7xl bg-[#f7f8f4] px-4 pt-8 pb-32 sm:px-6">
     <div className="flex flex-wrap items-end justify-between gap-4">
       <div><p className="text-xs font-bold uppercase tracking-widest text-[#71816f]">Damien's Smoky Kitchen</p><h1 className="mt-2 text-3xl font-extrabold tracking-tight text-[#26372c] sm:text-4xl">Explore the menu</h1><p className="mt-2 text-sm text-[#69766e]">Browse every dish, see the price and add your favourites to your basket.</p></div>
       <div className="rounded-2xl bg-[#fff0cf] px-4 py-3 text-xs font-semibold text-[#39463b]">Minimum delivery order <strong className="ml-1">₦3,000</strong></div>
@@ -405,7 +405,7 @@ function MenuPage({ search, setSearch, add, basket, activeCategory, setActiveCat
       <div className="p-4">{menuImageCredit(item)}<h3 className="min-h-10 font-bold leading-snug text-[#29382d]">{item.name}</h3><div className="mt-4 flex items-center justify-between gap-3"><strong className="text-base text-[#26372c]">{item.price === null ? 'Ask for price' : money(item.price)}</strong>{item.price !== null && <button onClick={() => add(item)} aria-label={`Add ${item.name} to basket`} className="inline-flex shrink-0 items-center gap-2 rounded-full bg-[#ffc94a] px-4 py-2.5 text-xs font-bold text-[#26372c] transition hover:bg-[#f4b923]"><Plus size={15}/> Add</button>}</div></div>
     </article>)}</div></section>)}</div>
     {filtered.length === 0 && <p className="rounded-2xl bg-white p-8 text-center text-sm text-[#69766e]">No menu items match that search.</p>}
-    <aside className="fixed bottom-4 left-1/2 z-30 flex w-[min(92vw,560px)] -translate-x-1/2 items-center justify-between rounded-2xl bg-[#26372c] px-5 py-4 text-white shadow-xl"><span className="text-sm font-semibold">{basketCount} items in basket</span><Link href="/checkout" className="inline-flex items-center gap-2 rounded-xl bg-[#ffc94a] px-4 py-2.5 text-sm font-bold text-[#26372c]">Review basket <ArrowRight size={16}/></Link></aside>
+    <aside className="dsk-basket-bar fixed left-1/2 z-30 flex w-[min(92vw,560px)] -translate-x-1/2 items-center justify-between gap-3 rounded-2xl bg-[#26372c] px-4 py-3 text-white shadow-xl" aria-live="polite"><span className="text-sm font-semibold">{basketCount} items in basket</span><Link href="/checkout" aria-label={`Review basket with ${basketCount} items`} className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-[#ffc94a] px-4 py-2.5 text-sm font-bold text-[#26372c]">Review basket <ArrowRight size={16}/></Link></aside>
   </main>;
 }
 
