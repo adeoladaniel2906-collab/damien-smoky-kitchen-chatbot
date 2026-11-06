@@ -37,5 +37,5 @@ test("homepage copy is restaurant-specific and the placeholder domain is gone", 
   assert.match(app, /Cooked fresh in Ibafo\. Delivered across Lagos\./);
   assert.doesNotMatch(app, /Good food\. No guesswork\.|Your next favourite meal is closer/);
   assert.doesNotMatch(knowledge, /DamienStore\.food\.com/);
-  assert.match(knowledge, /https:\/\/damien-smoky-kitchen-chatbot54\.adeoladaniel2906\.workers\.dev/);
+  assert.match(knowledge, /https:\/\/damiens-kitchen\.adeoladaniel2906\.workers\.dev/);
 });
