@@ -62,9 +62,9 @@ test("mobile viewport permits zoom and accounts for device safe areas", async ()
 
 test("Clerk sign-in and sign-up force stale OAuth redirect URLs back to the homepage", async () => {
   const app = await read("../src/App.tsx");
-  assert.ok(app.includes('fallbackRedirectUrl="/" forceRedirectUrl="/"'));
-  assert.ok(app.includes('signInForceRedirectUrl="/"'));
-  assert.ok(app.includes('signUpForceRedirectUrl="/"'));
+  assert.ok(app.includes('fallbackRedirectUrl={redirectTo} forceRedirectUrl={redirectTo}'));
+  assert.ok(app.includes('signInForceRedirectUrl={redirectTo}'));
+  assert.ok(app.includes('signUpForceRedirectUrl={redirectTo}'));
   assert.ok(!app.includes('fallbackRedirectUrl="/account"'));
   assert.ok(app.includes('<Route path="/account"><LegacyAccountRedirect/></Route>'));
 });
@@ -91,5 +91,5 @@ test("legacy Clerk redirects to the removed account route safely return home", a
   assert.ok(app.includes('<Route path="/account"><LegacyAccountRedirect/></Route>'));
   assert.ok(app.includes('function LegacyAccountRedirect()'));
   assert.ok(app.includes('setLocation("/");'));
-  assert.ok(app.includes('fallbackRedirectUrl="/"'));
+  assert.ok(app.includes('fallbackRedirectUrl={redirectTo}'));
 });

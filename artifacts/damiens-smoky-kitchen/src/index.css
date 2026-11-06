@@ -584,3 +584,14 @@ body { background: #f7f8f4; color: #26372c; }
   .dsk-menu-motion__video { display: none; animation: none; }
   .dsk-menu-motion__copy { animation: none; }
 }
+
+/* Floating Kitchen Assistant launcher and animated help panel. */
+.dsk-assistant-widget { position: fixed; right: max(1rem, env(safe-area-inset-right, 0px)); bottom: calc(env(safe-area-inset-bottom, 0px) + 1rem); z-index: 70; display: flex; flex-direction: column; align-items: flex-end; gap: .75rem; }
+.dsk-assistant-launcher { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: .55rem; min-height: 3.25rem; padding: .85rem 1.1rem; border: 1px solid rgba(255,255,255,.18); border-radius: 999px; color: #fff; background: #21382d; box-shadow: 0 12px 32px rgba(23,45,33,.28); font-size: .82rem; font-weight: 750; transition: transform 180ms ease, background 180ms ease, box-shadow 180ms ease; }
+.dsk-assistant-launcher:hover { transform: translateY(-2px); background: #315541; box-shadow: 0 16px 36px rgba(23,45,33,.32); }
+.dsk-assistant-online-dot { position: absolute; top: .2rem; right: .25rem; width: .55rem; height: .55rem; border: 2px solid #21382d; border-radius: 50%; background: #ffc94a; }
+.dsk-assistant-panel { display: flex; flex-direction: column; width: min(24rem, calc(100vw - 2rem)); height: min(34rem, calc(100dvh - 7.5rem)); overflow: hidden; border: 1px solid #e8e2d6; border-radius: 1.4rem; background: #fff; box-shadow: 0 24px 70px rgba(23,45,33,.25); transform-origin: bottom right; animation: dsk-assistant-open 320ms cubic-bezier(.16,1,.3,1) both; }
+.dsk-assistant-messages { min-height: 0; }
+@keyframes dsk-assistant-open { from { opacity: 0; transform: translateY(18px) scale(.94); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@media (max-width: 480px) { .dsk-assistant-widget { right: .75rem; bottom: calc(env(safe-area-inset-bottom, 0px) + .75rem); } .dsk-assistant-panel { width: calc(100vw - 1.5rem); height: min(36rem, calc(100dvh - 6.5rem)); } }
+@media (prefers-reduced-motion: reduce) { .dsk-assistant-panel { animation: none; } .dsk-assistant-launcher { transition: none; } }

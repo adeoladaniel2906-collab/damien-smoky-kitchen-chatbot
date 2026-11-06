@@ -128,6 +128,52 @@ async function readLimitedBody(request: Request): Promise<string | null> {
   return new TextDecoder().decode(body);
 }
 
+type LiveMenuItem = Awaited<ReturnType<typeof readMenu>>[number];
+
+function normalizeMenuText(value: string): string {
+  return value.toLowerCase().replace(/[’']/g, "").replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function isMenuQuestion(question: string): boolean {
+  return /\b(menu|dish|dishes|food|meal|eat|price|cost|naira|available|availability|sell|stock|vegan|vegetarian|rice|soup|swallow|chicken|beef|fish|protein|drink|beverage|zobo|kunu|chapman|jollof|egusi|amala|fufu|eba|plantain|moi moi)\\b/i.test(question);
+}
+
+function buildLiveMenuContext(items: LiveMenuItem[]): string {
+  if (items.length === 0) return "The live database currently contains no menu entries.";
+  const available = items.filter(item => item.isAvailable);
+  const unavailable = items.filter(item => !item.isAvailable);
+  const describe = (item: LiveMenuItem) => `- ${item.name} | category: ${item.category} | price: ${item.price === null ? "not specified" : "₦" + item.price.toLocaleString("en-NG")} | dietary: ${item.isVegan ? "vegan" : "not marked vegan"}`;
+  return [
+    "AVAILABLE ITEMS (these are the only items that may be recommended):",
+    ...(available.length ? available.map(describe) : ["- No items are currently marked available."]),
+    "UNAVAILABLE ITEMS (do not recommend these as orderable):",
+    ...(unavailable.length ? unavailable.map(describe) : ["- None currently marked unavailable."]),
+    "All prices are in Nigerian Naira. Availability is taken from the current D1 menu_items table."
+  ].join("\n");
+}
+
+function getLiveMenuFastReply(question: string, items: LiveMenuItem[]): string | null {
+  const normalized = normalizeMenuText(question);
+  const matches = items.filter(item => [item.name, ...item.aliases].some(value => {
+    const variant = normalizeMenuText(value);
+    return variant.length > 1 && normalized.includes(variant);
+  }));
+  if (matches.length === 0) return null;
+  const asksPrice = /\b(price|how much|cost|naira)\\b/i.test(question) || question.includes("₦");
+  const asksAvailability = /\b(available|availability|have|sell|stock|do you|is there|can i get)\\b/i.test(question);
+  if (!asksPrice && !asksAvailability) return null;
+  const unique = Array.from(new Map(matches.map(item => [item.id, item])).values());
+  if (asksAvailability) {
+    const available = unique.filter(item => item.isAvailable);
+    const unavailable = unique.filter(item => !item.isAvailable);
+    return [
+      ...available.map(item => `${item.name}${item.price === null ? "" : " (₦" + item.price.toLocaleString("en-NG") + ")"} is available.`),
+      ...unavailable.map(item => `${item.name} is currently unavailable.`)
+    ].join("\n");
+  }
+  return unique.map(item => `${item.name}: ${item.price === null ? "price not currently listed" : "₦" + item.price.toLocaleString("en-NG")}${item.isAvailable ? "" : " (currently unavailable)"}`).join("\n");
+}
+
 async function handleChat(request: Request, env: Env): Promise<Response> {
   const contentLength = Number(request.headers.get("content-length") ?? "0");
   if (contentLength > MAX_BODY_BYTES) {
@@ -210,13 +256,30 @@ async function handleChat(request: Request, env: Env): Promise<Response> {
     .find((message) => message.role === "user")?.content.trim();
   if (!question) return textResponse(unavailableReply);
 
-  // Deterministic answers remain the default path and do not consume AI requests.
-  const manualReply = getManualReply(question);
+  // Menu questions read the current D1 catalogue. Never answer from bundled menu prices.
+  const menuRelated = isMenuQuestion(question);
+  let liveMenuRows: Awaited<ReturnType<typeof readMenu>> = [];
+  let liveMenuContext = "";
+  if (menuRelated) {
+    try {
+      liveMenuRows = await readMenu(env, true);
+      liveMenuContext = buildLiveMenuContext(liveMenuRows);
+      const exactReply = getLiveMenuFastReply(question, liveMenuRows);
+      if (exactReply) return textResponse(exactReply);
+    } catch (error) {
+      console.error("Live menu lookup failed:", error);
+      return textResponse("I'm unable to verify the live menu right now. Please try again shortly or contact the restaurant on WhatsApp.", 503);
+    }
+  }
+
+  // Non-menu facts keep their deterministic fast path. Menu facts must use live D1 data.
+  const manualReply = menuRelated ? null : getManualReply(question);
   if (manualReply !== null) return textResponse(manualReply);
 
+  const restaurantInfo = officialMenuContext.split("\nCOMPLETE MENU")[0];
   const systemMessage: ChatMessage = {
     role: "system",
-    content: `You are Damien's Smoky Kitchen assistant. Answer naturally, politely, and briefly. Use ONLY the official restaurant knowledge below. Never invent menu items, prices, delivery fees or times, nutritional or allergy information, halal certification, promotions, policies, orders, or reservations. If the answer is not in the knowledge, say it is not currently available and direct the customer to WhatsApp. Do not claim an order or reservation was completed.\n\nOFFICIAL RESTAURANT KNOWLEDGE:\n${officialMenuContext}`,
+    content: `You are Damien's Smoky Kitchen assistant. Answer naturally, politely, and briefly. Use the restaurant information and LIVE DATABASE MENU below. For every menu item, price, vegan label, and availability question, trust the LIVE DATABASE MENU only. Never use an old menu price or invent an item, ingredient, allergy detail, delivery fee or time, halal certification, promotion, policy, order or reservation. Items marked unavailable must never be recommended as orderable. If the database does not contain an item, say it is not listed. If the live menu is unavailable, do not guess. Do not claim an order or reservation was completed.\n\nRESTAURANT INFORMATION:\n${restaurantInfo}\n\nLIVE DATABASE MENU:\n${liveMenuContext || "This question does not require menu data."}`,
   };
 
   try {
@@ -235,10 +298,10 @@ async function handleChat(request: Request, env: Env): Promise<Response> {
 
     return reply.trim()
       ? textResponse(reply.trim())
-      : textResponse(fallbackReply(question));
+      : textResponse(menuRelated ? "I couldn't prepare an answer from the current menu. Please try again." : fallbackReply(question));
   } catch (error) {
     console.error("Workers AI request failed:", error);
-    return textResponse(fallbackReply(question));
+    return textResponse(menuRelated ? "The live menu assistant is temporarily unavailable. Please try again shortly." : fallbackReply(question));
   }
 }
 

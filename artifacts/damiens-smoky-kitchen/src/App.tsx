@@ -1,7 +1,7 @@
 import { type FormEvent, type ReactNode, useEffect, useRef, useState } from 'react';
 import { Link, Route, Switch, useLocation } from 'wouter';
 import { SignIn, SignUp, useAuth, useUser } from '@clerk/react';
-import { ArrowRight, CheckCircle2, ChevronDown, Clock3, Flame, MapPin, MessageCircle, Minus, Plus, Search, ShoppingBag, Trash2, Truck, Utensils, WifiOff } from 'lucide-react';
+import { ArrowRight, CheckCircle2, ChevronDown, Clock3, Flame, MapPin, MessageCircle, Minus, Plus, Search, Send, ShoppingBag, Trash2, Truck, Utensils, WifiOff, X } from 'lucide-react';
 import { restaurantKnowledge, type MenuItem } from '@/chatbot/knowledge';
 import menuImageMap from '@/chatbot/menu-image-map.json';
 import { CookieConsent } from '@/components/CookieConsent';
@@ -74,6 +74,7 @@ function App() {
   const { isLoaded: isUserLoaded, user } = useUser();
   const [showWelcome, setShowWelcome] = useState(false);
   const [welcomeName, setWelcomeName] = useState("there");
+  const [assistantOpen, setAssistantOpen] = useState(false);
   const [isOnline, setIsOnline] = useState(() => typeof navigator === "undefined" ? true : navigator.onLine);
 
   useEffect(() => {
@@ -160,6 +161,10 @@ function App() {
     .filter((line) => line.quantity > 0));
   const remove = (id: string) => setBasket((current) => current.filter((line) => line.item.id !== id));
   const openMenu = (query = '') => {
+    if (!isSignedIn) {
+      setLocation('/menu');
+      return;
+    }
     if (menuItems.some(item => item.displayCategory === query)) {
       setMenuCategory(query);
       setSearch('');
@@ -177,10 +182,12 @@ function App() {
 
   if (!isOnline && !isLoaded) return <OfflinePage onRetry={() => window.location.reload()} />;
   if (!isLoaded) return <AppLoadingScreen />;
-  // Staff has its own password + TOTP login. Public legal pages do not require customer sign-in.
+  // Staff has its own password + TOTP login. Marketing, help and legal pages are public.
   const isPublicLegalPage = ["/privacy", "/terms", "/cookies"].includes(location);
-  if (!isStaffArea && !isPublicLegalPage && !isSignedIn) {
-    return <CustomerAuthPage mode={location === "/create-account" ? "register" : "login"} />;
+  const isPublicPage = location === "/" || location === "/delivery" || location === "/assistant" || isPublicLegalPage;
+  if (!isStaffArea && !isPublicPage && !isSignedIn) {
+    const redirectTo = ["/menu", "/checkout"].includes(location) ? location : "/";
+    return <CustomerAuthPage mode={location === "/create-account" || location === "/menu" ? "register" : "login"} redirectTo={redirectTo} />;
   }
 
   return <div className="min-h-screen bg-[#fbf8f1] text-[#21382d]">
@@ -197,14 +204,14 @@ function App() {
         <form onSubmit={(event) => { event.preventDefault(); openMenu(search); }} className="flex min-w-0 flex-1 items-center gap-2 rounded-xl bg-[#f0ece2] px-3 py-2.5">
           <Search size={18} className="shrink-0 text-[#68786e]"/><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search dishes and drinks" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-[#89948c]" aria-label="Search dishes and drinks"/><button className="hidden text-xs font-semibold text-[#e96d2c] sm:block">Search</button>
         </form>
-        <nav aria-label="Main navigation" className="hidden items-center gap-3 lg:flex"><Link href="/menu" className={location === '/menu' ? 'rounded-full bg-[#fff0cf] px-3 py-2 text-sm font-bold text-[#b64a1a]' : 'rounded-full px-3 py-2 text-sm font-bold text-[#526a50] hover:bg-[#fff0cf]'}>Menu</Link><Link href="/delivery" className="rounded-full px-3 py-2 text-sm font-medium text-[#526a50] hover:bg-[#f0ece2]">Delivery</Link><Link href="/assistant" className="rounded-full bg-[#fff0cf] px-3 py-2 text-sm font-semibold text-[#8a6c36] transition hover:bg-[#ffe7ad]">Ask the kitchen</Link><button type="button" onClick={handleSignOut} className="px-2 py-2 text-sm font-semibold text-[#8a6254] hover:text-[#e96d2c]">Sign out</button></nav>
+        <nav aria-label="Main navigation" className="hidden items-center gap-3 lg:flex"><button type="button" onClick={() => openMenu()} className={location === '/menu' ? 'rounded-full bg-[#fff0cf] px-3 py-2 text-sm font-bold text-[#b64a1a]' : 'rounded-full px-3 py-2 text-sm font-bold text-[#526a50] hover:bg-[#fff0cf]'}>Menu</button><Link href="/delivery" className="rounded-full px-3 py-2 text-sm font-medium text-[#526a50] hover:bg-[#f0ece2]">Delivery</Link><button type="button" onClick={handleSignOut} className="px-2 py-2 text-sm font-semibold text-[#8a6254] hover:text-[#e96d2c]">Sign out</button></nav>
         <Link href="/checkout" className="relative grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#21382d] text-white hover:bg-[#315541]" aria-label={`Basket, ${count} items`}><ShoppingBag size={19}/>{count > 0 && <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-[#e96d2c] px-1 text-[10px] font-bold">{count}</span>}</Link>
       </div>
-      <nav aria-label="Mobile navigation" className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 border-t border-[#ece7dc] px-4 py-2.5 text-xs lg:hidden"><Link href="/menu" className="rounded-full bg-[#fff0cf] px-3 py-2 font-bold text-[#b64a1a]">Menu</Link><Link href="/delivery" className="rounded-full px-2 py-2 font-medium text-[#526a50]">Delivery</Link><Link href="/assistant" className="rounded-full bg-[#fff0cf] px-3 py-2 font-semibold text-[#8a6c36]">Ask the kitchen</Link><button type="button" onClick={handleSignOut} className="px-2 py-2 font-semibold text-[#8a6254]">Sign out</button></nav>
+      <nav aria-label="Mobile navigation" className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 border-t border-[#ece7dc] px-4 py-2.5 text-xs lg:hidden"><button type="button" onClick={() => openMenu()} className="rounded-full bg-[#fff0cf] px-3 py-2 font-bold text-[#b64a1a]">Menu</button><Link href="/delivery" className="rounded-full px-2 py-2 font-medium text-[#526a50]">Delivery</Link><button type="button" onClick={handleSignOut} className="px-2 py-2 font-semibold text-[#8a6254]">Sign out</button></nav>
     </header>}
 
     <Switch>
-      <Route path="/"><Home onBrowse={openMenu} onAdd={add} basketCount={count} menuItems={menuItems}/></Route>
+      <Route path="/"><Home onBrowse={openMenu} onOpenAssistant={() => setAssistantOpen(true)} menuItems={menuItems}/></Route>
       <Route path="/menu"><MenuPage search={search} setSearch={setSearch} add={add} basket={basket} activeCategory={menuCategory} setActiveCategory={setMenuCategory} menuItems={menuItems} menuLoadStatus={menuLoadStatus}/></Route>
       <Route path="/delivery"><DeliveryPage/></Route>
       <Route path="/assistant"><AssistantPage basket={basket}/></Route>
@@ -225,6 +232,7 @@ function App() {
 
     {!isStaffArea && <footer className="dsk-app-footer mt-16 bg-[#21382d] text-white"><div className="mx-auto grid max-w-7xl gap-8 px-5 py-10 sm:grid-cols-3 sm:px-6"><div><div className="flex items-center gap-2 font-bold"><Flame size={18} className="text-[#f29a53}"/> Damien's Smoky Kitchen</div><p className="mt-3 max-w-xs text-sm leading-6 text-white/70">Nigerian dishes, made in Ibafo. Browse the menu and review your basket online.</p></div><div><p className="text-sm font-semibold">Visit and hours</p><p className="mt-3 text-sm leading-6 text-white/70">The Motorcycle Drive, Papa Olonrisa<br/>Ibafo, Ogun State<br/>Daily, 9:00 AM–9:00 PM</p></div><div><p className="text-sm font-semibold">Ordering information</p><p className="mt-3 text-sm leading-6 text-white/70">Lagos State delivery only<br/>Minimum delivery order: ₦3,000<br/>Fee depends on distance</p></div></div><div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 border-t border-white/15 px-5 py-4 text-xs text-white/65"><span>© {new Date().getFullYear()} Damien's Smoky Kitchen</span><Link href="/privacy" className="underline underline-offset-4">Privacy</Link><Link href="/terms" className="underline underline-offset-4">Terms</Link><Link href="/cookies" className="underline underline-offset-4">Cookie notice</Link><button type="button" onClick={() => window.dispatchEvent(new Event("dsk:open-cookie-settings"))} className="underline underline-offset-4">Manage cookies</button></div></footer>}
     {!isStaffArea && <CookieConsent/>}
+    {!isStaffArea && <KitchenAssistantWidget basket={basket} open={assistantOpen} onOpenChange={setAssistantOpen}/>}
     {showWelcome && !isStaffArea && <WelcomeOverlay name={welcomeName}/>}
   </div>;
 }
@@ -292,8 +300,7 @@ function OfflinePage({ onRetry }: { onRetry: () => void }) {
   </main>;
 }
 
-function Home({ onBrowse, onAdd, basketCount, menuItems }: { onBrowse: (query?: string) => void; onAdd: (item: CatalogItem) => void; basketCount: number; menuItems: CatalogItem[] }) {
-  const featured = menuItems.filter((item) => item.price !== null).slice(0, 8);
+function Home({ onBrowse, onOpenAssistant, menuItems }: { onBrowse: (query?: string) => void; onOpenAssistant: () => void; menuItems: CatalogItem[] }) {
   const quickCategories = Array.from(new Set(menuItems.map(item => item.displayCategory)));
   return <main className="bg-[#f7f8f4]">
     <section className="mx-auto max-w-7xl px-4 pb-5 pt-5 sm:px-6">
@@ -318,15 +325,16 @@ function Home({ onBrowse, onAdd, basketCount, menuItems }: { onBrowse: (query?: 
       </div>
     </section>
     <section className="mx-auto max-w-7xl px-4 py-7 sm:px-6">
-      <div className="flex items-end justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-widest text-[#71816f]">What are you craving?</p><h2 className="mt-1 text-2xl font-extrabold tracking-tight text-[#26372c] sm:text-3xl">Explore categories</h2></div><Link href="/menu" className="text-sm font-bold text-[#526a50] hover:underline">View all</Link></div>
+      <div className="flex items-end justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-widest text-[#71816f]">What are you craving?</p><h2 className="mt-1 text-2xl font-extrabold tracking-tight text-[#26372c] sm:text-3xl">Explore categories</h2></div><button type="button" onClick={() => onBrowse()} className="text-sm font-bold text-[#526a50] hover:underline">View all</button></div>
       <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">{quickCategories.map((category) => { const categoryPhoto = menuItems.find((item) => item.displayCategory === category && menuPhotoFor(item)); const photo = categoryPhoto ? menuPhotoFor(categoryPhoto) : undefined; return <button key={category} onClick={() => onBrowse(category)} className="group overflow-hidden rounded-2xl border border-[#e7e9e2] bg-white text-left transition hover:-translate-y-1 hover:border-[#ffc94a] hover:shadow-md"><span className="relative block aspect-[16/9] overflow-hidden bg-[#f0ece2]">{photo ? <img src={photo.url} alt="" loading="lazy" className="h-full w-full object-cover transition duration-500 group-hover:scale-105"/> : <span className="grid h-full w-full place-items-center text-[#526a50]"><Utensils size={24}/></span>}<span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/65 to-transparent px-3 pb-2 pt-7 text-sm font-bold text-white">{category}</span></span><span className="block px-3 py-2 text-[11px] text-[#7a857b]">Explore dishes</span></button>; })}</div>
     </section>
     <section className="mx-auto max-w-7xl px-4 py-7 sm:px-6">
-      <div className="flex items-end justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-widest text-[#71816f]">Picked from our kitchen</p><h2 className="mt-1 text-2xl font-extrabold tracking-tight text-[#26372c] sm:text-3xl">Popular right now</h2><p className="mt-1 text-sm text-[#7a857b]">Restaurant menu prices, clearly displayed.</p></div><span className="rounded-full bg-[#e9eee5] px-3 py-2 text-xs font-bold text-[#526a50]">{basketCount} in your basket</span></div>
-      <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{featured.map((item) => <ProductCard key={item.id} item={item} onAdd={() => onAdd(item)}/>)}</div>
-      <Link href="/menu" className="mx-auto mt-8 flex w-fit items-center gap-2 rounded-full bg-[#26372c] px-6 py-3.5 text-sm font-bold text-white transition hover:bg-[#3c5543]">Browse the full menu <ArrowRight size={16}/></Link>
+      <div className="overflow-hidden rounded-3xl border border-[#e7e9e2] bg-white p-6 sm:flex sm:items-center sm:justify-between sm:gap-8 sm:p-8">
+        <div><p className="text-xs font-bold uppercase tracking-widest text-[#71816f]">Your next meal starts here</p><h2 className="mt-2 text-2xl font-extrabold tracking-tight text-[#26372c] sm:text-3xl">Ready to explore the full menu?</h2><p className="mt-2 max-w-xl text-sm leading-6 text-[#69766e]">Create a free customer account to browse dishes, check current prices and keep your favourites together.</p></div>
+        <button type="button" onClick={() => onBrowse()} className="mt-5 inline-flex shrink-0 items-center gap-2 rounded-full bg-[#26372c] px-6 py-3.5 text-sm font-bold text-white transition hover:bg-[#3c5543] sm:mt-0">Create account to view menu <ArrowRight size={16}/></button>
+      </div>
     </section>
-    <section className="mx-auto max-w-7xl px-4 pb-10 pt-5 sm:px-6"><div className="grid gap-4 md:grid-cols-2"><Link href="/delivery" className="flex items-center justify-between gap-4 rounded-3xl bg-[#e8eee6] p-6 transition hover:bg-[#dfe8dc]"><div><span className="text-xs font-bold uppercase tracking-widest text-[#71816f]">At your door</span><h2 className="mt-2 text-xl font-extrabold text-[#26372c]">Delivery across Lagos</h2><p className="mt-1 text-sm text-[#596b5d]">₦3,000 minimum order · Fee depends on distance</p></div><Truck size={30} className="shrink-0 text-[#526a50]"/></Link><Link href="/assistant" className="flex items-center justify-between gap-4 rounded-3xl bg-[#fff0cf] p-6 transition hover:bg-[#ffe7ad]"><div><span className="text-xs font-bold uppercase tracking-widest text-[#8a6c36]">Need a recommendation?</span><h2 className="mt-2 text-xl font-extrabold text-[#26372c]">Ask the kitchen</h2><p className="mt-1 text-sm text-[#756347]">Get help with menu and restaurant questions</p></div><MessageCircle size={30} className="shrink-0 text-[#8a6c36]"/></Link></div></section>
+    <section className="mx-auto max-w-7xl px-4 pb-10 pt-5 sm:px-6"><div className="grid gap-4 md:grid-cols-2"><Link href="/delivery" className="flex items-center justify-between gap-4 rounded-3xl bg-[#e8eee6] p-6 transition hover:bg-[#dfe8dc]"><div><span className="text-xs font-bold uppercase tracking-widest text-[#71816f]">At your door</span><h2 className="mt-2 text-xl font-extrabold text-[#26372c]">Delivery across Lagos</h2><p className="mt-1 text-sm text-[#596b5d]">₦3,000 minimum order · Fee depends on distance</p></div><Truck size={30} className="shrink-0 text-[#526a50]"/></Link><button type="button" onClick={onOpenAssistant} className="flex w-full items-center justify-between gap-4 rounded-3xl bg-[#fff0cf] p-6 text-left transition hover:bg-[#ffe7ad]"><div><span className="text-xs font-bold uppercase tracking-widest text-[#8a6c36]">Need a recommendation?</span><h2 className="mt-2 text-xl font-extrabold text-[#26372c]">Ask the kitchen</h2><p className="mt-1 text-sm text-[#756347]">Get help with menu and restaurant questions</p></div><MessageCircle size={30} className="shrink-0 text-[#8a6c36]"/></button></div></section>
   </main>;
 }
 
@@ -571,7 +579,7 @@ function AuthShell({ title, subtitle, children }: { title: string; subtitle: str
   return <main className="mx-auto max-w-md px-4 py-12 sm:py-16"><section className="rounded-3xl border border-[#e8e2d6] bg-white p-6 shadow-sm sm:p-8"><p className="text-xs font-bold uppercase tracking-[0.18em] text-[#e96d2c]">Damien's Smoky Kitchen</p><h1 className="mt-3 text-3xl font-extrabold">{title}</h1><p className="mt-2 text-sm leading-6 text-[#69766e]">{subtitle}</p>{children}</section></main>;
 }
 
-function CustomerAuthPage({ mode }: { mode: "register" | "login" }) {
+function CustomerAuthPage({ mode, redirectTo = "/" }: { mode: "register" | "login"; redirectTo?: string }) {
   const register = mode === "register";
   const [authEnabled, setAuthEnabled] = useState(false);
   const [statusLoading, setStatusLoading] = useState(true);
@@ -602,14 +610,75 @@ function CustomerAuthPage({ mode }: { mode: "register" | "login" }) {
         ) : (
           <div className="flex justify-center">
             {register
-              ? <SignUp routing="hash" signInUrl="/login" fallbackRedirectUrl="/" forceRedirectUrl="/" signInForceRedirectUrl="/" />
-              : <SignIn routing="hash" signUpUrl="/create-account" fallbackRedirectUrl="/" forceRedirectUrl="/" signUpForceRedirectUrl="/" />}
+              ? <SignUp routing="hash" signInUrl="/login" fallbackRedirectUrl={redirectTo} forceRedirectUrl={redirectTo} signInForceRedirectUrl={redirectTo} />
+              : <SignIn routing="hash" signUpUrl="/create-account" fallbackRedirectUrl={redirectTo} forceRedirectUrl={redirectTo} signUpForceRedirectUrl={redirectTo} />}
           </div>
         )}
       </section>
       <p className="mt-6 text-center text-xs leading-5 text-[#879188]">Your account protects your personal details and keeps your kitchen experience private.</p>
     </div>
   </main>;
+}
+
+
+function KitchenAssistantWidget({ basket, open, onOpenChange }: { basket: BasketLine[]; open: boolean; onOpenChange: (value: boolean) => void }) {
+  const [messages, setMessages] = useState<ChatMessage[]>([{ role: "assistant", content: "Welcome to Kitchen Assistant. How can we help you today?" }]);
+  const [input, setInput] = useState("");
+  const [busy, setBusy] = useState(false);
+  const endRef = useRef<HTMLDivElement>(null);
+  const quickQuestions = ["Check a dish price", "Show vegan options", "Where do you deliver?"];
+
+  useEffect(() => {
+    if (open) endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [open, messages, busy]);
+
+  const ask = async (rawQuestion: string) => {
+    const question = rawQuestion.trim();
+    if (!question || busy) return;
+    const next = [...messages, { role: "user" as const, content: question }];
+    setMessages(next);
+    setInput("");
+    if (/\b(basket|cart)\\b/i.test(question)) {
+      const answer = basket.length
+        ? `Your basket has ${basket.reduce((total, line) => total + line.quantity, 0)} item(s):\\n\\n${basket.map(({ item, quantity }) => `• ${quantity} × ${item.name} (${item.price === null ? "price to confirm" : money(item.price * quantity)})`).join("\\n")}\\n\\nSubtotal: ${money(basket.reduce((total, line) => total + (line.item.price ?? 0) * line.quantity, 0))}. Delivery is calculated separately.`
+        : "Your basket is empty at the moment.";
+      setMessages([...next, { role: "assistant", content: answer }]);
+      return;
+    }
+    setBusy(true);
+    try {
+      const response = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages: next.slice(-12) }) });
+      const body = await response.text();
+      if (!response.ok) {
+        let message = "The kitchen assistant is unavailable right now.";
+        try { message = JSON.parse(body).error ?? message; } catch { /* safe fallback */ }
+        throw new Error(message);
+      }
+      setMessages(current => [...current, { role: "assistant", content: body }]);
+    } catch (error) {
+      setMessages(current => [...current, { role: "assistant", content: error instanceof Error ? error.message : "The kitchen assistant is unavailable right now." }]);
+    } finally { setBusy(false); }
+  };
+  const submit = (event: FormEvent) => { event.preventDefault(); void ask(input); };
+
+  return <div className="dsk-assistant-widget">
+    {open && <section id="dsk-assistant-panel" className="dsk-assistant-panel" role="dialog" aria-label="Kitchen Assistant" aria-modal="false">
+      <header className="flex items-center justify-between gap-3 bg-[#21382d] px-4 py-4 text-white">
+        <div className="flex min-w-0 items-center gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#ffc94a] text-[#21382d]"><Flame size={20}/></span><span className="min-w-0"><strong className="block text-sm">Kitchen Assistant</strong><small className="text-xs text-white/65">Here to help with the kitchen</small></span></div>
+        <button type="button" onClick={() => onOpenChange(false)} aria-label="Close Kitchen Assistant" className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-white/80 transition hover:bg-white/10 hover:text-white"><X size={19}/></button>
+      </header>
+      <div className="dsk-assistant-messages flex-1 space-y-3 overflow-y-auto bg-[#fbf8f1] p-4" aria-live="polite">
+        {messages.map((message, index) => <div key={index} className={message.role === "user" ? "flex justify-end" : "flex justify-start"}><p className={message.role === "user" ? "max-w-[88%] whitespace-pre-line rounded-2xl rounded-br-sm bg-[#21382d] px-3.5 py-3 text-sm leading-5 text-white" : "max-w-[88%] whitespace-pre-line rounded-2xl rounded-bl-sm border border-[#e8e2d6] bg-white px-3.5 py-3 text-sm leading-5 text-[#29382d]"}>{message.content}</p></div>)}
+        {messages.length === 1 && <div className="flex flex-wrap gap-2">{quickQuestions.map(question => <button key={question} type="button" disabled={busy} onClick={() => void ask(question)} className="rounded-full border border-[#d8dfd5] bg-white px-3 py-2 text-[11px] font-semibold text-[#526a50] transition hover:border-[#e96d2c] disabled:opacity-50">{question}</button>)}</div>}
+        {busy && <p className="text-xs text-[#69766e]" role="status">Checking the latest kitchen information…</p>}<div ref={endRef}/>
+      </div>
+      <form onSubmit={submit} className="flex items-center gap-2 border-t border-[#eee9df] bg-white p-3">
+        <input value={input} onChange={event => setInput(event.target.value)} maxLength={2000} placeholder="Ask about dishes, prices or delivery…" aria-label="Message Kitchen Assistant" className="min-w-0 flex-1 rounded-xl bg-[#f4f1e9] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#ffc94a]"/>
+        <button type="submit" disabled={!input.trim() || busy} aria-label="Send message" className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#e96d2c] text-white transition hover:bg-[#cf5b25] disabled:opacity-45"><Send size={17}/></button>
+      </form>
+    </section>}
+    <button type="button" onClick={() => onOpenChange(!open)} aria-expanded={open} aria-controls="dsk-assistant-panel" className="dsk-assistant-launcher">{open ? <X size={19}/> : <MessageCircle size={20}/>}<span>{open ? "Close" : "Need help?"}</span>{!open && <span className="dsk-assistant-online-dot" aria-hidden="true"/>}</button>
+  </div>;
 }
 
 function StaffLoginPage() {
