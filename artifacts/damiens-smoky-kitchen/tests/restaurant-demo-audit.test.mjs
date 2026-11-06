@@ -35,6 +35,9 @@ test("homepage copy is restaurant-specific and the placeholder domain is gone", 
   const knowledge = await read("../src/chatbot/knowledge.ts");
   assert.match(app, /Nigerian favourites, made fresh in Ibafo\./);
   assert.match(app, /Cooked fresh in Ibafo\. Delivered across Lagos\./);
+  assert.match(app, /wa\\.me\\/2348032201672/);
+  assert.match(app, /tel:\\+2348032201672/);
+  assert.match(app, /Order on WhatsApp/);
   assert.doesNotMatch(app, /Good food\. No guesswork\.|Your next favourite meal is closer/);
   assert.doesNotMatch(knowledge, /DamienStore\.food\.com/);
   assert.match(knowledge, /https:\/\/damiens-kitchen\.adeoladaniel2906\.workers\.dev/);
