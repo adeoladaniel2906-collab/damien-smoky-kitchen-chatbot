@@ -23,7 +23,9 @@ test("menu actions route visitors through account creation before the menu", asy
 
 test("homepage hero uses a responsive flex layout and has no standalone signup CTA", async () => {
   const app = await read("../src/App.tsx");
-  assert.match(app, /flex flex-col items-stretch lg:min-h-\[420px\] lg:flex-row/);
+  assert.match(app, /flex flex-col items-stretch lg:min-h-\[252px\] lg:flex-row/);
+  assert.match(app, /relative min-h-\[160px\] flex-1 sm:min-h-\[180px\] lg:min-h-\[252px\]/);
+  assert.match(app, /sm:text-4xl/);
   assert.match(app, /flex min-w-0 flex-1 flex-col justify-center/);
   assert.doesNotMatch(app, /Create account to view menu/);
   assert.match(app, /A few customer favourites/);
