@@ -34,11 +34,11 @@ test("homepage hero uses a responsive flex layout and has no standalone signup C
 test("assistant opens as a full-screen view with a letter-by-letter welcome animation", async () => {
   const app = await read("../src/App.tsx");
   const css = await read("../src/index.css");
-  assert.match(app, /Array\\.from\\("WELCOME"\\)/);
+  assert.match(app, /Array\.from\("WELCOME"\)/);
   assert.match(app, /dsk-assistant-fullscreen/);
-  assert.match(app, /How can we be of help today\\?/);
+  assert.match(app, /How can we be of help today\?/);
   assert.match(app, /aria-modal="true"/);
-  assert.match(app, /event\\.key === "Escape"/);
+  assert.match(app, /event\.key === "Escape"/);
   assert.match(css, /@keyframes dsk-assistant-screen-enter/);
   assert.match(css, /@keyframes dsk-assistant-letter-in/);
   assert.match(css, /min-height: 4rem/);
