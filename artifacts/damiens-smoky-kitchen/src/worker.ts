@@ -174,7 +174,62 @@ function getLiveMenuFastReply(question: string, items: LiveMenuItem[]): string |
   return unique.map(item => `${item.name}: ${item.price === null ? "price not currently listed" : "₦" + item.price.toLocaleString("en-NG")}${item.isAvailable ? "" : " (currently unavailable)"}`).join("\n");
 }
 
-async function handleChat(request: Request, env: Env): Promise<Response> {
+type CustomerAssistantPreferences = {
+  dietaryPreference?: "vegan" | "vegetarian";
+  allergies: string[];
+  avoidIngredients: string[];
+};
+
+function cleanPreferenceList(values: string[]): string[] {
+  return Array.from(new Set(values.map(value => value.trim().toLowerCase()).filter(value => value.length > 1 && value.length <= 80))).slice(0, 20);
+}
+
+function parseCustomerPreferences(value: string | null): CustomerAssistantPreferences {
+  const empty: CustomerAssistantPreferences = { allergies: [], avoidIngredients: [] };
+  if (!value) return empty;
+  try {
+    const parsed = JSON.parse(value) as Partial<CustomerAssistantPreferences>;
+    return {
+      dietaryPreference: parsed.dietaryPreference === "vegan" || parsed.dietaryPreference === "vegetarian" ? parsed.dietaryPreference : undefined,
+      allergies: cleanPreferenceList(Array.isArray(parsed.allergies) ? parsed.allergies.filter((item): item is string => typeof item === "string") : []),
+      avoidIngredients: cleanPreferenceList(Array.isArray(parsed.avoidIngredients) ? parsed.avoidIngredients.filter((item): item is string => typeof item === "string") : []),
+    };
+  } catch { return empty; }
+}
+
+function extractCustomerPreferences(message: string): Partial<CustomerAssistantPreferences> {
+  const result: Partial<CustomerAssistantPreferences> = {};
+  if (/\b(?:i am|i'm|i follow|my diet is)\s+vegan\b/i.test(message)) result.dietaryPreference = "vegan";
+  else if (/\b(?:i am|i'm|i follow|my diet is)\s+vegetarian\b/i.test(message)) result.dietaryPreference = "vegetarian";
+  const allergy = message.match(/\b(?:i am allergic to|i'm allergic to|i have an allergy to|allergic to)\s+([^.!?\n]{2,80})/i);
+  if (allergy) result.allergies = cleanPreferenceList([allergy[1]]);
+  const avoid = message.match(/\b(?:i avoid|i dislike|i don't eat|i do not eat|please avoid)\s+([^.!?\n]{2,80})/i);
+  if (avoid) result.avoidIngredients = cleanPreferenceList([avoid[1]]);
+  return result;
+}
+
+async function loadAndUpdateCustomerPreferences(env: Env, clerkUserId: string, message: string): Promise<CustomerAssistantPreferences> {
+  const existing = await env.DB.prepare("SELECT preferences_json FROM assistant_customer_memory WHERE clerk_user_id = ?")
+    .bind(clerkUserId).first<{ preferences_json: string }>();
+  const preferences = parseCustomerPreferences(existing?.preferences_json ?? null);
+  if (/\bforget (?:all )?(?:my )?(?:saved )?(?:food )?preferences\b/i.test(message)) {
+    await env.DB.prepare("DELETE FROM assistant_customer_memory WHERE clerk_user_id = ?").bind(clerkUserId).run();
+    return { allergies: [], avoidIngredients: [] };
+  }
+  const extracted = extractCustomerPreferences(message);
+  const next: CustomerAssistantPreferences = {
+    dietaryPreference: extracted.dietaryPreference ?? preferences.dietaryPreference,
+    allergies: cleanPreferenceList([...preferences.allergies, ...(extracted.allergies ?? [])]),
+    avoidIngredients: cleanPreferenceList([...preferences.avoidIngredients, ...(extracted.avoidIngredients ?? [])]),
+  };
+  if (Object.keys(extracted).length > 0) {
+    await env.DB.prepare("INSERT INTO assistant_customer_memory (clerk_user_id, preferences_json) VALUES (?, ?) ON CONFLICT(clerk_user_id) DO UPDATE SET preferences_json = excluded.preferences_json, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')")
+      .bind(clerkUserId, JSON.stringify(next)).run();
+  }
+  return next;
+}
+
+async function handleChat(request: Request, env: Env, url: URL): Promise<Response> {
   const contentLength = Number(request.headers.get("content-length") ?? "0");
   if (contentLength > MAX_BODY_BYTES) {
     return Response.json({ error: "Request body is too large." }, { status: 413 });
@@ -256,6 +311,18 @@ async function handleChat(request: Request, env: Env): Promise<Response> {
     .find((message) => message.role === "user")?.content.trim();
   if (!question) return textResponse(unavailableReply);
 
+  let customerPreferences: CustomerAssistantPreferences | null = null;
+  if (request.headers.get("Authorization")?.startsWith("Bearer ")) {
+    try {
+      const identity = await getClerkIdentity(request, env, url);
+      if (!identity) return textResponse("Please sign in again to use your saved kitchen preferences.", 401);
+      customerPreferences = await loadAndUpdateCustomerPreferences(env, identity.userId, question);
+    } catch (error) {
+      console.error("Customer assistant memory lookup failed:", error);
+      return textResponse("We could not securely load your saved preferences. Please try again.", 503);
+    }
+  }
+
   // Menu questions read the current D1 catalogue. Never answer from bundled menu prices.
   const menuRelated = isMenuQuestion(question);
   let liveMenuRows: Awaited<ReturnType<typeof readMenu>> = [];
@@ -286,6 +353,7 @@ async function handleChat(request: Request, env: Env): Promise<Response> {
     const aiResponse = await env.AI.run(MODEL, {
       messages: [
         systemMessage,
+        ...(customerPreferences ? [{ role: "system" as const, content: "CUSTOMER PREFERENCES (user-stated; treat allergies and dietary restrictions as strict constraints): " + JSON.stringify(customerPreferences) }] : []),
         ...messages.filter((message) => message.role !== "system"),
       ],
     });
@@ -937,7 +1005,7 @@ export default {
 
     if (url.pathname === "/api/chat") {
       if (request.method === "OPTIONS") return withSecurityHeaders(new Response(null, { status: 204 }));
-      if (request.method === "POST") return withSecurityHeaders(await handleChat(request, env));
+      if (request.method === "POST") return withSecurityHeaders(await handleChat(request, env, url));
       return withSecurityHeaders(Response.json({ error: "Method not allowed." }, { status: 405 }));
     }
 

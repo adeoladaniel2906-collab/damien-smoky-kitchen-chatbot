@@ -23,7 +23,9 @@ test("menu actions route visitors through account creation before the menu", asy
 
 test("homepage hero uses a responsive flex layout and has no standalone signup CTA", async () => {
   const app = await read("../src/App.tsx");
-  assert.match(app, /flex flex-col items-stretch lg:min-h-\[420px\] lg:flex-row/);
+  assert.match(app, /flex flex-col items-stretch lg:min-h-\[252px\] lg:flex-row/);
+  assert.match(app, /relative min-h-\[160px\] flex-1 sm:min-h-\[180px\] lg:min-h-\[252px\]/);
+  assert.match(app, /sm:text-4xl/);
   assert.match(app, /flex min-w-0 flex-1 flex-col justify-center/);
   assert.doesNotMatch(app, /Create account to view menu/);
   assert.match(app, /A few customer favourites/);
@@ -53,4 +55,23 @@ test("menu questions use live D1 data and fail closed if lookup fails", async ()
   assert.match(worker, /LIVE DATABASE MENU/);
   assert.match(worker, /currently unavailable/);
   assert.match(worker, /Live menu lookup failed/);
+});
+
+test("assistant launcher remains fixed and floating while preserving the welcome animation", async () => {
+  const app = await read("../src/App.tsx");
+  const css = await read("../src/index.css");
+  assert.match(app, /return <div className="dsk-assistant-widget">[\s\S]*dsk-assistant-launcher/);
+  assert.match(css, /\.dsk-assistant-widget \{ position: fixed/);
+  assert.match(app, /Array\.from\("WELCOME"\)/);
+});
+
+test("assistant memory is keyed to verified customer identity and stores preferences rather than transcripts", async () => {
+  const worker = await read("../src/worker.ts");
+  const migration = await read("../migrations/0008_assistant_customer_memory.sql");
+  assert.match(worker, /getClerkIdentity\(request, env, url\)/);
+  assert.match(worker, /loadAndUpdateCustomerPreferences/);
+  assert.match(worker, /assistant_customer_memory/);
+  assert.match(worker, /CUSTOMER PREFERENCES/);
+  assert.match(migration, /clerk_user_id TEXT PRIMARY KEY/);
+  assert.doesNotMatch(migration, /conversation|transcript|messages_json/i);
 });

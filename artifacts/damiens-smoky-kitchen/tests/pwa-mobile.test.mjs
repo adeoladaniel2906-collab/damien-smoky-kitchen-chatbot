@@ -24,10 +24,10 @@ test("service worker caches the app shell but never caches API responses", async
 
 test("homepage hero is compact on mobile while retaining the larger desktop layout", async () => {
   const app = await read("../src/App.tsx");
-  assert.match(app, /flex flex-col items-stretch lg:min-h-\[420px\] lg:flex-row/);
-  assert.match(app, /relative min-h-\[220px\] flex-1 sm:min-h-\[300px\] lg:min-h-\[420px\]/);
-  assert.match(app, /p-5 sm:p-10 lg:p-14/);
-  assert.match(app, /sm:mt-5 sm:text-6xl/);
+  assert.match(app, /flex flex-col items-stretch lg:min-h-\[252px\] lg:flex-row/);
+  assert.match(app, /relative min-h-\[160px\] flex-1 sm:min-h-\[180px\] lg:min-h-\[252px\]/);
+  assert.match(app, /p-5 sm:p-7 lg:p-6/);
+  assert.match(app, /sm:mt-3 sm:text-4xl/);
 });
 
 test("menu basket stays visible above mobile safe areas and content can scroll clear of it", async () => {
