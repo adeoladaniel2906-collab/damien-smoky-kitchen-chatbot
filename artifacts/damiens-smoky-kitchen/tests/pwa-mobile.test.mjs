@@ -30,6 +30,15 @@ test("homepage hero is compact on mobile while retaining the larger desktop layo
   assert.match(app, /sm:mt-5 sm:text-6xl/);
 });
 
+test("menu basket stays visible above mobile safe areas and content can scroll clear of it", async () => {
+  const app = await read("../src/App.tsx");
+  const css = await read("../src/index.css");
+  assert.match(app, /dsk-basket-bar fixed/);
+  assert.match(app, /aria-live="polite"/);
+  assert.match(app, /pt-8 pb-32 sm:px-6/);
+  assert.match(css, /\.dsk-basket-bar \{ bottom: calc\(env\(safe-area-inset-bottom, 0px\) \+ 1rem\); \}/);
+});
+
 test("mobile viewport permits zoom and accounts for device safe areas", async () => {
   const html = await read("../index.html");
   const css = await read("../src/index.css");
