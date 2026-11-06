@@ -54,3 +54,22 @@ test("menu questions use live D1 data and fail closed if lookup fails", async ()
   assert.match(worker, /currently unavailable/);
   assert.match(worker, /Live menu lookup failed/);
 });
+
+test("assistant launcher remains fixed and floating while preserving the welcome animation", async () => {
+  const app = await read("../src/App.tsx");
+  const css = await read("../src/index.css");
+  assert.match(app, /return <div className="dsk-assistant-widget">[\\s\\S]*dsk-assistant-launcher/);
+  assert.match(css, /\\.dsk-assistant-widget \\{ position: fixed/);
+  assert.match(app, /Array\\.from\\("WELCOME"\\)/);
+});
+
+test("assistant memory is keyed to verified customer identity and stores preferences rather than transcripts", async () => {
+  const worker = await read("../src/worker.ts");
+  const migration = await read("../migrations/0008_assistant_customer_memory.sql");
+  assert.match(worker, /getClerkIdentity\\(request, env, url\\)/);
+  assert.match(worker, /loadAndUpdateCustomerPreferences/);
+  assert.match(worker, /assistant_customer_memory/);
+  assert.match(worker, /CUSTOMER PREFERENCES/);
+  assert.match(migration, /clerk_user_id TEXT PRIMARY KEY/);
+  assert.doesNotMatch(migration, /conversation|transcript|messages_json/i);
+});
