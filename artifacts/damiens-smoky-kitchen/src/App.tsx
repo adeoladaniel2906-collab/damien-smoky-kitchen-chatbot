@@ -507,6 +507,7 @@ function CheckoutPage({ basket, change, remove, clear }: { basket: BasketLine[];
   const [busy, setBusy] = useState(false);
   const [ordersEnabled, setOrdersEnabled] = useState(false);
   const [orderStatusLoading, setOrderStatusLoading] = useState(true);
+  const [orderStatusError, setOrderStatusError] = useState(false);
   const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
   const [confirmation, setConfirmation] = useState<{ orderId: string; message: string } | null>(null);
 
@@ -515,7 +516,7 @@ function CheckoutPage({ basket, change, remove, clear }: { basket: BasketLine[];
     fetch('/api/orders/status', { cache: 'no-store' })
       .then(response => response.ok ? response.json() : Promise.reject(new Error('Checkout status unavailable')))
       .then(result => { if (active) setOrdersEnabled(result.enabled === true); })
-      .catch(() => { if (active) setOrdersEnabled(false); })
+      .catch(() => { if (active) { setOrdersEnabled(false); setOrderStatusError(true); } })
       .finally(() => { if (active) setOrderStatusLoading(false); });
     return () => { active = false; };
   }, []);
@@ -551,7 +552,7 @@ function CheckoutPage({ basket, change, remove, clear }: { basket: BasketLine[];
         <div className="flex justify-between border-b border-[#eee9df] pb-4"><span className="text-sm">Food subtotal</span><strong>{money(subtotal)}</strong></div>
         <p className="py-4 text-xs leading-5 text-[#69766e]">Minimum delivery order: {money(restaurantKnowledge.minimumDeliveryOrder)}. Delivery is limited to Lagos State.</p>
         {!meetsMinimum && <p className="mb-4 rounded-xl bg-[#fff0e5] p-3 text-xs text-[#8b401d]">Add {money(restaurantKnowledge.minimumDeliveryOrder - subtotal)} more to meet the delivery minimum.</p>}
-        {orderStatusLoading ? <p className="rounded-xl bg-[#e8eee6] p-4 text-xs leading-5 text-[#52645a]">Checking secure checkout availability…</p> : !ordersEnabled ? <div className="rounded-xl bg-[#e8eee6] p-4 text-sm leading-6 text-[#52645a]"><strong className="block text-[#21382d]">Online ordering is temporarily unavailable.</strong><p className="mt-2">We are completing the data-protection and secure order-processing setup. Your name, phone number and delivery address are not being requested or submitted here. You can still browse the menu.</p></div> : <form onSubmit={submitOrder} className="space-y-3">
+        {orderStatusLoading ? <p className="rounded-xl bg-[#e8eee6] p-4 text-xs leading-5 text-[#52645a]" role="status">Checking secure checkout availability…</p> : orderStatusError ? <div className="rounded-xl bg-[#fff0e5] p-4 text-sm leading-6 text-[#8b401d]" role="alert"><strong className="block text-[#21382d]">We could not check checkout availability.</strong><p className="mt-2">Your basket is safe. Check your connection and reload this page before trying again.</p></div> : !ordersEnabled ? <div className="rounded-xl bg-[#e8eee6] p-4 text-sm leading-6 text-[#52645a]"><strong className="block text-[#21382d]">Online ordering is temporarily unavailable.</strong><p className="mt-2">We are completing the data-protection and secure order-processing setup. Your name, phone number and delivery address are not being requested or submitted here. You can still browse the menu.</p></div> : <form onSubmit={submitOrder} className="space-y-3">
           <label className="block text-xs font-semibold">Your name<input required maxLength={100} value={name} onChange={(event) => setName(event.target.value)} className="mt-1 w-full rounded-xl bg-[#f0ece2] px-3 py-3 text-sm font-normal outline-none focus:ring-2 focus:ring-[#e96d2c]"/></label>
           <label className="block text-xs font-semibold">Phone number<input required maxLength={24} value={phone} onChange={(event) => setPhone(event.target.value)} className="mt-1 w-full rounded-xl bg-[#f0ece2] px-3 py-3 text-sm font-normal outline-none focus:ring-2 focus:ring-[#e96d2c]"/></label>
           <label className="block text-xs font-semibold">Delivery address in Lagos<input required maxLength={300} value={address} onChange={(event) => setAddress(event.target.value)} className="mt-1 w-full rounded-xl bg-[#f0ece2] px-3 py-3 text-sm font-normal outline-none focus:ring-2 focus:ring-[#e96d2c]"/></label>
@@ -619,11 +620,12 @@ function StaffLoginPage() {
   const [busy, setBusy] = useState(false);
   const [staffEnabled, setStaffEnabled] = useState(false);
   const [statusLoading, setStatusLoading] = useState(true);
+  const [statusError, setStatusError] = useState(false);
   useEffect(() => {
     let active = true;
-    fetch("/api/auth/status", { cache: "no-store" }).then(response => response.json()).then(result => {
+    fetch("/api/auth/status", { cache: "no-store" }).then(response => response.ok ? response.json() : Promise.reject(new Error("Staff status unavailable"))).then(result => {
       if (active) setStaffEnabled(result.staffEnabled === true);
-    }).catch(() => { if (active) setStaffEnabled(false); }).finally(() => { if (active) setStatusLoading(false); });
+    }).catch(() => { if (active) { setStaffEnabled(false); setStatusError(true); } }).finally(() => { if (active) setStatusLoading(false); });
     return () => { active = false; };
   }, []);
   const submit = async (event: FormEvent) => {
@@ -639,7 +641,7 @@ function StaffLoginPage() {
     finally { setBusy(false); }
   };
   return <AuthShell title="Administrator & staff sign in" subtitle="Private staff access. Use your authorised account password and six-digit authenticator code.">
-    {statusLoading ? <p className="mt-6 text-sm text-[#69766e]">Checking staff access…</p> : !staffEnabled ? <div className="mt-6 rounded-2xl bg-[#e8eee6] p-4 text-sm leading-6 text-[#52645a]"><strong className="block text-[#21382d]">Staff sign-in is not enabled yet.</strong><span className="mt-2 block">The administrator must configure the staff password and authenticator secret, then benchmark the Worker password-hashing workload before access can be enabled.</span></div> : <form onSubmit={submit} className="mt-7 space-y-4">
+    {statusLoading ? <p className="mt-6 text-sm text-[#69766e]" role="status">Checking staff access…</p> : statusError ? <div className="mt-6 rounded-2xl bg-[#fff0e5] p-4 text-sm leading-6 text-[#8b401d]" role="alert"><strong className="block text-[#21382d]">We could not check staff sign-in.</strong><span className="mt-2 block">Check your connection and try again. This does not necessarily mean staff access is disabled.</span><button type="button" onClick={() => window.location.reload()} className="mt-3 rounded-lg bg-white px-3 py-2 text-xs font-bold text-[#8b401d]">Try again</button></div> : !staffEnabled ? <div className="mt-6 rounded-2xl bg-[#e8eee6] p-4 text-sm leading-6 text-[#52645a]"><strong className="block text-[#21382d]">Staff sign-in is not enabled yet.</strong><span className="mt-2 block">The administrator must configure the staff password and authenticator secret, then benchmark the Worker password-hashing workload before access can be enabled.</span></div> : <form onSubmit={submit} className="mt-7 space-y-4">
       <label className="block text-xs font-semibold">Authorised staff email<input required type="email" autoComplete="username" value={email} onChange={e => setEmail(e.target.value)} className="mt-1.5 w-full rounded-xl border border-[#e5dfd3] bg-[#fbf8f1] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#e96d2c]"/></label>
       <label className="block text-xs font-semibold">Password<input required type="password" autoComplete="current-password" minLength={12} maxLength={128} value={password} onChange={e => setPassword(e.target.value)} className="mt-1.5 w-full rounded-xl border border-[#e5dfd3] bg-[#fbf8f1] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#e96d2c]"/></label>
       <label className="block text-xs font-semibold">Authenticator code<input required type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={totpCode} onChange={e => setTotpCode(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="6-digit code" className="mt-1.5 w-full rounded-xl border border-[#e5dfd3] bg-[#fbf8f1] px-3 py-3 text-sm tracking-[0.25em] outline-none focus:ring-2 focus:ring-[#e96d2c]"/><span className="mt-1 block text-[11px] font-normal text-[#7b887f]">Open your authenticator app to get the current code.</span></label>
