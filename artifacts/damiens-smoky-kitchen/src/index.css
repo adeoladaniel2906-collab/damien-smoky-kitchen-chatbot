@@ -585,13 +585,34 @@ body { background: #f7f8f4; color: #26372c; }
   .dsk-menu-motion__copy { animation: none; }
 }
 
-/* Floating Kitchen Assistant launcher and animated help panel. */
-.dsk-assistant-widget { position: fixed; right: max(1rem, env(safe-area-inset-right, 0px)); bottom: calc(env(safe-area-inset-bottom, 0px) + 1rem); z-index: 70; display: flex; flex-direction: column; align-items: flex-end; gap: .75rem; }
-.dsk-assistant-launcher { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: .55rem; min-height: 3.25rem; padding: .85rem 1.1rem; border: 1px solid rgba(255,255,255,.18); border-radius: 999px; color: #fff; background: #21382d; box-shadow: 0 12px 32px rgba(23,45,33,.28); font-size: .82rem; font-weight: 750; transition: transform 180ms ease, background 180ms ease, box-shadow 180ms ease; }
-.dsk-assistant-launcher:hover { transform: translateY(-2px); background: #315541; box-shadow: 0 16px 36px rgba(23,45,33,.32); }
-.dsk-assistant-online-dot { position: absolute; top: .2rem; right: .25rem; width: .55rem; height: .55rem; border: 2px solid #21382d; border-radius: 50%; background: #ffc94a; }
-.dsk-assistant-panel { display: flex; flex-direction: column; width: min(24rem, calc(100vw - 2rem)); height: min(34rem, calc(100dvh - 7.5rem)); overflow: hidden; border: 1px solid #e8e2d6; border-radius: 1.4rem; background: #fff; box-shadow: 0 24px 70px rgba(23,45,33,.25); transform-origin: bottom right; animation: dsk-assistant-open 320ms cubic-bezier(.16,1,.3,1) both; }
-.dsk-assistant-messages { min-height: 0; }
-@keyframes dsk-assistant-open { from { opacity: 0; transform: translateY(18px) scale(.94); } to { opacity: 1; transform: translateY(0) scale(1); } }
-@media (max-width: 480px) { .dsk-assistant-widget { right: .75rem; bottom: calc(env(safe-area-inset-bottom, 0px) + .75rem); } .dsk-assistant-panel { width: calc(100vw - 1.5rem); height: min(36rem, calc(100dvh - 6.5rem)); } }
-@media (prefers-reduced-motion: reduce) { .dsk-assistant-panel { animation: none; } .dsk-assistant-launcher { transition: none; } }
+/* Full-screen Kitchen Assistant experience with a letter-by-letter welcome reveal. */
+.dsk-assistant-widget { position: fixed; right: max(1.1rem, env(safe-area-inset-right, 0px)); bottom: calc(env(safe-area-inset-bottom, 0px) + 1.1rem); z-index: 70; }
+.dsk-assistant-launcher { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: .7rem; min-height: 4rem; padding: 1rem 1.55rem; border: 1px solid rgba(255,255,255,.2); border-radius: 999px; color: #fff; background: #21382d; box-shadow: 0 14px 36px rgba(23,45,33,.32); font-size: .98rem; font-weight: 800; letter-spacing: .01em; transition: transform 180ms ease, background 180ms ease, box-shadow 180ms ease; }
+.dsk-assistant-launcher svg { width: 24px; height: 24px; }
+.dsk-assistant-launcher:hover { transform: translateY(-3px); background: #315541; box-shadow: 0 18px 42px rgba(23,45,33,.36); }
+.dsk-assistant-online-dot { position: absolute; top: .3rem; right: .35rem; width: .65rem; height: .65rem; border: 2px solid #21382d; border-radius: 50%; background: #ffc94a; }
+.dsk-assistant-fullscreen { position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column; width: 100vw; height: 100vh; height: 100dvh; overflow: hidden; background: #fbf8f1; animation: dsk-assistant-screen-enter 480ms cubic-bezier(.2,.8,.2,1) both; }
+.dsk-assistant-topbar { position: relative; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: max(1rem, env(safe-area-inset-top, 0px)) max(1.25rem, env(safe-area-inset-right, 0px)) 1rem max(1.25rem, env(safe-area-inset-left, 0px)); border-bottom: 1px solid #e9e4d9; background: rgba(255,255,255,.86); backdrop-filter: blur(14px); }
+.dsk-assistant-brand { display: inline-flex; align-items: center; gap: .7rem; color: #21382d; font-size: .88rem; font-weight: 600; text-decoration: none; }
+.dsk-assistant-brand b { font-weight: 850; }
+.dsk-assistant-brand-mark { display: grid; width: 2.5rem; height: 2.5rem; place-items: center; border-radius: .85rem; background: #ffc94a; color: #21382d; }
+.dsk-assistant-close { display: inline-flex; min-height: 2.75rem; align-items: center; justify-content: center; gap: .45rem; border: 1px solid #e4dfd4; border-radius: 999px; background: #fff; padding: .65rem 1rem; color: #34483a; font-size: .82rem; font-weight: 700; }
+.dsk-assistant-stage { display: flex; flex: 1; min-height: 0; overflow-y: auto; justify-content: center; padding: clamp(2rem, 7vh, 5.5rem) 1.25rem max(2rem, env(safe-area-inset-bottom, 0px)); background: radial-gradient(ellipse at 50% 0%, rgba(255,201,74,.2), transparent 46%), #fbf8f1; }
+.dsk-assistant-intro { display: flex; width: min(100%, 52rem); flex-direction: column; align-items: center; text-align: center; }
+.dsk-assistant-eyebrow { color: #8a6c36; font-size: .72rem; font-weight: 850; letter-spacing: .22em; animation: dsk-assistant-fade-up 650ms 100ms both; }
+.dsk-assistant-welcome { display: flex; gap: clamp(.1rem, 1.2vw, .65rem); margin: 1.1rem 0 .2rem; color: #21382d; font-size: clamp(3.3rem, 12vw, 7.5rem); font-weight: 950; line-height: 1; letter-spacing: .035em; }
+.dsk-assistant-letter { display: inline-block; opacity: 0; transform: translateY(35px) rotateX(-65deg) scale(.75); animation: dsk-assistant-letter-in 600ms cubic-bezier(.16,1,.3,1) forwards; }
+.dsk-assistant-title { margin-top: .8rem; color: #26372c; font-size: clamp(1.65rem, 5vw, 3.15rem); font-weight: 850; letter-spacing: -.045em; animation: dsk-assistant-fade-up 700ms 1.1s both; }
+.dsk-assistant-title span { color: #e96d2c; }
+.dsk-assistant-prompt { margin-top: .8rem; color: #69766e; font-size: clamp(1rem, 2.5vw, 1.25rem); opacity: 0; transform: translateY(12px); transition: opacity 550ms ease, transform 550ms ease; }
+.dsk-assistant-prompt.is-visible { opacity: 1; transform: translateY(0); }
+.dsk-assistant-chat-area { width: min(100%, 43rem); margin-top: 1.8rem; opacity: 0; transform: translateY(16px); transition: opacity 650ms ease, transform 650ms ease; }
+.dsk-assistant-chat-area.is-visible { opacity: 1; transform: translateY(0); }
+.dsk-assistant-conversation { display: flex; max-height: min(36vh, 20rem); flex-direction: column; gap: .85rem; overflow-y: auto; padding: .5rem .25rem 1rem; text-align: left; }
+.dsk-assistant-composer { display: flex; align-items: center; gap: .65rem; border: 1px solid #e5dfd3; border-radius: 1.25rem; background: #fff; padding: .55rem .65rem .55rem 1rem; box-shadow: 0 12px 32px rgba(33,56,45,.08); }
+.dsk-assistant-composer:focus-within { border-color: #d99b39; box-shadow: 0 0 0 3px rgba(255,201,74,.2); }
+@keyframes dsk-assistant-screen-enter { from { opacity: 0; clip-path: inset(8% 8% 8% 8% round 2rem); transform: scale(.97); } to { opacity: 1; clip-path: inset(0 0 0 0 round 0); transform: scale(1); } }
+@keyframes dsk-assistant-letter-in { 0% { opacity: 0; transform: translateY(35px) rotateX(-65deg) scale(.75); filter: blur(8px); } 65% { opacity: 1; filter: blur(0); } 100% { opacity: 1; transform: translateY(0) rotateX(0) scale(1); filter: blur(0); } }
+@keyframes dsk-assistant-fade-up { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+@media (max-width: 480px) { .dsk-assistant-widget { right: .8rem; bottom: calc(env(safe-area-inset-bottom, 0px) + .8rem); } .dsk-assistant-launcher { min-height: 4.15rem; padding: 1.05rem 1.4rem; font-size: 1rem; } .dsk-assistant-stage { padding-top: 12vh; } .dsk-assistant-conversation { max-height: 34vh; } }
+@media (prefers-reduced-motion: reduce) { .dsk-assistant-fullscreen, .dsk-assistant-letter, .dsk-assistant-eyebrow, .dsk-assistant-title { animation: none; opacity: 1; transform: none; filter: none; } .dsk-assistant-prompt, .dsk-assistant-chat-area { opacity: 1; transform: none; transition: none; } .dsk-assistant-launcher { transition: none; } }
