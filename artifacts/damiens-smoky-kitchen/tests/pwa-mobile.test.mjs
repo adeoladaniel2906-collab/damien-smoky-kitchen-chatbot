@@ -24,8 +24,8 @@ test("service worker caches the app shell but never caches API responses", async
 
 test("homepage hero is compact on mobile while retaining the larger desktop layout", async () => {
   const app = await read("../src/App.tsx");
-  assert.match(app, /grid min-h-0 lg:min-h-\[360px\] lg:grid-cols/);
-  assert.match(app, /relative min-h-\[180px\] sm:min-h-\[260px\] lg:min-h-full/);
+  assert.match(app, /flex flex-col items-stretch lg:min-h-\[420px\] lg:flex-row/);
+  assert.match(app, /relative min-h-\[220px\] flex-1 sm:min-h-\[300px\] lg:min-h-\[420px\]/);
   assert.match(app, /p-5 sm:p-10 lg:p-14/);
   assert.match(app, /sm:mt-5 sm:text-6xl/);
 });
