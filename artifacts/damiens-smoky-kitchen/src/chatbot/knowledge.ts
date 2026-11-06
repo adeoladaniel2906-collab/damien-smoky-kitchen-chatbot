@@ -37,6 +37,7 @@ Restaurant information:
 - Opening hours: 9:00 AM – 9:00 PM
 - Orders: Customers can order through the website or WhatsApp.
 - WhatsApp: 080 32 20 16 72
+- Website: https://damiens-kitchen.adeoladaniel2906.workers.dev
 - Delivery: Delivery is within Lagos State.
 - Minimum delivery order: ₦3,000.
 - Delivery fee: Depends on location/distance. Do not invent a delivery fee.
@@ -347,7 +348,7 @@ export const restaurantKnowledge = {
   openingHours: "9:00 AM – 9:00 PM",
   ordering: "Customers can order through the website or WhatsApp.",
   phone: "080 32 20 16 72",
-  website: "https://damien-smoky-kitchen-chatbot54.adeoladaniel2906.workers.dev",
+  website: "https://damiens-kitchen.adeoladaniel2906.workers.dev",
   location: "The Motorcycle Drive, Papa Olonrisa, Ibafo, Ogun State",
   delivery: "Delivery is within Lagos State.",
   minimumDeliveryOrder: 3000,
