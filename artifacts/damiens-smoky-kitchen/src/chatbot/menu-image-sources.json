@@ -669,12 +669,12 @@
   },
   {
     "menuItemId": "Drinks:Coke 35cl:400",
-    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Glass%20of%20Coca-Cola.jpg?width=1200",
-    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Glass_of_Coca-Cola.jpg",
-    "author": "Loupeznik",
-    "license": "CC BY-SA 3.0",
-    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/",
-    "alt": "A chilled glass of Coca-Cola with the logo"
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Coca-Cola%20Bottle.jpeg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Coca-Cola_Bottle.jpeg",
+    "author": "Nicereddy",
+    "license": "CC0 1.0",
+    "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "alt": "A classic glass Coca-Cola bottle photographed on its own"
   },
   {
     "menuItemId": "Drinks:Coke 50cl:600",
