@@ -309,18 +309,18 @@ function Home({ onBrowse, onOpenAssistant, menuItems }: { onBrowse: (query?: str
   return <main className="bg-[#f7f8f4]">
     <section className="mx-auto max-w-7xl px-4 pb-5 pt-5 sm:px-6">
       <div className="overflow-hidden rounded-[2rem] bg-[#ffc94a]">
-        <div className="flex flex-col items-stretch lg:min-h-[420px] lg:flex-row">
-          <div className="flex min-w-0 flex-1 flex-col justify-center p-5 sm:p-10 lg:p-14">
+        <div className="flex flex-col items-stretch lg:min-h-[252px] lg:flex-row">
+          <div className="flex min-w-0 flex-1 flex-col justify-center p-5 sm:p-7 lg:p-6">
             <span className="w-fit rounded-full bg-white/70 px-3 py-1.5 text-xs font-bold text-[#26372c]">DAMIEN'S SMOKY KITCHEN · IBAFO</span>
-            <h1 className="mt-3 max-w-xl text-3xl font-extrabold leading-[1.02] tracking-tight text-[#202a23] sm:mt-5 sm:text-6xl">Your next favourite meal is closer.</h1>
-            <p className="mt-3 max-w-md text-sm leading-6 text-[#39463b] sm:mt-4 sm:text-base sm:leading-7">Nigerian favourites, freshly prepared. Explore the menu, add your picks and review your basket in a few taps.</p>
-            <div className="mt-5 flex flex-wrap gap-3 sm:mt-7">
-              <button onClick={() => onBrowse()} className="inline-flex items-center gap-2 rounded-full bg-[#26372c] px-6 py-3.5 text-sm font-bold text-white transition hover:bg-[#3c5543]">Explore the menu <ArrowRight size={17}/></button>
-              <Link href="/delivery" className="inline-flex items-center gap-2 rounded-full border border-[#26372c]/25 bg-white/55 px-6 py-3.5 text-sm font-bold text-[#26372c] hover:bg-white/80">Delivery information</Link>
+            <h1 className="mt-2 max-w-xl text-3xl font-extrabold leading-[1.02] tracking-tight text-[#202a23] sm:mt-3 sm:text-4xl">Your next favourite meal is closer.</h1>
+            <p className="mt-2 max-w-md text-sm leading-5 text-[#39463b] sm:mt-2 sm:text-sm sm:leading-6">Nigerian favourites, freshly prepared. Explore the menu, add your picks and review your basket in a few taps.</p>
+            <div className="mt-3 flex flex-wrap gap-2 sm:mt-4">
+              <button onClick={() => onBrowse()} className="inline-flex items-center gap-2 rounded-full bg-[#26372c] px-5 py-2.5 text-sm font-bold text-white transition hover:bg-[#3c5543]">Explore the menu <ArrowRight size={17}/></button>
+              <Link href="/delivery" className="inline-flex items-center gap-2 rounded-full border border-[#26372c]/25 bg-white/55 px-5 py-2.5 text-sm font-bold text-[#26372c] hover:bg-white/80">Delivery information</Link>
             </div>
-            <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-xs font-semibold text-[#39463b] sm:mt-8"><span className="inline-flex items-center gap-1.5"><Clock3 size={14}/> Daily, 9 AM–9 PM</span><span className="inline-flex items-center gap-1.5"><Truck size={14}/> Lagos delivery</span><span className="inline-flex items-center gap-1.5"><MapPin size={14}/> Ibafo, Ogun State</span></div>
+            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-[11px] font-semibold text-[#39463b] sm:mt-3"><span className="inline-flex items-center gap-1.5"><Clock3 size={14}/> Daily, 9 AM–9 PM</span><span className="inline-flex items-center gap-1.5"><Truck size={14}/> Lagos delivery</span><span className="inline-flex items-center gap-1.5"><MapPin size={14}/> Ibafo, Ogun State</span></div>
           </div>
-          <div className="relative min-h-[220px] flex-1 sm:min-h-[300px] lg:min-h-[420px]">
+          <div className="relative min-h-[160px] flex-1 sm:min-h-[180px] lg:min-h-[252px]">
             <img src={photoUrl} alt="Freshly prepared Nigerian food served at a table" className="absolute inset-0 h-full w-full object-cover"/>
             <div className="absolute inset-0 bg-gradient-to-t from-[#172c21]/25 to-transparent"/>
             <div className="absolute bottom-5 left-5 rounded-2xl bg-white/95 px-4 py-3 shadow-lg backdrop-blur-sm sm:bottom-7 sm:left-7"><p className="text-[10px] font-bold uppercase tracking-widest text-[#68786e]">Made with care</p><p className="mt-1 text-sm font-extrabold text-[#26372c]">Good food. No guesswork.</p></div>
