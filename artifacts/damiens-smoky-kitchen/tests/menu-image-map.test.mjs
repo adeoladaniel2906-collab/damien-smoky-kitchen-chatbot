@@ -62,7 +62,7 @@ test("every homepage category card can use a distinct assigned food photograph",
   const photographedCategories = new Set(Object.keys(map).map((id) => id.split(":")[0].replace(/^Vegan /, "")));
   assert.deepEqual([...categories].filter((category) => !photographedCategories.has(category)), []);
   assert.match(app, /menuItems\.find\(\(item\) => item\.displayCategory === category && menuPhotoFor\(item\)\)/);
-  assert.match(app, /photo \? <img src=\{photo\.url\} alt=\{""\} loading="lazy"/);
+  assert.match(app, /photo \? <img src=\{photo\.url\} alt="" loading="lazy"/);
 });
 
 test("menu entries without verified matching photographs keep unique branded illustrations", async () => {
