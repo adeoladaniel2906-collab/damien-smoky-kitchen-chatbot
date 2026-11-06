@@ -632,7 +632,6 @@ function KitchenAssistantWidget({ basket, open, onOpenChange }: { basket: Basket
 
   useEffect(() => {
     if (!open) { setIntroFinished(false); return; }
-    setMessages(current => current.length ? current : [{ role: "assistant", content: "Welcome to Kitchen Assistant. How can we be of help today?" }]);
     const timer = window.setTimeout(() => setIntroFinished(true), 2600);
     return () => window.clearTimeout(timer);
   }, [open]);
@@ -699,7 +698,7 @@ function KitchenAssistantWidget({ basket, open, onOpenChange }: { basket: Basket
           <div className={"dsk-assistant-chat-area " + (introFinished ? "is-visible" : "")}>
             <div className="dsk-assistant-conversation" aria-live="polite">
               {messages.map((message, index) => <div key={index} className={message.role === "user" ? "flex justify-end" : "flex justify-start"}><p className={message.role === "user" ? "max-w-[88%] whitespace-pre-line rounded-2xl rounded-br-sm bg-[#21382d] px-4 py-3 text-sm leading-6 text-white" : "max-w-[88%] whitespace-pre-line rounded-2xl rounded-bl-sm border border-[#e8e2d6] bg-white px-4 py-3 text-sm leading-6 text-[#29382d]"}>{message.content}</p></div>)}
-              {messages.length === 1 && <div className="flex flex-wrap gap-2">{quickQuestions.map(question => <button key={question} type="button" disabled={busy} onClick={() => void ask(question)} className="rounded-full border border-[#d8dfd5] bg-white px-4 py-2.5 text-xs font-semibold text-[#526a50] transition hover:border-[#e96d2c] disabled:opacity-50">{question}</button>)}</div>}
+              {messages.length === 0 && <div className="flex flex-wrap gap-2">{quickQuestions.map(question => <button key={question} type="button" disabled={busy} onClick={() => void ask(question)} className="rounded-full border border-[#d8dfd5] bg-white px-4 py-2.5 text-xs font-semibold text-[#526a50] transition hover:border-[#e96d2c] disabled:opacity-50">{question}</button>)}</div>}
               {busy && <p className="text-sm text-[#69766e]" role="status">Checking the latest kitchen information…</p>}<div ref={endRef}/>
             </div>
             <form onSubmit={submit} className="dsk-assistant-composer">
