@@ -505,12 +505,12 @@
   },
   {
     "menuItemId": "Rice:Fried Rice:1600",
-    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/A%20plate%20of%20Assorted%20fried%20rice.jpg?width=1200",
-    "sourceUrl": "https://commons.wikimedia.org/wiki/File:A_plate_of_Assorted_fried_rice.jpg",
-    "author": "Maame1Yaa",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Fried%20rice%2C%20chicken%20and%20dipping%20sauce.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Fried_rice,_chicken_and_dipping_sauce.jpg",
+    "author": "Catherine Amia",
     "license": "CC BY-SA 4.0",
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
-    "alt": "A plate of assorted fried rice"
+    "alt": "Nigerian fried rice served with chicken and dipping sauce"
   },
   {
     "menuItemId": "Vegan Rice:Vegan Fried Rice:1300",
@@ -669,21 +669,21 @@
   },
   {
     "menuItemId": "Drinks:Coke 35cl:400",
-    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Coca-Cola%20Bottle.jpg?width=1200",
-    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Coca-Cola_Bottle.jpg",
-    "author": "Ayakln",
-    "license": "CC BY-SA 4.0",
-    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
-    "alt": "A Coca-Cola bottle"
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Coca-Cola%20Bottle.jpeg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Coca-Cola_Bottle.jpeg",
+    "author": "Nicereddy",
+    "license": "CC0 1.0",
+    "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "alt": "A classic glass Coca-Cola bottle photographed on its own"
   },
   {
     "menuItemId": "Drinks:Coke 50cl:600",
-    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Coca-cola%20bottle.jpg?width=1200",
-    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Coca-cola_bottle.jpg",
-    "author": "Oleg Yunakov",
-    "license": "CC BY-SA 4.0",
-    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
-    "alt": "A classic glass Coca-Cola bottle"
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Glass%20of%20Cola.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Glass_of_Cola.jpg",
+    "author": "pic_p_ter",
+    "license": "Public domain",
+    "licenseUrl": "https://commons.wikimedia.org/wiki/Commons:Licensing",
+    "alt": "A glass of cola served with ice and lemon"
   },
   {
     "menuItemId": "Drinks:Fanta 35cl:400",
@@ -948,21 +948,21 @@
   },
   {
     "menuItemId": "Alcoholic Drinks:Heineken:900",
-    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Green%20bottle%20of%20Heineken.JPG?width=1200",
-    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Green_bottle_of_Heineken.JPG",
-    "author": "Nicholas Gemini",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Heineken%20Bottle.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Heineken_Bottle.jpg",
+    "author": "Uttamstef12",
     "license": "CC BY-SA 3.0",
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/",
-    "alt": "A green bottle of Heineken beer"
+    "alt": "A standalone 330 ml Heineken bottle"
   },
   {
     "menuItemId": "Alcoholic Drinks:Guinness:900",
-    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Guinness.Original.Stout.2012.JPG?width=1200",
-    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Guinness.Original.Stout.2012.JPG",
-    "author": "LeeKeoma",
-    "license": "CC0 1.0",
-    "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
-    "alt": "A bottle of Guinness Original Stout"
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Nigerian-Guinness-front.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Nigerian-Guinness-front.jpg",
+    "author": "Pete Verdon",
+    "license": "CC BY 2.5",
+    "licenseUrl": "https://creativecommons.org/licenses/by/2.5/",
+    "alt": "A Nigerian Guinness stout bottle photographed from the front"
   },
   {
     "menuItemId": "Alcoholic Drinks:Smirnoff Ice:1000",

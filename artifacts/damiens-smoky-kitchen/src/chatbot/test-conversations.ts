@@ -199,7 +199,7 @@ const conversations = [
       "No dedicated kids menu is currently available",
       "Our recommended dishes include",
       "Tell us about dietary restrictions when ordering",
-      "DamienStore.food.com",
+      "https://damiens-kitchen.adeoladaniel2906.workers.dev",
       "updated periodically",
       "Menu prices vary",
       "Dessert information isn't currently available",
@@ -238,7 +238,7 @@ const conversations = [
       "discounts are not guaranteed",
       "latest news and offers",
       "080 32 20 16 72",
-      "DamienStore.food.com",
+      "https://damiens-kitchen.adeoladaniel2906.workers.dev",
     ],
   },
 ];

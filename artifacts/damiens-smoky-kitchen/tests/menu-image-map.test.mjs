@@ -29,7 +29,9 @@ test("menu photos are unique, attributed, licensed and attached only to matching
     ["CC BY-SA 2.0", "https://creativecommons.org/licenses/by-sa/2.0/"],
     ["CC BY 3.0", "https://creativecommons.org/licenses/by/3.0/"],
     ["CC BY 2.0", "https://creativecommons.org/licenses/by/2.0/"],
+    ["CC BY 2.5", "https://creativecommons.org/licenses/by/2.5/"],
     ["CC0 1.0", "https://creativecommons.org/publicdomain/zero/1.0/"],
+    ["Public domain", "https://commons.wikimedia.org/wiki/Commons:Licensing"],
   ]);
   const sourceById = new Map(sources.map((source) => [source.menuItemId, source]));
 
@@ -52,6 +54,8 @@ test("menu photos are unique, attributed, licensed and attached only to matching
   assert.match(app, /menuImageCredit\(item\)/);
   assert.match(app, /menuPhotoFor\(item\)\?\.url \?\? menuIllustration\(item\)/);
   assert.ok(map["Rice:Jollof Rice:800"].sourceUrl.includes("A_Nigeria_Jollof_Rice_with_chicken.jpg"), "restore the original Nigerian jollof photograph");
+  assert.ok(map["Rice:Jollof Rice:1500"], "large Jollof Rice must have its own verified photograph");
+  assert.ok(map["Rice:Fried Rice:1600"], "large Fried Rice must have its own verified photograph");
 });
 
 test("every homepage category card can use a distinct assigned food photograph", async () => {
