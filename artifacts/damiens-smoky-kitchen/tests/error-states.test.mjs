@@ -14,7 +14,9 @@ test("offline, broken-image, empty-search and empty-basket states are visible", 
 
 test("customer pages require sign-in while staff routes use their separate login", async () => {
   const app = await read("../src/App.tsx");
-  assert.match(app, /if \(!isStaffArea && !isPublicLegalPage && !isSignedIn\)/);
+  assert.match(app, /const isPublicPage = location === "\/" \|\| location === "\/delivery"/);
+  assert.match(app, /if \(!isStaffArea && !isPublicPage && !isSignedIn\)/);
+  assert.match(app, /location === "\/menu" \? "register" : "login"/);
   assert.match(app, /<Route path="\/staff\/login"><StaffLoginPage\/>/);
   assert.match(app, /<Route path="\/login"><CustomerAuthPage mode="login"\/>/);
 });
@@ -38,8 +40,8 @@ test("navigation gives the menu priority and keeps the kitchen assistant discove
   const app = await read("../src/App.tsx");
   assert.match(app, /aria-label="Main navigation"/);
   assert.match(app, /aria-label="Mobile navigation"/);
-  assert.match(app, /href="\/menu" className=\{location === '\/menu'/);
-  assert.match(app, /href="\/assistant" className="rounded-full bg-\[#fff0cf\]/);
-  assert.match(app, /Ask the kitchen/);
-  assert.match(app, /<Link href="\/assistant" className=/);
+  assert.match(app, /onClick=\{\(\) => openMenu\(\)\}/);
+  assert.match(app, /className="dsk-assistant-launcher"/);
+  assert.match(app, /Need help\?/);
+  assert.match(app, /KitchenAssistantWidget/);
 });
