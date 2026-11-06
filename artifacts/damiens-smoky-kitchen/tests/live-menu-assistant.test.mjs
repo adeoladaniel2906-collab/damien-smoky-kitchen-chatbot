@@ -26,6 +26,9 @@ test("homepage hero uses a responsive flex layout and has no standalone signup C
   assert.match(app, /flex flex-col items-stretch lg:min-h-\[420px\] lg:flex-row/);
   assert.match(app, /flex min-w-0 flex-1 flex-col justify-center/);
   assert.doesNotMatch(app, /Create account to view menu/);
+  assert.match(app, /A few customer favourites/);
+  assert.match(app, /items\.findIndex\(\(candidate\) => menuPhotoFor\(candidate\)\?\.url === photo\?\.url\)/);
+  assert.match(app, /onClick=\{\(\) => onBrowse\(item\.displayCategory\)\}/);
 });
 
 test("assistant opens as a full-screen view with a letter-by-letter welcome animation", async () => {
