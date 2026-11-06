@@ -54,7 +54,8 @@ const menuIllustration = (item: CatalogItem) => {
   const hash = [...item.id].reduce((value, char) => (value * 31 + char.charCodeAt(0)) >>> 0, 7);
   const background = palette[hash % palette.length];
   const initials = item.name.split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
-  const label = escapeXml(item.name.length > 25 ? `${item.name.slice(0, 22)}…` : item.name);
+  const displayName = menuItemLabel(item);
+  const label = escapeXml(displayName.length > 25 ? `${displayName.slice(0, 22)}…` : displayName);
   const category = escapeXml(item.displayCategory.toUpperCase());
   const svg = `<svg data-menu-item="${escapeXml(item.id)}" xmlns="http://www.w3.org/2000/svg" width="900" height="600" viewBox="0 0 900 600"><rect width="900" height="600" fill="${background}"/><circle cx="450" cy="255" r="155" fill="#fff" fill-opacity=".72"/><circle cx="450" cy="255" r="125" fill="none" stroke="#526a50" stroke-opacity=".3" stroke-width="8"/><text x="450" y="290" text-anchor="middle" font-family="Arial,sans-serif" font-size="112" font-weight="700" fill="#21382d">${initials}</text><text x="450" y="485" text-anchor="middle" font-family="Arial,sans-serif" font-size="34" font-weight="700" fill="#21382d">${label}</text><text x="450" y="535" text-anchor="middle" font-family="Arial,sans-serif" font-size="18" letter-spacing="5" fill="#526a50">${category}</text></svg>`;
   return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
