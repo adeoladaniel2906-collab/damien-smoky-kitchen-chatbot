@@ -54,6 +54,8 @@ test("menu photos are unique, attributed, licensed and attached only to matching
   assert.match(app, /menuImageCredit\(item\)/);
   assert.match(app, /menuPhotoFor\(item\)\?\.url \?\? menuIllustration\(item\)/);
   assert.ok(map["Rice:Jollof Rice:800"].sourceUrl.includes("A_Nigeria_Jollof_Rice_with_chicken.jpg"), "restore the original Nigerian jollof photograph");
+  assert.ok(map["Rice:Jollof Rice:1500"], "large Jollof Rice must have its own verified photograph");
+  assert.ok(map["Rice:Fried Rice:1600"], "large Fried Rice must have its own verified photograph");
 });
 
 test("every homepage category card can use a distinct assigned food photograph", async () => {
