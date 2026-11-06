@@ -10,6 +10,7 @@ import { CookiePolicyPage, PrivacyPolicyPage, TermsPage } from '@/pages/LegalPag
 type CatalogItem = MenuItem & { id: string; displayCategory: string; dietaryLabel?: 'Vegan' };
 type BasketLine = { item: CatalogItem; quantity: number };
 type ChatMessage = { role: 'user' | 'assistant'; content: string };
+type MenuLoadStatus = 'loading' | 'ready' | 'fallback';
 
 const displayCategory = (category: string) => category.startsWith('Vegan ') ? category.slice('Vegan '.length) : category;
 // The regular menu already contains the complete drinks list. Do not append drinksMenu again.
@@ -115,24 +116,28 @@ function App() {
   });
 
   const [menuItems, setMenuItems] = useState<CatalogItem[]>(catalog);
+  const [menuLoadStatus, setMenuLoadStatus] = useState<MenuLoadStatus>('loading');
   useEffect(() => {
     let active = true;
+    setMenuLoadStatus('loading');
     fetch("/api/menu", { cache:"no-store" })
       .then(response => response.ok ? response.json() : Promise.reject(new Error("Menu unavailable")))
       .then(data => {
-        if (!active || !Array.isArray(data.items)) return;
+        if (!Array.isArray(data.items)) throw new Error("Menu response is invalid");
+        if (!active) return;
         const items: CatalogItem[] = data.items.map((item: any) => ({
           ...item,
           displayCategory: item.displayCategory ?? displayCategory(item.category),
           dietaryLabel: item.dietaryLabel,
         }));
         setMenuItems(items);
+        setMenuLoadStatus('ready');
         setBasket(current => current.flatMap(line => {
           const fresh = items.find(item => item.id === line.item.id);
           return fresh ? [{ ...line, item:fresh }] : [];
         }));
       })
-      .catch(() => { /* Keep the bundled menu as an offline fallback. */ });
+      .catch(() => { if (active) setMenuLoadStatus('fallback'); /* Keep the bundled menu as an offline fallback. */ });
     return () => { active = false; };
   }, []);
   const [search, setSearch] = useState('');
@@ -199,7 +204,7 @@ function App() {
 
     <Switch>
       <Route path="/"><Home onBrowse={openMenu} onAdd={add} basketCount={count} menuItems={menuItems}/></Route>
-      <Route path="/menu"><MenuPage search={search} setSearch={setSearch} add={add} basket={basket} activeCategory={menuCategory} setActiveCategory={setMenuCategory} menuItems={menuItems}/></Route>
+      <Route path="/menu"><MenuPage search={search} setSearch={setSearch} add={add} basket={basket} activeCategory={menuCategory} setActiveCategory={setMenuCategory} menuItems={menuItems} menuLoadStatus={menuLoadStatus}/></Route>
       <Route path="/delivery"><DeliveryPage/></Route>
       <Route path="/assistant"><AssistantPage basket={basket}/></Route>
       <Route path="/checkout"><CheckoutPage basket={basket} change={change} remove={remove} clear={() => setBasket([])}/></Route>
@@ -380,7 +385,7 @@ function MenuMotionFeature() {
   </section>;
 }
 
-function MenuPage({ search, setSearch, add, basket, activeCategory, setActiveCategory, menuItems }: { search: string; setSearch: (value: string) => void; add: (item: CatalogItem) => void; basket: BasketLine[]; activeCategory: string; setActiveCategory: (value: string) => void; menuItems: CatalogItem[] }) {
+function MenuPage({ search, setSearch, add, basket, activeCategory, setActiveCategory, menuItems, menuLoadStatus }: { search: string; setSearch: (value: string) => void; add: (item: CatalogItem) => void; basket: BasketLine[]; activeCategory: string; setActiveCategory: (value: string) => void; menuItems: CatalogItem[]; menuLoadStatus: MenuLoadStatus }) {
   const active = activeCategory;
   const setActive = setActiveCategory;
   const categories = Array.from(new Set(menuItems.map(item => item.displayCategory)));
@@ -399,7 +404,7 @@ function MenuPage({ search, setSearch, add, basket, activeCategory, setActiveCat
     <div className="sticky top-[72px] z-20 -mx-4 mt-6 border-y border-[#e7e9e2] bg-[#f7f8f4]/95 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-2xl sm:border">
       <div className="flex gap-2 overflow-x-auto pb-1">{categoriesWithAll.map((category) => <button key={category} onClick={() => setActive(category)} className={active === category ? 'shrink-0 rounded-full bg-[#26372c] px-4 py-2.5 text-xs font-bold text-white' : 'shrink-0 rounded-full border border-[#dfe4dc] bg-white px-4 py-2.5 text-xs font-semibold text-[#526a50] transition hover:border-[#ffc94a]'}>{category}</button>)}</div>
     </div>
-    <div className="mt-6 flex items-center justify-between gap-3"><p className="text-sm font-semibold text-[#526a50]">{filtered.length} menu items</p><p className="text-xs text-[#7a857b]">Prices in Nigerian naira</p></div>
+    <div className="mt-6 flex flex-wrap items-center justify-between gap-3"><p className="text-sm font-semibold text-[#526a50]">{filtered.length} menu items</p><p className="text-xs text-[#7a857b]">Prices in Nigerian naira</p></div>{menuLoadStatus === "loading" && <p role="status" aria-live="polite" className="mt-3 rounded-xl bg-[#eef2eb] px-4 py-3 text-xs text-[#526a50]">Showing the saved menu while checking for the latest updates…</p>}{menuLoadStatus === "fallback" && <p role="status" aria-live="polite" className="mt-3 rounded-xl bg-[#fff0cf] px-4 py-3 text-xs text-[#80552e]">The live menu could not be reached. You can still browse the saved menu; prices and availability may need confirmation.</p>}
     <div className="mt-4 space-y-10">{displayedGroups.map((group) => <section key={group.category} aria-labelledby={`menu-group-${group.category.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`}><div className="mb-4 flex items-center justify-between gap-3"><h2 id={`menu-group-${group.category.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`} className="text-xl font-extrabold tracking-tight text-[#26372c]">{group.category}</h2><span className="text-xs font-semibold text-[#7a857b]">{group.items.length} items</span></div><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{group.items.map((item) => <article key={item.id} className="group overflow-hidden rounded-3xl border border-[#e7e9e2] bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
       <div className="relative h-44 overflow-hidden bg-[#eef0e9]"><img src={menuVisual(item)} alt={menuPhotoFor(item)?.alt ?? `${item.name} menu illustration`} loading="lazy" onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = menuIllustration(item); }} className="h-full w-full object-cover transition duration-500 group-hover:scale-105"/><div className="absolute left-3 top-3 flex gap-2"><span className="rounded-full bg-white/95 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[#526a50]">{item.displayCategory}</span>{item.dietaryLabel && <span className="rounded-full bg-[#e8eee6]/95 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[#526a50]">Vegan</span>}</div></div>
       <div className="p-4">{menuImageCredit(item)}<h3 className="min-h-10 font-bold leading-snug text-[#29382d]">{item.name}</h3><div className="mt-4 flex items-center justify-between gap-3"><strong className="text-base text-[#26372c]">{item.price === null ? 'Ask for price' : money(item.price)}</strong>{item.price !== null && <button onClick={() => add(item)} aria-label={`Add ${item.name} to basket`} className="inline-flex shrink-0 items-center gap-2 rounded-full bg-[#ffc94a] px-4 py-2.5 text-xs font-bold text-[#26372c] transition hover:bg-[#f4b923]"><Plus size={15}/> Add</button>}</div></div>
