@@ -22,6 +22,14 @@ test("service worker caches the app shell but never caches API responses", async
   assert.match(worker, /if \(url\.pathname\.startsWith\("\/api\/"\)\) return/);
 });
 
+test("homepage hero is compact on mobile while retaining the larger desktop layout", async () => {
+  const app = await read("../src/App.tsx");
+  assert.match(app, /grid min-h-0 lg:min-h-\\[360px\\] lg:grid-cols/);
+  assert.match(app, /relative min-h-\\[180px\\] sm:min-h-\\[260px\\] lg:min-h-full/);
+  assert.match(app, /p-5 sm:p-10 lg:p-14/);
+  assert.match(app, /sm:mt-5 sm:text-6xl/);
+});
+
 test("mobile viewport permits zoom and accounts for device safe areas", async () => {
   const html = await read("../index.html");
   const css = await read("../src/index.css");
