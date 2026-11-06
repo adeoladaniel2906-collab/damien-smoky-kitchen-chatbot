@@ -41,5 +41,5 @@ test("navigation gives the menu priority and keeps the kitchen assistant discove
   assert.match(app, /href="\/menu" className=\{location === '\/menu'/);
   assert.match(app, /href="\/assistant" className="rounded-full bg-\[#fff0cf\]/);
   assert.match(app, /Ask the kitchen/);
-  assert.match(app, /<Link href="\/assistant">Ask the kitchen<\/h2>/);
+  assert.match(app, /<Link href="\/assistant" className=/);
 });
