@@ -39,6 +39,17 @@ test("menu basket stays visible above mobile safe areas and content can scroll c
   assert.match(css, /\.dsk-basket-bar \{ bottom: calc\(env\(safe-area-inset-bottom, 0px\) \+ 1rem\); \}/);
 });
 
+test("menu loading clearly reports live refresh and saved-menu fallback states", async () => {
+  const app = await read("../src/App.tsx");
+  assert.match(app, /type MenuLoadStatus = 'loading' \| 'ready' \| 'fallback'/);
+  assert.match(app, /setMenuLoadStatus\('loading'\)/);
+  assert.match(app, /setMenuLoadStatus\('ready'\)/);
+  assert.match(app, /setMenuLoadStatus\('fallback'\)/);
+  assert.match(app, /Showing the saved menu while checking for the latest updates/);
+  assert.match(app, /The live menu could not be reached/);
+  assert.match(app, /Checking the kitchen information…/);
+});
+
 test("mobile viewport permits zoom and accounts for device safe areas", async () => {
   const html = await read("../index.html");
   const css = await read("../src/index.css");
