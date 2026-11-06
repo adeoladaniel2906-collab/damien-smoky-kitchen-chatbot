@@ -844,7 +844,7 @@ type MenuDbRow = { id:string; name:string; category:string; price_ngn:number|nul
 function serializeMenuRow(row: MenuDbRow) {
   let aliases: string[] = [];
   try { const parsed: unknown = JSON.parse(row.aliases_json); if (Array.isArray(parsed)) aliases = parsed.filter((value): value is string => typeof value === "string"); } catch { aliases = []; }
-  return { id:row.id, name:row.name, category:row.category, displayCategory:row.category.startsWith("Vegan ") ? row.category.slice(6) : row.category, price:row.price_ngn, aliases, dietaryLabel:row.is_vegan ? "Vegan" : undefined, isVegan:Boolean(row.is_vegan), isAvailable:Boolean(row.is_available), sortOrder:row.sort_order, updatedAt:row.updated_at };
+  return { id:row.id, name:row.name, category:row.category, displayCategory:row.category === "Alcoholic Drinks" ? "Alcoholic Drinks (18+)" : row.category.startsWith("Vegan ") ? row.category.slice(6) : row.category, price:row.price_ngn, aliases, dietaryLabel:row.is_vegan ? "Vegan" : undefined, isVegan:Boolean(row.is_vegan), isAvailable:Boolean(row.is_available), sortOrder:row.sort_order, updatedAt:row.updated_at };
 }
 async function readMenu(env: Env, includeUnavailable = false) {
   const query = includeUnavailable
