@@ -711,6 +711,7 @@ function KitchenAssistantWidget({ basket, open, onOpenChange, getToken }: { bask
               <button type="submit" disabled={!input.trim() || busy} aria-label="Send message" className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[#e96d2c] text-white transition hover:bg-[#cf5b25] disabled:opacity-45"><Send size={18}/></button>
             </form>
             <p className="mt-3 text-center text-[11px] text-[#899188]">For live prices and availability, the kitchen checks its current menu.</p>
+            <p className="mt-2 text-center text-[11px] text-[#899188]">When signed in, food preferences and allergies you share are saved to your account. Say “forget my preferences” to clear them.</p>
           </div>
         </div>
       </div>
