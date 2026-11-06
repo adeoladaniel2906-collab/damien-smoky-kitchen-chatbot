@@ -15,8 +15,17 @@ test("menu actions route visitors through account creation before the menu", asy
   const app = await read("../src/App.tsx");
   assert.match(app, /if \(!isSignedIn\) \{\s*setLocation\('\/menu'\)/);
   assert.match(app, /location === "\/menu" \? "register" : "login"/);
-  assert.match(app, /Create account to view menu/);
+  assert.doesNotMatch(app, /Create account to view menu/);
+  assert.doesNotMatch(app, /Ready to explore the full menu/);
+  assert.match(app, /onClick=\{\(\) => onBrowse\(\)\}/);
   assert.doesNotMatch(app, /Popular right now/);
+});
+
+test("homepage hero uses a responsive flex layout and has no standalone signup CTA", async () => {
+  const app = await read("../src/App.tsx");
+  assert.match(app, /flex flex-col items-stretch lg:min-h-\[420px\] lg:flex-row/);
+  assert.match(app, /flex min-w-0 flex-1 flex-col justify-center/);
+  assert.doesNotMatch(app, /Create account to view menu/);
 });
 
 test("assistant opens as a full-screen view with a letter-by-letter welcome animation", async () => {
