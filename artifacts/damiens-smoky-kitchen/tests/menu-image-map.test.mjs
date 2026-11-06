@@ -30,6 +30,7 @@ test("menu photos are unique, attributed, licensed and attached only to matching
     ["CC BY 3.0", "https://creativecommons.org/licenses/by/3.0/"],
     ["CC BY 2.0", "https://creativecommons.org/licenses/by/2.0/"],
     ["CC0 1.0", "https://creativecommons.org/publicdomain/zero/1.0/"],
+    ["Public domain", "https://commons.wikimedia.org/wiki/Commons:Licensing"],
   ]);
   const sourceById = new Map(sources.map((source) => [source.menuItemId, source]));
 
