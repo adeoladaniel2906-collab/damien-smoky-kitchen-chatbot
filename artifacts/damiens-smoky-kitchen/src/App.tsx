@@ -622,15 +622,33 @@ function CustomerAuthPage({ mode, redirectTo = "/" }: { mode: "register" | "logi
 
 
 function KitchenAssistantWidget({ basket, open, onOpenChange }: { basket: BasketLine[]; open: boolean; onOpenChange: (value: boolean) => void }) {
-  const [messages, setMessages] = useState<ChatMessage[]>([{ role: "assistant", content: "Welcome to Kitchen Assistant. How can we help you today?" }]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [introFinished, setIntroFinished] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
   const quickQuestions = ["Check a dish price", "Show vegan options", "Where do you deliver?"];
+  const welcomeLetters = Array.from("WELCOME");
+
+  useEffect(() => {
+    if (!open) { setIntroFinished(false); return; }
+    setMessages(current => current.length ? current : [{ role: "assistant", content: "Welcome to Kitchen Assistant. How can we be of help today?" }]);
+    const timer = window.setTimeout(() => setIntroFinished(true), 2600);
+    return () => window.clearTimeout(timer);
+  }, [open]);
 
   useEffect(() => {
     if (open) endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [open, messages, busy]);
+
+  useEffect(() => {
+    if (!open) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") onOpenChange(false); };
+    window.addEventListener("keydown", onKeyDown);
+    return () => { document.body.style.overflow = previousOverflow; window.removeEventListener("keydown", onKeyDown); };
+  }, [open, onOpenChange]);
 
   const ask = async (rawQuestion: string) => {
     const question = rawQuestion.trim();
@@ -638,10 +656,10 @@ function KitchenAssistantWidget({ basket, open, onOpenChange }: { basket: Basket
     const next = [...messages, { role: "user" as const, content: question }];
     setMessages(next);
     setInput("");
-    if (/\b(basket|cart)\\b/i.test(question)) {
-      const answer = basket.length
-        ? `Your basket has ${basket.reduce((total, line) => total + line.quantity, 0)} item(s):\\n\\n${basket.map(({ item, quantity }) => `• ${quantity} × ${item.name} (${item.price === null ? "price to confirm" : money(item.price * quantity)})`).join("\\n")}\\n\\nSubtotal: ${money(basket.reduce((total, line) => total + (line.item.price ?? 0) * line.quantity, 0))}. Delivery is calculated separately.`
-        : "Your basket is empty at the moment.";
+    if (/\b(basket|cart)\b/i.test(question)) {
+      const total = basket.reduce((sum, line) => sum + (line.item.price ?? 0) * line.quantity, 0);
+      const details = basket.map(line => line.quantity + " × " + line.item.name + " (" + (line.item.price === null ? "price to confirm" : money(line.item.price * line.quantity)) + ")").join("\n");
+      const answer = basket.length ? "Your basket has " + basket.length + " line(s):\n\n" + details + "\n\nSubtotal: " + money(total) + ". Delivery is calculated separately." : "Your basket is empty at the moment.";
       setMessages([...next, { role: "assistant", content: answer }]);
       return;
     }
@@ -661,24 +679,39 @@ function KitchenAssistantWidget({ basket, open, onOpenChange }: { basket: Basket
   };
   const submit = (event: FormEvent) => { event.preventDefault(); void ask(input); };
 
-  return <div className="dsk-assistant-widget">
-    {open && <section id="dsk-assistant-panel" className="dsk-assistant-panel" role="dialog" aria-label="Kitchen Assistant" aria-modal="false">
-      <header className="flex items-center justify-between gap-3 bg-[#21382d] px-4 py-4 text-white">
-        <div className="flex min-w-0 items-center gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#ffc94a] text-[#21382d]"><Flame size={20}/></span><span className="min-w-0"><strong className="block text-sm">Kitchen Assistant</strong><small className="text-xs text-white/65">Here to help with the kitchen</small></span></div>
-        <button type="button" onClick={() => onOpenChange(false)} aria-label="Close Kitchen Assistant" className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-white/80 transition hover:bg-white/10 hover:text-white"><X size={19}/></button>
+  return <>
+    <button type="button" onClick={() => onOpenChange(true)} aria-expanded={open} aria-controls="dsk-assistant-panel" className="dsk-assistant-launcher">
+      <MessageCircle size={23}/><span>Need help?</span><span className="dsk-assistant-online-dot" aria-hidden="true"/>
+    </button>
+    {open && <section id="dsk-assistant-panel" className="dsk-assistant-fullscreen" role="dialog" aria-label="Kitchen Assistant" aria-modal="true">
+      <header className="dsk-assistant-topbar">
+        <a href="/" className="dsk-assistant-brand" aria-label="Return to Damien's Smoky Kitchen"><span className="dsk-assistant-brand-mark"><Flame size={21}/></span><span>Damien's <b>Smoky Kitchen</b></span></a>
+        <button type="button" onClick={() => onOpenChange(false)} aria-label="Close Kitchen Assistant" className="dsk-assistant-close"><X size={22}/><span>Close</span></button>
       </header>
-      <div className="dsk-assistant-messages flex-1 space-y-3 overflow-y-auto bg-[#fbf8f1] p-4" aria-live="polite">
-        {messages.map((message, index) => <div key={index} className={message.role === "user" ? "flex justify-end" : "flex justify-start"}><p className={message.role === "user" ? "max-w-[88%] whitespace-pre-line rounded-2xl rounded-br-sm bg-[#21382d] px-3.5 py-3 text-sm leading-5 text-white" : "max-w-[88%] whitespace-pre-line rounded-2xl rounded-bl-sm border border-[#e8e2d6] bg-white px-3.5 py-3 text-sm leading-5 text-[#29382d]"}>{message.content}</p></div>)}
-        {messages.length === 1 && <div className="flex flex-wrap gap-2">{quickQuestions.map(question => <button key={question} type="button" disabled={busy} onClick={() => void ask(question)} className="rounded-full border border-[#d8dfd5] bg-white px-3 py-2 text-[11px] font-semibold text-[#526a50] transition hover:border-[#e96d2c] disabled:opacity-50">{question}</button>)}</div>}
-        {busy && <p className="text-xs text-[#69766e]" role="status">Checking the latest kitchen information…</p>}<div ref={endRef}/>
+      <div className="dsk-assistant-stage">
+        <div className="dsk-assistant-intro">
+          <span className="dsk-assistant-eyebrow">YOUR TABLE-SIDE HELPER</span>
+          <h1 className="dsk-assistant-welcome" aria-label="Welcome">
+            {welcomeLetters.map((letter, index) => <span key={index} className="dsk-assistant-letter" style={{ animationDelay: (index * 150) + "ms" }}>{letter}</span>)}
+          </h1>
+          <h2 className="dsk-assistant-title">Kitchen Assistant<span>.</span></h2>
+          <p className={"dsk-assistant-prompt " + (introFinished ? "is-visible" : "")}>How can we be of help today?</p>
+          <div className={"dsk-assistant-chat-area " + (introFinished ? "is-visible" : "")}>
+            <div className="dsk-assistant-conversation" aria-live="polite">
+              {messages.map((message, index) => <div key={index} className={message.role === "user" ? "flex justify-end" : "flex justify-start"}><p className={message.role === "user" ? "max-w-[88%] whitespace-pre-line rounded-2xl rounded-br-sm bg-[#21382d] px-4 py-3 text-sm leading-6 text-white" : "max-w-[88%] whitespace-pre-line rounded-2xl rounded-bl-sm border border-[#e8e2d6] bg-white px-4 py-3 text-sm leading-6 text-[#29382d]"}>{message.content}</p></div>)}
+              {messages.length === 1 && <div className="flex flex-wrap gap-2">{quickQuestions.map(question => <button key={question} type="button" disabled={busy} onClick={() => void ask(question)} className="rounded-full border border-[#d8dfd5] bg-white px-4 py-2.5 text-xs font-semibold text-[#526a50] transition hover:border-[#e96d2c] disabled:opacity-50">{question}</button>)}</div>}
+              {busy && <p className="text-sm text-[#69766e]" role="status">Checking the latest kitchen information…</p>}<div ref={endRef}/>
+            </div>
+            <form onSubmit={submit} className="dsk-assistant-composer">
+              <input value={input} onChange={event => setInput(event.target.value)} maxLength={2000} placeholder="Ask about dishes, prices or delivery…" aria-label="Message Kitchen Assistant" className="min-w-0 flex-1 bg-transparent px-2 py-3 text-sm outline-none"/>
+              <button type="submit" disabled={!input.trim() || busy} aria-label="Send message" className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[#e96d2c] text-white transition hover:bg-[#cf5b25] disabled:opacity-45"><Send size={18}/></button>
+            </form>
+            <p className="mt-3 text-center text-[11px] text-[#899188]">For live prices and availability, the kitchen checks its current menu.</p>
+          </div>
+        </div>
       </div>
-      <form onSubmit={submit} className="flex items-center gap-2 border-t border-[#eee9df] bg-white p-3">
-        <input value={input} onChange={event => setInput(event.target.value)} maxLength={2000} placeholder="Ask about dishes, prices or delivery…" aria-label="Message Kitchen Assistant" className="min-w-0 flex-1 rounded-xl bg-[#f4f1e9] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#ffc94a]"/>
-        <button type="submit" disabled={!input.trim() || busy} aria-label="Send message" className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#e96d2c] text-white transition hover:bg-[#cf5b25] disabled:opacity-45"><Send size={17}/></button>
-      </form>
     </section>}
-    <button type="button" onClick={() => onOpenChange(!open)} aria-expanded={open} aria-controls="dsk-assistant-panel" className="dsk-assistant-launcher">{open ? <X size={19}/> : <MessageCircle size={20}/>}<span>{open ? "Close" : "Need help?"}</span>{!open && <span className="dsk-assistant-online-dot" aria-hidden="true"/>}</button>
-  </div>;
+  </>;
 }
 
 function StaffLoginPage() {
