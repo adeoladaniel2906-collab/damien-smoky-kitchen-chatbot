@@ -32,7 +32,8 @@ export const officialMenuContext = `Damien's Smoky Kitchen
 
 Restaurant information:
 - Restaurant: Damien's Smoky Kitchen
-- Address: The Motorcycle Drive, Papa Olonrisa, Ibafo, Ogun State
+- Kitchen address: The Motorcycle Drive, Papa Olonrisa, Ibafo, Ogun State
+- Delivery coverage: Lagos State only. The kitchen is in Ibafo, Ogun State; delivery coverage is a separate service area.
 - Opening hours: 9:00 AM – 9:00 PM
 - Orders: Customers can order through the website or WhatsApp.
 - WhatsApp: 080 32 20 16 72
@@ -346,7 +347,7 @@ export const restaurantKnowledge = {
   openingHours: "9:00 AM – 9:00 PM",
   ordering: "Customers can order through the website or WhatsApp.",
   phone: "080 32 20 16 72",
-  website: "DamienStore.food.com",
+  website: "https://damien-smoky-kitchen-chatbot54.adeoladaniel2906.workers.dev",
   location: "The Motorcycle Drive, Papa Olonrisa, Ibafo, Ogun State",
   delivery: "Delivery is within Lagos State.",
   minimumDeliveryOrder: 3000,
