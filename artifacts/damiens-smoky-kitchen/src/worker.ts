@@ -131,11 +131,11 @@ async function readLimitedBody(request: Request): Promise<string | null> {
 type LiveMenuItem = Awaited<ReturnType<typeof readMenu>>[number];
 
 function normalizeMenuText(value: string): string {
-  return value.toLowerCase().replace(/[’']/g, "").replace(/[^a-z0-9\\s]/g, " ").replace(/\\s+/g, " ").trim();
+  return value.toLowerCase().replace(/[’']/g, "").replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
 }
 
 function isMenuQuestion(question: string): boolean {
-  return /\\b(menu|dish|dishes|food|meal|eat|price|cost|naira|available|availability|sell|stock|vegan|vegetarian|rice|soup|swallow|chicken|beef|fish|protein|drink|beverage|zobo|kunu|chapman|jollof|egusi|amala|fufu|eba|plantain|moi moi)\\b/i.test(question);
+  return /\b(menu|dish|dishes|food|meal|eat|price|cost|naira|available|availability|sell|stock|vegan|vegetarian|rice|soup|swallow|chicken|beef|fish|protein|drink|beverage|zobo|kunu|chapman|jollof|egusi|amala|fufu|eba|plantain|moi moi)\\b/i.test(question);
 }
 
 function buildLiveMenuContext(items: LiveMenuItem[]): string {
@@ -149,7 +149,7 @@ function buildLiveMenuContext(items: LiveMenuItem[]): string {
     "UNAVAILABLE ITEMS (do not recommend these as orderable):",
     ...(unavailable.length ? unavailable.map(describe) : ["- None currently marked unavailable."]),
     "All prices are in Nigerian Naira. Availability is taken from the current D1 menu_items table."
-  ].join("\\n");
+  ].join("\n");
 }
 
 function getLiveMenuFastReply(question: string, items: LiveMenuItem[]): string | null {
@@ -159,8 +159,8 @@ function getLiveMenuFastReply(question: string, items: LiveMenuItem[]): string |
     return variant.length > 1 && normalized.includes(variant);
   }));
   if (matches.length === 0) return null;
-  const asksPrice = /\\b(price|how much|cost|naira)\\b/i.test(question) || question.includes("₦");
-  const asksAvailability = /\\b(available|availability|have|sell|stock|do you|is there|can i get)\\b/i.test(question);
+  const asksPrice = /\b(price|how much|cost|naira)\\b/i.test(question) || question.includes("₦");
+  const asksAvailability = /\b(available|availability|have|sell|stock|do you|is there|can i get)\\b/i.test(question);
   if (!asksPrice && !asksAvailability) return null;
   const unique = Array.from(new Map(matches.map(item => [item.id, item])).values());
   if (asksAvailability) {
@@ -169,9 +169,9 @@ function getLiveMenuFastReply(question: string, items: LiveMenuItem[]): string |
     return [
       ...available.map(item => `${item.name}${item.price === null ? "" : " (₦" + item.price.toLocaleString("en-NG") + ")"} is available.`),
       ...unavailable.map(item => `${item.name} is currently unavailable.`)
-    ].join("\\n");
+    ].join("\n");
   }
-  return unique.map(item => `${item.name}: ${item.price === null ? "price not currently listed" : "₦" + item.price.toLocaleString("en-NG")}${item.isAvailable ? "" : " (currently unavailable)"}`).join("\\n");
+  return unique.map(item => `${item.name}: ${item.price === null ? "price not currently listed" : "₦" + item.price.toLocaleString("en-NG")}${item.isAvailable ? "" : " (currently unavailable)"}`).join("\n");
 }
 
 async function handleChat(request: Request, env: Env): Promise<Response> {
@@ -276,10 +276,10 @@ async function handleChat(request: Request, env: Env): Promise<Response> {
   const manualReply = menuRelated ? null : getManualReply(question);
   if (manualReply !== null) return textResponse(manualReply);
 
-  const restaurantInfo = officialMenuContext.split("\\nCOMPLETE MENU")[0];
+  const restaurantInfo = officialMenuContext.split("\nCOMPLETE MENU")[0];
   const systemMessage: ChatMessage = {
     role: "system",
-    content: `You are Damien's Smoky Kitchen assistant. Answer naturally, politely, and briefly. Use the restaurant information and LIVE DATABASE MENU below. For every menu item, price, vegan label, and availability question, trust the LIVE DATABASE MENU only. Never use an old menu price or invent an item, ingredient, allergy detail, delivery fee or time, halal certification, promotion, policy, order or reservation. Items marked unavailable must never be recommended as orderable. If the database does not contain an item, say it is not listed. If the live menu is unavailable, do not guess. Do not claim an order or reservation was completed.\\n\\nRESTAURANT INFORMATION:\\n${restaurantInfo}\\n\\nLIVE DATABASE MENU:\\n${liveMenuContext || "This question does not require menu data."}`,
+    content: `You are Damien's Smoky Kitchen assistant. Answer naturally, politely, and briefly. Use the restaurant information and LIVE DATABASE MENU below. For every menu item, price, vegan label, and availability question, trust the LIVE DATABASE MENU only. Never use an old menu price or invent an item, ingredient, allergy detail, delivery fee or time, halal certification, promotion, policy, order or reservation. Items marked unavailable must never be recommended as orderable. If the database does not contain an item, say it is not listed. If the live menu is unavailable, do not guess. Do not claim an order or reservation was completed.\n\nRESTAURANT INFORMATION:\n${restaurantInfo}\n\nLIVE DATABASE MENU:\n${liveMenuContext || "This question does not require menu data."}`,
   };
 
   try {
