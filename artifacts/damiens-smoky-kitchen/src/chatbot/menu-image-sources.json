@@ -1026,5 +1026,23 @@
     "license": "CC BY-SA 4.0",
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
     "alt": "Boiled plantain served with vegetable soup"
+  },
+  {
+    "menuItemId": "Rice:Jollof Rice:1500",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Nigerian%20jollof%20rice.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Nigerian_jollof_rice.jpg",
+    "author": "Halima Waziri",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "alt": "A plate of Nigerian jollof rice"
+  },
+  {
+    "menuItemId": "Rice:Fried Rice:1600",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Fried%20rice%2C%20chicken%20and%20dipping%20sauce.jpg?width=1200",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Fried_rice,_chicken_and_dipping_sauce.jpg",
+    "author": "Catherine Amia",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "alt": "Nigerian fried rice served with chicken and dipping sauce"
   }
 ]
