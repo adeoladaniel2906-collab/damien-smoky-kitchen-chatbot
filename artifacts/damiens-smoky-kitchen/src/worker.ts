@@ -135,7 +135,7 @@ function normalizeMenuText(value: string): string {
 }
 
 function isMenuQuestion(question: string): boolean {
-  return /\b(menu|dish|dishes|food|meal|eat|price|cost|naira|available|availability|sell|stock|vegan|vegetarian|rice|soup|swallow|chicken|beef|fish|protein|drink|beverage|zobo|kunu|chapman|jollof|egusi|amala|fufu|eba|plantain|moi moi)\\b/i.test(question);
+  return /\b(menu|dish|dishes|food|meal|eat|price|cost|naira|available|availability|sell|stock|vegan|vegetarian|rice|soup|swallow|chicken|beef|fish|protein|drink|beverage|zobo|kunu|chapman|jollof|egusi|amala|fufu|eba|plantain|moi moi)\b/i.test(question);
 }
 
 function buildLiveMenuContext(items: LiveMenuItem[]): string {
@@ -159,8 +159,8 @@ function getLiveMenuFastReply(question: string, items: LiveMenuItem[]): string |
     return variant.length > 1 && normalized.includes(variant);
   }));
   if (matches.length === 0) return null;
-  const asksPrice = /\b(price|how much|cost|naira)\\b/i.test(question) || question.includes("₦");
-  const asksAvailability = /\b(available|availability|have|sell|stock|do you|is there|can i get)\\b/i.test(question);
+  const asksPrice = /\b(price|how much|cost|naira)\b/i.test(question) || question.includes("₦");
+  const asksAvailability = /\b(available|availability|have|sell|stock|do you|is there|can i get)\b/i.test(question);
   if (!asksPrice && !asksAvailability) return null;
   const unique = Array.from(new Map(matches.map(item => [item.id, item])).values());
   if (asksAvailability) {

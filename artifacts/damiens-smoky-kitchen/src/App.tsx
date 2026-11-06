@@ -302,11 +302,15 @@ function OfflinePage({ onRetry }: { onRetry: () => void }) {
 
 function Home({ onBrowse, onOpenAssistant, menuItems }: { onBrowse: (query?: string) => void; onOpenAssistant: () => void; menuItems: CatalogItem[] }) {
   const quickCategories = Array.from(new Set(menuItems.map(item => item.displayCategory)));
+  const featured = menuItems.filter((item, index, items) => {
+    const photo = menuPhotoFor(item);
+    return Boolean(photo) && items.findIndex((candidate) => menuPhotoFor(candidate)?.url === photo?.url) === index;
+  }).slice(0, 4);
   return <main className="bg-[#f7f8f4]">
     <section className="mx-auto max-w-7xl px-4 pb-5 pt-5 sm:px-6">
       <div className="overflow-hidden rounded-[2rem] bg-[#ffc94a]">
-        <div className="grid min-h-0 lg:min-h-[360px] lg:grid-cols-[1.05fr_.95fr]">
-          <div className="flex flex-col justify-center p-5 sm:p-10 lg:p-14">
+        <div className="flex flex-col items-stretch lg:min-h-[420px] lg:flex-row">
+          <div className="flex min-w-0 flex-1 flex-col justify-center p-5 sm:p-10 lg:p-14">
             <span className="w-fit rounded-full bg-white/70 px-3 py-1.5 text-xs font-bold text-[#26372c]">DAMIEN'S SMOKY KITCHEN · IBAFO</span>
             <h1 className="mt-3 max-w-xl text-3xl font-extrabold leading-[1.02] tracking-tight text-[#202a23] sm:mt-5 sm:text-6xl">Your next favourite meal is closer.</h1>
             <p className="mt-3 max-w-md text-sm leading-6 text-[#39463b] sm:mt-4 sm:text-base sm:leading-7">Nigerian favourites, freshly prepared. Explore the menu, add your picks and review your basket in a few taps.</p>
@@ -316,7 +320,7 @@ function Home({ onBrowse, onOpenAssistant, menuItems }: { onBrowse: (query?: str
             </div>
             <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-xs font-semibold text-[#39463b] sm:mt-8"><span className="inline-flex items-center gap-1.5"><Clock3 size={14}/> Daily, 9 AM–9 PM</span><span className="inline-flex items-center gap-1.5"><Truck size={14}/> Lagos delivery</span><span className="inline-flex items-center gap-1.5"><MapPin size={14}/> Ibafo, Ogun State</span></div>
           </div>
-          <div className="relative min-h-[180px] sm:min-h-[260px] lg:min-h-full">
+          <div className="relative min-h-[220px] flex-1 sm:min-h-[300px] lg:min-h-[420px]">
             <img src={photoUrl} alt="Freshly prepared Nigerian food served at a table" className="absolute inset-0 h-full w-full object-cover"/>
             <div className="absolute inset-0 bg-gradient-to-t from-[#172c21]/25 to-transparent"/>
             <div className="absolute bottom-5 left-5 rounded-2xl bg-white/95 px-4 py-3 shadow-lg backdrop-blur-sm sm:bottom-7 sm:left-7"><p className="text-[10px] font-bold uppercase tracking-widest text-[#68786e]">Made with care</p><p className="mt-1 text-sm font-extrabold text-[#26372c]">Good food. No guesswork.</p></div>
@@ -329,10 +333,8 @@ function Home({ onBrowse, onOpenAssistant, menuItems }: { onBrowse: (query?: str
       <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">{quickCategories.map((category) => { const categoryPhoto = menuItems.find((item) => item.displayCategory === category && menuPhotoFor(item)); const photo = categoryPhoto ? menuPhotoFor(categoryPhoto) : undefined; return <button key={category} onClick={() => onBrowse(category)} className="group overflow-hidden rounded-2xl border border-[#e7e9e2] bg-white text-left transition hover:-translate-y-1 hover:border-[#ffc94a] hover:shadow-md"><span className="relative block aspect-[16/9] overflow-hidden bg-[#f0ece2]">{photo ? <img src={photo.url} alt="" loading="lazy" className="h-full w-full object-cover transition duration-500 group-hover:scale-105"/> : <span className="grid h-full w-full place-items-center text-[#526a50]"><Utensils size={24}/></span>}<span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/65 to-transparent px-3 pb-2 pt-7 text-sm font-bold text-white">{category}</span></span><span className="block px-3 py-2 text-[11px] text-[#7a857b]">Explore dishes</span></button>; })}</div>
     </section>
     <section className="mx-auto max-w-7xl px-4 py-7 sm:px-6">
-      <div className="overflow-hidden rounded-3xl border border-[#e7e9e2] bg-white p-6 sm:flex sm:items-center sm:justify-between sm:gap-8 sm:p-8">
-        <div><p className="text-xs font-bold uppercase tracking-widest text-[#71816f]">Your next meal starts here</p><h2 className="mt-2 text-2xl font-extrabold tracking-tight text-[#26372c] sm:text-3xl">Ready to explore the full menu?</h2><p className="mt-2 max-w-xl text-sm leading-6 text-[#69766e]">Create a free customer account to browse dishes, check current prices and keep your favourites together.</p></div>
-        <button type="button" onClick={() => onBrowse()} className="mt-5 inline-flex shrink-0 items-center gap-2 rounded-full bg-[#26372c] px-6 py-3.5 text-sm font-bold text-white transition hover:bg-[#3c5543] sm:mt-0">Create account to view menu <ArrowRight size={16}/></button>
-      </div>
+      <div><p className="text-xs font-bold uppercase tracking-widest text-[#71816f]">A taste of the kitchen</p><h2 className="mt-1 text-2xl font-extrabold tracking-tight text-[#26372c] sm:text-3xl">A few customer favourites</h2><p className="mt-1 text-sm text-[#7a857b]">Explore the menu after creating your customer account.</p></div>
+      <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">{featured.map((item) => { const photo = menuPhotoFor(item); return <button key={item.id} type="button" onClick={() => onBrowse(item.displayCategory)} className="group overflow-hidden rounded-2xl border border-[#e7e9e2] bg-white text-left transition hover:-translate-y-1 hover:border-[#ffc94a] hover:shadow-md"><span className="block aspect-[4/3] overflow-hidden bg-[#f0ece2]"><img src={photo!.url} alt={photo!.alt || item.name} loading="lazy" className="h-full w-full object-cover transition duration-500 group-hover:scale-105"/></span><span className="block px-3 py-3"><span className="block text-sm font-bold text-[#26372c]">{item.name}</span><span className="mt-1 block text-[11px] text-[#7a857b]">Explore dish</span></span></button>; })}</div>
     </section>
     <section className="mx-auto max-w-7xl px-4 pb-10 pt-5 sm:px-6"><div className="grid gap-4 md:grid-cols-2"><Link href="/delivery" className="flex items-center justify-between gap-4 rounded-3xl bg-[#e8eee6] p-6 transition hover:bg-[#dfe8dc]"><div><span className="text-xs font-bold uppercase tracking-widest text-[#71816f]">At your door</span><h2 className="mt-2 text-xl font-extrabold text-[#26372c]">Delivery across Lagos</h2><p className="mt-1 text-sm text-[#596b5d]">₦3,000 minimum order · Fee depends on distance</p></div><Truck size={30} className="shrink-0 text-[#526a50]"/></Link><button type="button" onClick={onOpenAssistant} className="flex w-full items-center justify-between gap-4 rounded-3xl bg-[#fff0cf] p-6 text-left transition hover:bg-[#ffe7ad]"><div><span className="text-xs font-bold uppercase tracking-widest text-[#8a6c36]">Need a recommendation?</span><h2 className="mt-2 text-xl font-extrabold text-[#26372c]">Ask the kitchen</h2><p className="mt-1 text-sm text-[#756347]">Get help with menu and restaurant questions</p></div><MessageCircle size={30} className="shrink-0 text-[#8a6c36]"/></button></div></section>
   </main>;
@@ -622,15 +624,32 @@ function CustomerAuthPage({ mode, redirectTo = "/" }: { mode: "register" | "logi
 
 
 function KitchenAssistantWidget({ basket, open, onOpenChange }: { basket: BasketLine[]; open: boolean; onOpenChange: (value: boolean) => void }) {
-  const [messages, setMessages] = useState<ChatMessage[]>([{ role: "assistant", content: "Welcome to Kitchen Assistant. How can we help you today?" }]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [introFinished, setIntroFinished] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
   const quickQuestions = ["Check a dish price", "Show vegan options", "Where do you deliver?"];
+  const welcomeLetters = Array.from("WELCOME");
+
+  useEffect(() => {
+    if (!open) { setIntroFinished(false); return; }
+    const timer = window.setTimeout(() => setIntroFinished(true), 2600);
+    return () => window.clearTimeout(timer);
+  }, [open]);
 
   useEffect(() => {
     if (open) endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [open, messages, busy]);
+
+  useEffect(() => {
+    if (!open) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") onOpenChange(false); };
+    window.addEventListener("keydown", onKeyDown);
+    return () => { document.body.style.overflow = previousOverflow; window.removeEventListener("keydown", onKeyDown); };
+  }, [open, onOpenChange]);
 
   const ask = async (rawQuestion: string) => {
     const question = rawQuestion.trim();
@@ -638,10 +657,10 @@ function KitchenAssistantWidget({ basket, open, onOpenChange }: { basket: Basket
     const next = [...messages, { role: "user" as const, content: question }];
     setMessages(next);
     setInput("");
-    if (/\b(basket|cart)\\b/i.test(question)) {
-      const answer = basket.length
-        ? `Your basket has ${basket.reduce((total, line) => total + line.quantity, 0)} item(s):\\n\\n${basket.map(({ item, quantity }) => `• ${quantity} × ${item.name} (${item.price === null ? "price to confirm" : money(item.price * quantity)})`).join("\\n")}\\n\\nSubtotal: ${money(basket.reduce((total, line) => total + (line.item.price ?? 0) * line.quantity, 0))}. Delivery is calculated separately.`
-        : "Your basket is empty at the moment.";
+    if (/\b(basket|cart)\b/i.test(question)) {
+      const total = basket.reduce((sum, line) => sum + (line.item.price ?? 0) * line.quantity, 0);
+      const details = basket.map(line => line.quantity + " × " + line.item.name + " (" + (line.item.price === null ? "price to confirm" : money(line.item.price * line.quantity)) + ")").join("\n");
+      const answer = basket.length ? "Your basket has " + basket.length + " line(s):\n\n" + details + "\n\nSubtotal: " + money(total) + ". Delivery is calculated separately." : "Your basket is empty at the moment.";
       setMessages([...next, { role: "assistant", content: answer }]);
       return;
     }
@@ -661,24 +680,39 @@ function KitchenAssistantWidget({ basket, open, onOpenChange }: { basket: Basket
   };
   const submit = (event: FormEvent) => { event.preventDefault(); void ask(input); };
 
-  return <div className="dsk-assistant-widget">
-    {open && <section id="dsk-assistant-panel" className="dsk-assistant-panel" role="dialog" aria-label="Kitchen Assistant" aria-modal="false">
-      <header className="flex items-center justify-between gap-3 bg-[#21382d] px-4 py-4 text-white">
-        <div className="flex min-w-0 items-center gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#ffc94a] text-[#21382d]"><Flame size={20}/></span><span className="min-w-0"><strong className="block text-sm">Kitchen Assistant</strong><small className="text-xs text-white/65">Here to help with the kitchen</small></span></div>
-        <button type="button" onClick={() => onOpenChange(false)} aria-label="Close Kitchen Assistant" className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-white/80 transition hover:bg-white/10 hover:text-white"><X size={19}/></button>
+  return <>
+    <button type="button" onClick={() => onOpenChange(true)} aria-expanded={open} aria-controls="dsk-assistant-panel" className="dsk-assistant-launcher">
+      <MessageCircle size={23}/><span>Need help?</span><span className="dsk-assistant-online-dot" aria-hidden="true"/>
+    </button>
+    {open && <section id="dsk-assistant-panel" className="dsk-assistant-fullscreen" role="dialog" aria-label="Kitchen Assistant" aria-modal="true">
+      <header className="dsk-assistant-topbar">
+        <a href="/" className="dsk-assistant-brand" aria-label="Return to Damien's Smoky Kitchen"><span className="dsk-assistant-brand-mark"><Flame size={21}/></span><span>Damien's <b>Smoky Kitchen</b></span></a>
+        <button type="button" onClick={() => onOpenChange(false)} aria-label="Close Kitchen Assistant" className="dsk-assistant-close"><X size={22}/><span>Close</span></button>
       </header>
-      <div className="dsk-assistant-messages flex-1 space-y-3 overflow-y-auto bg-[#fbf8f1] p-4" aria-live="polite">
-        {messages.map((message, index) => <div key={index} className={message.role === "user" ? "flex justify-end" : "flex justify-start"}><p className={message.role === "user" ? "max-w-[88%] whitespace-pre-line rounded-2xl rounded-br-sm bg-[#21382d] px-3.5 py-3 text-sm leading-5 text-white" : "max-w-[88%] whitespace-pre-line rounded-2xl rounded-bl-sm border border-[#e8e2d6] bg-white px-3.5 py-3 text-sm leading-5 text-[#29382d]"}>{message.content}</p></div>)}
-        {messages.length === 1 && <div className="flex flex-wrap gap-2">{quickQuestions.map(question => <button key={question} type="button" disabled={busy} onClick={() => void ask(question)} className="rounded-full border border-[#d8dfd5] bg-white px-3 py-2 text-[11px] font-semibold text-[#526a50] transition hover:border-[#e96d2c] disabled:opacity-50">{question}</button>)}</div>}
-        {busy && <p className="text-xs text-[#69766e]" role="status">Checking the latest kitchen information…</p>}<div ref={endRef}/>
+      <div className="dsk-assistant-stage">
+        <div className="dsk-assistant-intro">
+          <span className="dsk-assistant-eyebrow">YOUR TABLE-SIDE HELPER</span>
+          <h1 className="dsk-assistant-welcome" aria-label="Welcome">
+            {welcomeLetters.map((letter, index) => <span key={index} className="dsk-assistant-letter" style={{ animationDelay: (index * 150) + "ms" }}>{letter}</span>)}
+          </h1>
+          <h2 className="dsk-assistant-title">Kitchen Assistant<span>.</span></h2>
+          <p className={"dsk-assistant-prompt " + (introFinished ? "is-visible" : "")}>How can we be of help today?</p>
+          <div className={"dsk-assistant-chat-area " + (introFinished ? "is-visible" : "")}>
+            <div className="dsk-assistant-conversation" aria-live="polite">
+              {messages.map((message, index) => <div key={index} className={message.role === "user" ? "flex justify-end" : "flex justify-start"}><p className={message.role === "user" ? "max-w-[88%] whitespace-pre-line rounded-2xl rounded-br-sm bg-[#21382d] px-4 py-3 text-sm leading-6 text-white" : "max-w-[88%] whitespace-pre-line rounded-2xl rounded-bl-sm border border-[#e8e2d6] bg-white px-4 py-3 text-sm leading-6 text-[#29382d]"}>{message.content}</p></div>)}
+              {messages.length === 0 && <div className="flex flex-wrap gap-2">{quickQuestions.map(question => <button key={question} type="button" disabled={busy} onClick={() => void ask(question)} className="rounded-full border border-[#d8dfd5] bg-white px-4 py-2.5 text-xs font-semibold text-[#526a50] transition hover:border-[#e96d2c] disabled:opacity-50">{question}</button>)}</div>}
+              {busy && <p className="text-sm text-[#69766e]" role="status">Checking the latest kitchen information…</p>}<div ref={endRef}/>
+            </div>
+            <form onSubmit={submit} className="dsk-assistant-composer">
+              <input value={input} onChange={event => setInput(event.target.value)} maxLength={2000} placeholder="Ask about dishes, prices or delivery…" aria-label="Message Kitchen Assistant" className="min-w-0 flex-1 bg-transparent px-2 py-3 text-sm outline-none"/>
+              <button type="submit" disabled={!input.trim() || busy} aria-label="Send message" className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[#e96d2c] text-white transition hover:bg-[#cf5b25] disabled:opacity-45"><Send size={18}/></button>
+            </form>
+            <p className="mt-3 text-center text-[11px] text-[#899188]">For live prices and availability, the kitchen checks its current menu.</p>
+          </div>
+        </div>
       </div>
-      <form onSubmit={submit} className="flex items-center gap-2 border-t border-[#eee9df] bg-white p-3">
-        <input value={input} onChange={event => setInput(event.target.value)} maxLength={2000} placeholder="Ask about dishes, prices or delivery…" aria-label="Message Kitchen Assistant" className="min-w-0 flex-1 rounded-xl bg-[#f4f1e9] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#ffc94a]"/>
-        <button type="submit" disabled={!input.trim() || busy} aria-label="Send message" className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#e96d2c] text-white transition hover:bg-[#cf5b25] disabled:opacity-45"><Send size={17}/></button>
-      </form>
     </section>}
-    <button type="button" onClick={() => onOpenChange(!open)} aria-expanded={open} aria-controls="dsk-assistant-panel" className="dsk-assistant-launcher">{open ? <X size={19}/> : <MessageCircle size={20}/>}<span>{open ? "Close" : "Need help?"}</span>{!open && <span className="dsk-assistant-online-dot" aria-hidden="true"/>}</button>
-  </div>;
+  </>;
 }
 
 function StaffLoginPage() {
