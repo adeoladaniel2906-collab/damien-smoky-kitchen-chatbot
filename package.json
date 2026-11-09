@@ -12,7 +12,7 @@
   "private": true,
   "dependencies": {},
   "devDependencies": {
-    "prettier": "^3.9.6",
-    "typescript": "~5.9.3"
+    "prettier": "^3.9.10",
+    "typescript": "~7.0.2"
   }
 }
