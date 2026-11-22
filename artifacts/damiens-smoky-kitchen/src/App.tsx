@@ -514,6 +514,8 @@ function AssistantPage({ basket }: { basket: BasketLine[] }) {
 }
 
 function CheckoutPage({ basket, change, remove, clear }: { basket: BasketLine[]; change: (id: string, delta: number) => void; remove: (id: string) => void; clear: () => void }) {
+  const { isSignedIn, getToken, userId } = useAuth();
+  const submitLock = useRef(false);
   const subtotal = basket.reduce((sum, line) => sum + (line.item.price ?? 0) * line.quantity, 0);
   const meetsMinimum = subtotal >= restaurantKnowledge.minimumDeliveryOrder;
   const [name, setName] = useState('');
@@ -526,8 +528,26 @@ function CheckoutPage({ basket, change, remove, clear }: { basket: BasketLine[];
   const [ordersEnabled, setOrdersEnabled] = useState(false);
   const [orderStatusLoading, setOrderStatusLoading] = useState(true);
   const [orderStatusError, setOrderStatusError] = useState(false);
-  const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
+  const [idempotencyKey, setIdempotencyKey] = useState<string>(() => crypto.randomUUID());
   const [confirmation, setConfirmation] = useState<{ orderId: string; message: string } | null>(null);
+
+  const rotateOrderAttempt = () => {
+    const nextKey = crypto.randomUUID();
+    setIdempotencyKey(nextKey);
+    if (userId) {
+      try { sessionStorage.setItem(`dsk-order-idempotency:${userId}`, nextKey); } catch { /* Storage may be unavailable; server-side idempotency remains authoritative. */ }
+    }
+  };
+
+  useEffect(() => {
+    if (!userId) return;
+    try {
+      const storageKey = `dsk-order-idempotency:${userId}`;
+      const savedKey = sessionStorage.getItem(storageKey);
+      if (savedKey && /^[A-Za-z0-9._:-]{16,128}$/.test(savedKey)) setIdempotencyKey(savedKey);
+      else sessionStorage.setItem(storageKey, idempotencyKey);
+    } catch { /* The in-memory key still protects retries during this page session. */ }
+  }, [userId]);
 
   useEffect(() => {
     let active = true;
@@ -541,18 +561,37 @@ function CheckoutPage({ basket, change, remove, clear }: { basket: BasketLine[];
 
   const submitOrder = async (event: FormEvent) => {
     event.preventDefault();
-    if (!basket.length || busy || !ordersEnabled) return;
-    setBusy(true); setStatus('');
+    if (!basket.length || busy || !ordersEnabled || submitLock.current) return;
+    submitLock.current = true;
+    setBusy(true);
+    setStatus('');
     try {
-      const response = await fetch('/api/orders', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey }, body: JSON.stringify({ name, phone, address, state: stateName, adultConfirmed, items: basket.map(({ item, quantity }) => ({ name: item.name, category: item.category, quantity })) }) });
+      if (!isSignedIn || !userId) throw new Error('Please sign in to submit an order.');
+      const token = await getToken();
+      if (!token) throw new Error('Your sign-in session could not be verified. Sign in again and retry.');
+      const response = await fetch('/api/orders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'Idempotency-Key': idempotencyKey,
+        },
+        body: JSON.stringify({
+          name, phone, address, state: stateName, adultConfirmed,
+          items: basket.map(({ item, quantity }) => ({ id: item.id, quantity, expectedPrice: item.price })),
+        }),
+      });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error ?? 'Could not save this order.');
       setConfirmation({ orderId: result.orderId, message: result.message });
       clear();
-      setIdempotencyKey(crypto.randomUUID());
+      rotateOrderAttempt();
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : 'Could not save this order.');
-    } finally { setBusy(false); }
+      setStatus(error instanceof Error ? error.message : 'Could not save this order. Retry without changing the order details to avoid creating a second request.');
+    } finally {
+      submitLock.current = false;
+      setBusy(false);
+    }
   };
 
   if (confirmation) return <main className="mx-auto max-w-3xl px-4 py-20 text-center"><span className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-[#e8eee6] text-[#315541]"><ShoppingBag size={25}/></span><h1 className="mt-5 text-3xl font-extrabold">Order request saved</h1><p className="mt-3 text-sm leading-6 text-[#69766e]">{confirmation.message}</p><p className="mt-3 text-xs text-[#69766e]">Reference: <strong>{confirmation.orderId}</strong></p><Link href="/menu" className="mt-6 inline-flex rounded-xl bg-[#e96d2c] px-5 py-3 text-sm font-bold text-white">Continue browsing</Link></main>;
@@ -562,19 +601,19 @@ function CheckoutPage({ basket, change, remove, clear }: { basket: BasketLine[];
     <div><p className="text-xs font-bold uppercase tracking-widest text-[#e96d2c]">Your basket</p><h1 className="mt-2 text-3xl font-extrabold">Review your order</h1><p className="mt-2 text-sm text-[#69766e]">Review the dishes and subtotal. Live order submission will be enabled after secure customer-data processing is ready. No payment is taken online.</p></div>
     <div className="mt-7 grid gap-8 lg:grid-cols-[1.1fr_.9fr]">
       <section className="space-y-3">
-        {basket.map(({ item, quantity }) => <article key={item.id} className="flex items-center justify-between gap-3 rounded-2xl border border-[#e8e2d6] bg-white p-4"><div><h2 className="font-bold">{menuItemLabel(item)}</h2><p className="mt-1 text-xs text-[#69766e]">{item.category} · {money(item.price ?? 0)} each</p></div><div className="flex items-center gap-2"><button onClick={() => change(item.id, -1)} className="grid h-8 w-8 place-items-center rounded-lg border" aria-label={`Remove one ${menuItemLabel(item)}`}><Minus size={14}/></button><span className="w-5 text-center text-sm font-semibold">{quantity}</span><button onClick={() => change(item.id, 1)} className="grid h-8 w-8 place-items-center rounded-lg border" aria-label={`Add one ${menuItemLabel(item)}`}><Plus size={14}/></button><button onClick={() => remove(item.id)} className="ml-1 text-[#8a6254]" aria-label={`Remove ${menuItemLabel(item)}`}><Trash2 size={16}/></button></div></article>)}
-        <button onClick={clear} className="text-xs font-semibold text-[#8a6254]">Clear basket</button>
+        {basket.map(({ item, quantity }) => <article key={item.id} className="flex items-center justify-between gap-3 rounded-2xl border border-[#e8e2d6] bg-white p-4"><div><h2 className="font-bold">{menuItemLabel(item)}</h2><p className="mt-1 text-xs text-[#69766e]">{item.category} · {money(item.price ?? 0)} each</p></div><div className="flex items-center gap-2"><button onClick={() => { rotateOrderAttempt(); change(item.id, -1); }} className="grid h-8 w-8 place-items-center rounded-lg border" aria-label={`Remove one ${menuItemLabel(item)}`}><Minus size={14}/></button><span className="w-5 text-center text-sm font-semibold">{quantity}</span><button onClick={() => { rotateOrderAttempt(); change(item.id, 1); }} className="grid h-8 w-8 place-items-center rounded-lg border" aria-label={`Add one ${menuItemLabel(item)}`}><Plus size={14}/></button><button onClick={() => { rotateOrderAttempt(); remove(item.id); }} className="ml-1 text-[#8a6254]" aria-label={`Remove ${menuItemLabel(item)}`}><Trash2 size={16}/></button></div></article>)}
+        <button onClick={() => { rotateOrderAttempt(); clear(); }} className="text-xs font-semibold text-[#8a6254]">Clear basket</button>
         <div className="rounded-2xl bg-[#e8eee6] p-4 text-sm"><strong>Delivery fee:</strong> depends on distance and is not included in this subtotal. The restaurant must confirm it.</div>
       </section>
       <section className="rounded-3xl border border-[#e8e2d6] bg-white p-5 sm:p-7">
         <div className="flex justify-between border-b border-[#eee9df] pb-4"><span className="text-sm">Food subtotal</span><strong>{money(subtotal)}</strong></div>
         <p className="py-4 text-xs leading-5 text-[#69766e]">Minimum delivery order: {money(restaurantKnowledge.minimumDeliveryOrder)}. Delivery is limited to Lagos State.</p>
         {!meetsMinimum && <p className="mb-4 rounded-xl bg-[#fff0e5] p-3 text-xs text-[#8b401d]">Add {money(restaurantKnowledge.minimumDeliveryOrder - subtotal)} more to meet the delivery minimum.</p>}
-        {orderStatusLoading ? <p className="rounded-xl bg-[#e8eee6] p-4 text-xs leading-5 text-[#52645a]" role="status">Checking secure checkout availability…</p> : orderStatusError ? <div className="rounded-xl bg-[#fff0e5] p-4 text-sm leading-6 text-[#8b401d]" role="alert"><strong className="block text-[#21382d]">We could not check checkout availability.</strong><p className="mt-2">Your basket is safe. Check your connection and reload this page before trying again.</p></div> : !ordersEnabled ? <div className="rounded-xl bg-[#e8eee6] p-4 text-sm leading-6 text-[#52645a]"><strong className="block text-[#21382d]">Online ordering is temporarily unavailable.</strong><p className="mt-2">We are completing the data-protection and secure order-processing setup. Your name, phone number and delivery address are not being requested or submitted here. You can still browse the menu.</p></div> : <form onSubmit={submitOrder} className="space-y-3">
-          <label className="block text-xs font-semibold">Your name<input required maxLength={100} value={name} onChange={(event) => setName(event.target.value)} className="mt-1 w-full rounded-xl bg-[#f0ece2] px-3 py-3 text-sm font-normal outline-none focus:ring-2 focus:ring-[#e96d2c]"/></label>
-          <label className="block text-xs font-semibold">Phone number<input required maxLength={24} value={phone} onChange={(event) => setPhone(event.target.value)} className="mt-1 w-full rounded-xl bg-[#f0ece2] px-3 py-3 text-sm font-normal outline-none focus:ring-2 focus:ring-[#e96d2c]"/></label>
-          <label className="block text-xs font-semibold">Delivery address in Lagos<input required maxLength={300} value={address} onChange={(event) => setAddress(event.target.value)} className="mt-1 w-full rounded-xl bg-[#f0ece2] px-3 py-3 text-sm font-normal outline-none focus:ring-2 focus:ring-[#e96d2c]"/></label>
-          <label className="flex items-start gap-2 text-xs leading-5 text-[#69766e]"><input type="checkbox" required checked={adultConfirmed} onChange={event => setAdultConfirmed(event.target.checked)} className="mt-1 accent-[#e96d2c]"/>I confirm I am 18 or older. If I am ordering for a child, I am the parent/legal guardian and I am providing my own contact and delivery details.</label>
+        {orderStatusLoading ? <p className="rounded-xl bg-[#e8eee6] p-4 text-xs leading-5 text-[#52645a]" role="status">Checking secure checkout availability…</p> : orderStatusError ? <div className="rounded-xl bg-[#fff0e5] p-4 text-sm leading-6 text-[#8b401d]" role="alert"><strong className="block text-[#21382d]">We could not check checkout availability.</strong><p className="mt-2">Your basket is safe. Check your connection and reload this page before trying again.</p></div> : !ordersEnabled ? <div className="rounded-xl bg-[#e8eee6] p-4 text-sm leading-6 text-[#52645a]"><strong className="block text-[#21382d]">Online ordering is temporarily unavailable.</strong><p className="mt-2">We are completing the data-protection and secure order-processing setup. Your name, phone number and delivery address are not being requested or submitted here. You can still browse the menu.</p></div> : !isSignedIn ? <div className="rounded-xl bg-[#fff0e5] p-4 text-sm leading-6 text-[#8b401d]"><strong className="block text-[#21382d]">Sign in to place an order.</strong><p className="mt-2">Your basket will remain available after you sign in.</p><Link href="/login" className="mt-3 inline-flex rounded-lg bg-[#21382d] px-4 py-2 font-bold text-white">Sign in</Link></div> : <form onSubmit={submitOrder} className="space-y-3">
+          <label className="block text-xs font-semibold">Your name<input required maxLength={100} value={name} onChange={(event) => { rotateOrderAttempt(); setName(event.target.value); }} className="mt-1 w-full rounded-xl bg-[#f0ece2] px-3 py-3 text-sm font-normal outline-none focus:ring-2 focus:ring-[#e96d2c]"/></label>
+          <label className="block text-xs font-semibold">Phone number<input required maxLength={24} value={phone} onChange={(event) => { rotateOrderAttempt(); setPhone(event.target.value); }} className="mt-1 w-full rounded-xl bg-[#f0ece2] px-3 py-3 text-sm font-normal outline-none focus:ring-2 focus:ring-[#e96d2c]"/></label>
+          <label className="block text-xs font-semibold">Delivery address in Lagos<input required maxLength={300} value={address} onChange={(event) => { rotateOrderAttempt(); setAddress(event.target.value); }} className="mt-1 w-full rounded-xl bg-[#f0ece2] px-3 py-3 text-sm font-normal outline-none focus:ring-2 focus:ring-[#e96d2c]"/></label>
+          <label className="flex items-start gap-2 text-xs leading-5 text-[#69766e]"><input type="checkbox" required checked={adultConfirmed} onChange={event => { rotateOrderAttempt(); setAdultConfirmed(event.target.checked); }} className="mt-1 accent-[#e96d2c]"/>I confirm I am 18 or older. If I am ordering for a child, I am the parent/legal guardian and I am providing my own contact and delivery details.</label>
           <p className="text-xs leading-5 text-[#69766e]">We use these details to process your order request and arrange delivery. Read our <Link href="/privacy" className="font-semibold underline">Privacy Notice</Link> and <Link href="/terms" className="font-semibold underline">Ordering Terms</Link>.</p>
           <button disabled={busy || !meetsMinimum} className="w-full rounded-xl bg-[#21382d] px-4 py-3.5 text-sm font-bold text-white hover:bg-[#315541] disabled:cursor-not-allowed disabled:opacity-50">{busy ? 'Saving order…' : 'Send order request'}</button>
           {status && <p role="status" className="rounded-xl bg-[#e8eee6] p-3 text-xs leading-5">{status}</p>}

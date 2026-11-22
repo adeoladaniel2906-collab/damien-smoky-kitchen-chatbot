@@ -36,6 +36,10 @@ class FakeStatement {
   bind(...params) { this.params = params; return this; }
   async first() {
     const p = this.params;
+    if (this.sql.includes("SELECT id, subtotal_ngn, status, clerk_user_id, request_hash FROM orders WHERE idempotency_key")) {
+      const row = [...this.db.orders.values()].find(order => order.idempotency_key === p[0]);
+      return row ? { id: row.id, subtotal_ngn: row.subtotal_ngn, status: row.status, clerk_user_id: row.clerk_user_id, request_hash: row.request_hash } : null;
+    }
     if (this.sql.includes("SELECT id, name, email, phone FROM customer_accounts WHERE clerk_user_id")) {
       const row = [...this.db.accounts.values()].find(account => account.clerk_user_id === p[0]);
       return row ? { id: row.id, name: row.name, email: row.email, phone: row.phone } : null;
@@ -66,10 +70,21 @@ class FakeStatement {
     }
     return null;
   }
-  async all() { return { results: [] }; }
+  async all() {
+    if (this.sql.includes("FROM menu_items")) return { results: this.db.menuItems };
+    if (this.sql.includes("FROM orders")) return { results: [...this.db.orders.values()] };
+    return { results: [] };
+  }
   async run() {
     const p = this.params;
-    if (this.sql.startsWith("INSERT INTO customer_accounts")) {
+    if (this.sql.startsWith("INSERT INTO orders")) {
+      const [id, idempotency_key, customer_name, customer_phone, delivery_address, subtotal_ngn, , clerk_user_id, request_hash] = p;
+      if ([...this.db.orders.values()].some(order => order.idempotency_key === idempotency_key)) throw new Error("UNIQUE constraint failed: orders.idempotency_key");
+      this.db.orders.set(id, { id, idempotency_key, customer_name, customer_phone, delivery_address, subtotal_ngn, status: "pending", clerk_user_id, request_hash });
+    } else if (this.sql.startsWith("INSERT INTO order_items")) {
+      const [order_id, item_name, category, quantity, unit_price_ngn, line_total_ngn] = p;
+      this.db.orderItems.push({ order_id, item_name, category, quantity, unit_price_ngn, line_total_ngn });
+    } else if (this.sql.startsWith("INSERT INTO customer_accounts")) {
       const [id, name, email, phone, password_hash, clerk_user_id] = p;
       if ([...this.db.accounts.values()].some(account => account.email === email || (clerk_user_id && account.clerk_user_id === clerk_user_id))) throw new Error("UNIQUE constraint failed");
       this.db.accounts.set(id, { id, name, email, phone, password_hash, clerk_user_id: clerk_user_id ?? null });
@@ -113,6 +128,13 @@ class FakeDatabase {
   accounts = new Map();
   sessions = new Map();
   totpState = new Map();
+  orders = new Map();
+  orderItems = [];
+  menuItems = [{
+    id: "menu-jollof", name: "Jollof Rice", category: "Rice", price_ngn: 1200,
+    aliases_json: '["jollof"]', is_vegan: 0, is_available: 1, sort_order: 1,
+    updated_at: "2026-11-22T00:00:00.000Z",
+  }];
   prepare(sql) { return new FakeStatement(this, sql); }
   async batch(statements) {
     const results = [];
@@ -172,12 +194,13 @@ function makeEnv(overrides = {}) {
   };
 }
 
-function request(path, { method = "POST", body, origin = "https://restaurant.example", cookie, authorization } = {}) {
+function request(path, { method = "POST", body, origin = "https://restaurant.example", cookie, authorization, idempotencyKey } = {}) {
   const headers = new Headers();
   if (origin !== null) headers.set("Origin", origin);
   if (body !== undefined) headers.set("Content-Type", "application/json");
   if (cookie) headers.set("Cookie", cookie);
   if (authorization) headers.set("Authorization", authorization);
+  if (idempotencyKey) headers.set("Idempotency-Key", idempotencyKey);
   return new Request("https://restaurant.example" + path, {
     method,
     headers,
@@ -301,8 +324,14 @@ test("live order collection is disabled by default and does not request customer
 
 test("order preview rejects an order without adult confirmation", async () => {
   const env = makeEnv({ ORDERS_ENABLED: "true" });
+  const profile = await worker.fetch(request("/api/auth/profile", {
+    authorization: "Bearer clerk-one-token",
+    body: { phone: "08012345678", adultConfirmed: true },
+  }), env);
+  assert.equal(profile.status, 201);
   const response = await worker.fetch(request("/api/orders/preview", {
-    body: { name: "Test User", phone: "08012345678", address: "Ibafo, Lagos", state: "Lagos", adultConfirmed: false, items: [{ name: "Jollof Rice", category: "Rice", quantity: 1 }] },
+    authorization: "Bearer clerk-one-token",
+    body: { name: "Test User", phone: "08012345678", address: "Ibafo, Lagos", state: "Lagos", adultConfirmed: false, items: [{ id: "menu-jollof", quantity: 3 }] },
   }), env);
   assert.equal(response.status, 400);
 });
@@ -448,4 +477,166 @@ test("order create and preview reject cross-origin and missing-Origin requests",
     assert.equal(order.status, 403);
     assert.equal(preview.status, 403);
   }
+});
+
+
+async function createCustomerProfile(env, token, phone) {
+  return worker.fetch(request("/api/auth/profile", {
+    authorization: token,
+    body: { phone, adultConfirmed: true },
+  }), env);
+}
+
+function validOrderPayload(overrides = {}) {
+  return {
+    name: "Alex Same Name",
+    phone: "08012345678",
+    address: "12 Example Street, Lagos",
+    state: "Lagos",
+    adultConfirmed: true,
+    items: [{ id: "menu-jollof", quantity: 3, expectedPrice: 1200 }],
+    ...overrides,
+  };
+}
+
+test("order creation requires a verified signed-in customer with a customer profile", async () => {
+  const env = makeEnv({ ORDERS_ENABLED: "true" });
+  const anonymous = await worker.fetch(request("/api/orders", {
+    body: validOrderPayload(), idempotencyKey: "anonymous-order-key-0001",
+  }), env);
+  assert.equal(anonymous.status, 401);
+  assert.equal(env.DB.orders.size, 0);
+
+  const signedInWithoutProfile = await worker.fetch(request("/api/orders", {
+    authorization: "Bearer clerk-one-token",
+    body: validOrderPayload(), idempotencyKey: "profile-missing-key-0001",
+  }), env);
+  assert.equal(signedInWithoutProfile.status, 403);
+  assert.equal(env.DB.orders.size, 0);
+});
+
+test("customers with identical names remain isolated by immutable Clerk identity", async () => {
+  const env = makeEnv({ ORDERS_ENABLED: "true" });
+  assert.equal((await createCustomerProfile(env, "Bearer clerk-one-token", "08012345678")).status, 201);
+  assert.equal((await createCustomerProfile(env, "Bearer clerk-two-token", "08087654321")).status, 201);
+
+  const [first, second] = await Promise.all([
+    worker.fetch(request("/api/orders", {
+      authorization: "Bearer clerk-one-token",
+      idempotencyKey: "customer-one-order-key-001",
+      body: validOrderPayload(),
+    }), env),
+    worker.fetch(request("/api/orders", {
+      authorization: "Bearer clerk-two-token",
+      idempotencyKey: "customer-two-order-key-001",
+      body: validOrderPayload({ phone: "08087654321" }),
+    }), env),
+  ]);
+
+  assert.equal(first.status, 201);
+  assert.equal(second.status, 201);
+  assert.equal(env.DB.orders.size, 2);
+  const orders = [...env.DB.orders.values()];
+  assert.equal(orders[0].customer_name, orders[1].customer_name);
+  assert.notEqual(orders[0].clerk_user_id, orders[1].clerk_user_id);
+});
+
+test("simultaneous retries with the same customer key create exactly one order", async () => {
+  const env = makeEnv({ ORDERS_ENABLED: "true" });
+  assert.equal((await createCustomerProfile(env, "Bearer clerk-one-token", "08012345678")).status, 201);
+  const options = {
+    authorization: "Bearer clerk-one-token",
+    idempotencyKey: "same-purchase-retry-key-0001",
+    body: validOrderPayload(),
+  };
+  const [first, retry] = await Promise.all([
+    worker.fetch(request("/api/orders", options), env),
+    worker.fetch(request("/api/orders", options), env),
+  ]);
+  assert.ok([200, 201].includes(first.status));
+  assert.ok([200, 201].includes(retry.status));
+  const firstData = await first.json();
+  const retryData = await retry.json();
+  assert.equal(firstData.orderId, retryData.orderId);
+  assert.equal(env.DB.orders.size, 1);
+  assert.equal(env.DB.orderItems.length, 1);
+});
+
+test("reusing an idempotency key for changed details or another customer is rejected", async () => {
+  const env = makeEnv({ ORDERS_ENABLED: "true" });
+  assert.equal((await createCustomerProfile(env, "Bearer clerk-one-token", "08012345678")).status, 201);
+  assert.equal((await createCustomerProfile(env, "Bearer clerk-two-token", "08087654321")).status, 201);
+  const key = "same-key-must-not-cross-users-01";
+  const first = await worker.fetch(request("/api/orders", {
+    authorization: "Bearer clerk-one-token", idempotencyKey: key, body: validOrderPayload(),
+  }), env);
+  assert.equal(first.status, 201);
+
+  const changed = await worker.fetch(request("/api/orders", {
+    authorization: "Bearer clerk-one-token", idempotencyKey: key,
+    body: validOrderPayload({ address: "99 Different Street, Lagos" }),
+  }), env);
+  assert.equal(changed.status, 409);
+
+  const otherCustomer = await worker.fetch(request("/api/orders", {
+    authorization: "Bearer clerk-two-token", idempotencyKey: key,
+    body: validOrderPayload({ phone: "08087654321" }),
+  }), env);
+  assert.equal(otherCustomer.status, 409);
+  assert.equal(env.DB.orders.size, 1);
+});
+
+test("order prices and availability are read from the live D1 menu, not bundled menu data", async () => {
+  const env = makeEnv({ ORDERS_ENABLED: "true" });
+  assert.equal((await createCustomerProfile(env, "Bearer clerk-one-token", "08012345678")).status, 201);
+  env.DB.menuItems[0].price_ngn = 1600;
+  const response = await worker.fetch(request("/api/orders", {
+    authorization: "Bearer clerk-one-token",
+    idempotencyKey: "live-menu-price-order-key-01",
+    body: validOrderPayload({ items: [{ id: "menu-jollof", quantity: 3, expectedPrice: 1600 }] }),
+  }), env);
+  assert.equal(response.status, 201);
+  const data = await response.json();
+  assert.equal(data.subtotal, 4800);
+
+  env.DB.menuItems[0].is_available = 0;
+  const unavailable = await worker.fetch(request("/api/orders", {
+    authorization: "Bearer clerk-one-token",
+    idempotencyKey: "unavailable-menu-item-key-01",
+    body: validOrderPayload({ items: [{ id: "menu-jollof", quantity: 3, expectedPrice: 1600 }] }),
+  }), env);
+  assert.equal(unavailable.status, 409);
+  assert.equal(env.DB.orders.size, 1);
+});
+
+
+test("a retry returns the saved order after the live menu changes, while quantity two remains a single line item", async () => {
+  const env = makeEnv({ ORDERS_ENABLED: "true" });
+  assert.equal((await createCustomerProfile(env, "Bearer clerk-one-token", "08012345678")).status, 201);
+  env.DB.menuItems[0].price_ngn = 1600;
+  const payload = validOrderPayload({ items: [{ id: "menu-jollof", quantity: 2, expectedPrice: 1600 }] });
+  const first = await worker.fetch(request("/api/orders", {
+    authorization: "Bearer clerk-one-token",
+    idempotencyKey: "two-items-one-order-attempt-01",
+    body: payload,
+  }), env);
+  assert.equal(first.status, 201);
+  const firstData = await first.json();
+  assert.equal(firstData.subtotal, 3200);
+  assert.equal(env.DB.orderItems.length, 1);
+  assert.equal(env.DB.orderItems[0].quantity, 2);
+  assert.equal(env.DB.orderItems[0].line_total_ngn, 3200);
+
+  env.DB.menuItems[0].price_ngn = 1900;
+  const retry = await worker.fetch(request("/api/orders", {
+    authorization: "Bearer clerk-one-token",
+    idempotencyKey: "two-items-one-order-attempt-01",
+    body: payload,
+  }), env);
+  assert.equal(retry.status, 200);
+  const retryData = await retry.json();
+  assert.equal(retryData.orderId, firstData.orderId);
+  assert.equal(retryData.subtotal, 3200);
+  assert.equal(env.DB.orders.size, 1);
+  assert.equal(env.DB.orderItems.length, 1);
 });
