@@ -578,7 +578,7 @@ function CheckoutPage({ basket, change, remove, clear }: { basket: BasketLine[];
         },
         body: JSON.stringify({
           name, phone, address, state: stateName, adultConfirmed,
-          items: basket.map(({ item, quantity }) => ({ id: item.id, quantity })),
+          items: basket.map(({ item, quantity }) => ({ id: item.id, quantity, expectedPrice: item.price })),
         }),
       });
       const result = await response.json();
