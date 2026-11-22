@@ -593,7 +593,7 @@ test("order prices and availability are read from the live D1 menu, not bundled 
   const response = await worker.fetch(request("/api/orders", {
     authorization: "Bearer clerk-one-token",
     idempotencyKey: "live-menu-price-order-key-01",
-    body: validOrderPayload(),
+    body: validOrderPayload({ items: [{ id: "menu-jollof", quantity: 3, expectedPrice: 1600 }] }),
   }), env);
   assert.equal(response.status, 201);
   const data = await response.json();
@@ -603,7 +603,7 @@ test("order prices and availability are read from the live D1 menu, not bundled 
   const unavailable = await worker.fetch(request("/api/orders", {
     authorization: "Bearer clerk-one-token",
     idempotencyKey: "unavailable-menu-item-key-01",
-    body: validOrderPayload(),
+    body: validOrderPayload({ items: [{ id: "menu-jollof", quantity: 3, expectedPrice: 1600 }] }),
   }), env);
   assert.equal(unavailable.status, 409);
   assert.equal(env.DB.orders.size, 1);
