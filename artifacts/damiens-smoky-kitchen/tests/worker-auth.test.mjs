@@ -494,7 +494,7 @@ function validOrderPayload(overrides = {}) {
     address: "12 Example Street, Lagos",
     state: "Lagos",
     adultConfirmed: true,
-    items: [{ id: "menu-jollof", quantity: 3 }],
+    items: [{ id: "menu-jollof", quantity: 3, expectedPrice: 1200 }],
     ...overrides,
   };
 }
