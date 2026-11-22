@@ -608,3 +608,35 @@ test("order prices and availability are read from the live D1 menu, not bundled 
   assert.equal(unavailable.status, 409);
   assert.equal(env.DB.orders.size, 1);
 });
+
+
+test("a retry returns the saved order after the live menu changes, while quantity two remains a single line item", async () => {
+  const env = makeEnv({ ORDERS_ENABLED: "true" });
+  assert.equal((await createCustomerProfile(env, "Bearer clerk-one-token", "08012345678")).status, 201);
+  env.DB.menuItems[0].price_ngn = 1600;
+  const payload = validOrderPayload({ items: [{ id: "menu-jollof", quantity: 2, expectedPrice: 1600 }] });
+  const first = await worker.fetch(request("/api/orders", {
+    authorization: "Bearer clerk-one-token",
+    idempotencyKey: "two-items-one-order-attempt-01",
+    body: payload,
+  }), env);
+  assert.equal(first.status, 201);
+  const firstData = await first.json();
+  assert.equal(firstData.subtotal, 3200);
+  assert.equal(env.DB.orderItems.length, 1);
+  assert.equal(env.DB.orderItems[0].quantity, 2);
+  assert.equal(env.DB.orderItems[0].line_total_ngn, 3200);
+
+  env.DB.menuItems[0].price_ngn = 1900;
+  const retry = await worker.fetch(request("/api/orders", {
+    authorization: "Bearer clerk-one-token",
+    idempotencyKey: "two-items-one-order-attempt-01",
+    body: payload,
+  }), env);
+  assert.equal(retry.status, 200);
+  const retryData = await retry.json();
+  assert.equal(retryData.orderId, firstData.orderId);
+  assert.equal(retryData.subtotal, 3200);
+  assert.equal(env.DB.orders.size, 1);
+  assert.equal(env.DB.orderItems.length, 1);
+});
