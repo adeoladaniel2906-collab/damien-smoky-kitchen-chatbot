@@ -528,7 +528,7 @@ function CheckoutPage({ basket, change, remove, clear }: { basket: BasketLine[];
   const [ordersEnabled, setOrdersEnabled] = useState(false);
   const [orderStatusLoading, setOrderStatusLoading] = useState(true);
   const [orderStatusError, setOrderStatusError] = useState(false);
-  const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
+  const [idempotencyKey, setIdempotencyKey] = useState<string>(() => crypto.randomUUID());
   const [confirmation, setConfirmation] = useState<{ orderId: string; message: string } | null>(null);
 
   const rotateOrderAttempt = () => {
