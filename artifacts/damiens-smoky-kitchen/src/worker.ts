@@ -488,7 +488,7 @@ async function handleOrderPreview(request: Request, env: Env): Promise<Response>
     if (!Number.isSafeInteger(subtotal)) return Response.json({ error: "The basket total is invalid." }, { status: 400 });
   }
   if (subtotal < restaurantKnowledge.minimumDeliveryOrder) {
-    return Response.json({ error: \`The minimum delivery order is ₦\${restaurantKnowledge.minimumDeliveryOrder.toLocaleString("en-NG")}.\`, subtotal, minimumOrder: restaurantKnowledge.minimumDeliveryOrder }, { status: 422, headers: { "Cache-Control": "no-store" } });
+    return Response.json({ error: `The minimum delivery order is ₦${restaurantKnowledge.minimumDeliveryOrder.toLocaleString("en-NG")}.`, subtotal, minimumOrder: restaurantKnowledge.minimumDeliveryOrder }, { status: 422, headers: { "Cache-Control": "no-store" } });
   }
   return Response.json({
     ok: true, orderSubmitted: false, subtotal, deliveryFee: null,
@@ -554,7 +554,7 @@ async function handleOrderCreate(request: Request, env: Env): Promise<Response> 
     lines.push({ name: item.name, category: item.category, quantity, unitPrice: item.price, lineTotal });
   }
   if (subtotal < restaurantKnowledge.minimumDeliveryOrder) {
-    return Response.json({ error: \`The minimum delivery order is ₦\${restaurantKnowledge.minimumDeliveryOrder.toLocaleString("en-NG")}.\`, subtotal, minimumOrder: restaurantKnowledge.minimumDeliveryOrder }, { status: 422, headers: { "Cache-Control": "no-store" } });
+    return Response.json({ error: `The minimum delivery order is ₦${restaurantKnowledge.minimumDeliveryOrder.toLocaleString("en-NG")}.`, subtotal, minimumOrder: restaurantKnowledge.minimumDeliveryOrder }, { status: 422, headers: { "Cache-Control": "no-store" } });
   }
 
   const orderId = crypto.randomUUID();
