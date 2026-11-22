@@ -373,145 +373,179 @@ async function handleChat(request: Request, env: Env, url: URL): Promise<Respons
   }
 }
 
-type OrderLineInput = { name?: unknown; category?: unknown; quantity?: unknown };
+type OrderLineInput = { id?: unknown; quantity?: unknown };
 type OrderPreviewInput = { name?: unknown; phone?: unknown; address?: unknown; state?: unknown; adultConfirmed?: unknown; items?: unknown };
 
-async function handleOrderPreview(request: Request, env: Env): Promise<Response> {
+function duplicateOrderResponse(existing: { id: string; subtotal_ngn: number; status: string }) {
+  return Response.json({
+    ok: true, orderSubmitted: true, duplicate: true, orderId: existing.id,
+    status: existing.status, subtotal: existing.subtotal_ngn,
+    message: "This order request was already received. The restaurant must confirm it.",
+  }, { headers: { "Cache-Control": "no-store" } });
+}
+
+async function handleOrderPreview(request: Request, env: Env, verifiedIdentity?: ClerkIdentity): Promise<Response> {
   const contentLength = Number(request.headers.get("content-length") ?? "0");
-  if (contentLength > MAX_BODY_BYTES) {
-    return Response.json({ error: "Request body is too large." }, { status: 413 });
-  }
+  if (contentLength > MAX_BODY_BYTES) return Response.json({ error: "Request body is too large." }, { status: 413 });
 
   const clientKey = request.headers.get("CF-Connecting-IP") ?? "unknown";
-  const rate = await env.CHAT_RATE_LIMIT.limit({ key: clientKey });
-  if (!rate.success) {
-    return Response.json({ error: "Too many requests. Please try again shortly." }, {
-      status: 429,
-      headers: { "Retry-After": "60", "Cache-Control": "no-store" },
-    });
+  const rate = await env.ORDER_RATE_LIMIT.limit({ key: clientKey });
+  if (!rate.success) return Response.json({ error: "Too many order requests. Please try again shortly." }, {
+    status: 429, headers: { "Retry-After": "60", "Cache-Control": "no-store" },
+  });
+
+  let identity = verifiedIdentity;
+  try {
+    identity ??= await getClerkIdentity(request, env, new URL(request.url)) ?? undefined;
+  } catch {
+    return Response.json({ error: "We could not verify your customer session. Please sign in again." }, { status: 503, headers: { "Cache-Control": "no-store" } });
   }
+  if (!identity) return Response.json({ error: "Sign in before submitting an order." }, { status: 401, headers: { "Cache-Control": "no-store" } });
+
+  const profile = await getCustomerProfileByClerkId(env, identity.userId);
+  if (!profile) return Response.json({ error: "Complete your customer profile before submitting an order." }, { status: 403, headers: { "Cache-Control": "no-store" } });
 
   let body: OrderPreviewInput;
   try {
     const rawBody = await readLimitedBody(request);
-    if (rawBody === null) {
-      return Response.json({ error: "Request body is too large." }, { status: 413 });
-    }
+    if (rawBody === null) return Response.json({ error: "Request body is too large." }, { status: 413 });
     body = JSON.parse(rawBody) as OrderPreviewInput;
   } catch {
     return Response.json({ error: "Request body must be valid JSON." }, { status: 400 });
   }
 
-  if (!body || typeof body !== "object" || Array.isArray(body)) {
-    return Response.json({ error: "Request body must be a JSON object." }, { status: 400 });
-  }
+  if (!body || typeof body !== "object" || Array.isArray(body)) return Response.json({ error: "Request body must be a JSON object." }, { status: 400 });
   if (
     typeof body.name !== "string" || body.name.trim().length < 1 || body.name.length > 100 ||
     typeof body.phone !== "string" || !/^[+\d\s()\-]{8,24}$/.test(body.phone) || body.phone.replace(/\D/g, "").length < 8 ||
     typeof body.address !== "string" || body.address.trim().length < 5 || body.address.length > 300 ||
-    body.state !== "Lagos" ||
-    body.adultConfirmed !== true ||
+    body.state !== "Lagos" || body.adultConfirmed !== true ||
     !Array.isArray(body.items) || body.items.length < 1 || body.items.length > 30
   ) {
     return Response.json({ error: "Confirm you are 18 or older, or that you are a parent/legal guardian placing the order with your own details. Check the name, phone, Lagos address and basket." }, { status: 400 });
   }
 
+  let liveMenu: LiveMenuItem[];
+  try {
+    liveMenu = await readMenu(env, true);
+  } catch (error) {
+    console.error("Order menu validation failed:", error);
+    return Response.json({ error: "We could not verify current menu prices and availability. Please try again." }, { status: 503, headers: { "Cache-Control": "no-store" } });
+  }
+
   let subtotal = 0;
   for (const candidate of body.items as OrderLineInput[]) {
     if (
-      typeof candidate?.name !== "string" ||
-      typeof candidate.category !== "string" ||
-      !Number.isInteger(candidate.quantity) ||
-      Number(candidate.quantity) < 1 ||
-      Number(candidate.quantity) > 20
+      typeof candidate?.id !== "string" || candidate.id.length < 1 || candidate.id.length > 180 ||
+      !Number.isInteger(candidate.quantity) || Number(candidate.quantity) < 1 || Number(candidate.quantity) > 20
     ) {
-      return Response.json({ error: "One or more basket items are invalid." }, { status: 400 });
+      return Response.json({ error: "One or more basket items are invalid. Refresh the menu and try again." }, { status: 400 });
     }
-    const item = [...restaurantKnowledge.menu, ...restaurantKnowledge.drinksMenu, ...restaurantKnowledge.veganMenu].find(
-      (entry) => entry.name === candidate.name && entry.category === candidate.category,
-    );
-    if (!item || item.price === null) {
-      return Response.json({ error: "One or more basket items are not available at a listed price." }, { status: 400 });
+    const item = liveMenu.find(entry => entry.id === candidate.id);
+    if (!item || !item.isAvailable || item.price === null || !Number.isInteger(item.price) || item.price < 0) {
+      return Response.json({ error: "One or more basket items are no longer available at a listed price. Refresh the menu and review your basket." }, { status: 409, headers: { "Cache-Control": "no-store" } });
     }
     subtotal += item.price * Number(candidate.quantity);
+    if (!Number.isSafeInteger(subtotal)) return Response.json({ error: "The basket total is invalid." }, { status: 400 });
   }
 
   if (subtotal < restaurantKnowledge.minimumDeliveryOrder) {
     return Response.json({
-      error: `The minimum delivery order is ₦${restaurantKnowledge.minimumDeliveryOrder.toLocaleString("en-NG")}.`,
-      subtotal,
-      minimumOrder: restaurantKnowledge.minimumDeliveryOrder,
-    }, { status: 422 });
+      error: \`The minimum delivery order is ₦\${restaurantKnowledge.minimumDeliveryOrder.toLocaleString("en-NG")}.\`,
+      subtotal, minimumOrder: restaurantKnowledge.minimumDeliveryOrder,
+    }, { status: 422, headers: { "Cache-Control": "no-store" } });
   }
 
   return Response.json({
-    ok: true,
-    orderSubmitted: false,
-    subtotal,
-    deliveryFee: null,
-    message: "Basket details are valid. The delivery fee depends on distance and must be confirmed by the restaurant. This review has not submitted an order.",
+    ok: true, orderSubmitted: false, subtotal, deliveryFee: null,
+    message: "Basket details are valid against the current menu. This review has not submitted an order or taken payment.",
   }, { headers: { "Cache-Control": "no-store" } });
 }
-
 
 async function handleOrderCreate(request: Request, env: Env): Promise<Response> {
   const clientKey = request.headers.get("CF-Connecting-IP") ?? "unknown";
   const rate = await env.ORDER_RATE_LIMIT.limit({ key: clientKey });
-  if (!rate.success) return Response.json({ error: "Too many order attempts. Please try again shortly." }, { status: 429, headers: { "Retry-After": "60", "Cache-Control": "no-store" } });
+  if (!rate.success) return Response.json({ error: "Too many order attempts. Please try again shortly." }, {
+    status: 429, headers: { "Retry-After": "60", "Cache-Control": "no-store" },
+  });
 
-  const preview = await handleOrderPreview(request.clone(), env);
+  let identity: ClerkIdentity | null;
+  try {
+    identity = await getClerkIdentity(request, env, new URL(request.url));
+  } catch {
+    return Response.json({ error: "We could not verify your customer session. Please sign in again." }, { status: 503, headers: { "Cache-Control": "no-store" } });
+  }
+  if (!identity) return Response.json({ error: "Sign in before submitting an order." }, { status: 401, headers: { "Cache-Control": "no-store" } });
+  const profile = await getCustomerProfileByClerkId(env, identity.userId);
+  if (!profile) return Response.json({ error: "Complete your customer profile before submitting an order." }, { status: 403, headers: { "Cache-Control": "no-store" } });
+
+  const preview = await handleOrderPreview(request.clone(), env, identity);
   if (!preview.ok) return preview;
 
   const idempotencyKey = request.headers.get("Idempotency-Key");
   if (!idempotencyKey || !/^[A-Za-z0-9._:-]{16,128}$/.test(idempotencyKey)) {
-    return Response.json({ error: "A valid order request key is required. Please retry." }, { status: 400 });
+    return Response.json({ error: "A valid order request key is required. Please retry." }, { status: 400, headers: { "Cache-Control": "no-store" } });
   }
 
   let body: OrderPreviewInput;
   try { body = JSON.parse(await request.text()) as OrderPreviewInput; }
   catch { return Response.json({ error: "Request body must be valid JSON." }, { status: 400 }); }
 
-  const existing = await env.DB.prepare("SELECT id, subtotal_ngn, status FROM orders WHERE idempotency_key = ?")
-    .bind(idempotencyKey).first<{ id: string; subtotal_ngn: number; status: string }>();
-  if (existing) return Response.json({
-    ok: true, orderSubmitted: true, duplicate: true, orderId: existing.id,
-    status: existing.status, subtotal: existing.subtotal_ngn,
-    message: "This order request was already received. The restaurant must confirm it.",
-  }, { headers: { "Cache-Control": "no-store" } });
-
-  const items = body.items as OrderLineInput[];
-  const menu = [...restaurantKnowledge.menu, ...restaurantKnowledge.drinksMenu, ...restaurantKnowledge.veganMenu];
-  const lines = items.map((candidate) => {
-    const item = menu.find((entry) => entry.name === candidate.name && entry.category === candidate.category);
-    if (!item || item.price === null) throw new Error("Validated menu item disappeared.");
+  const liveMenu = await readMenu(env, true);
+  const lines = (body.items as OrderLineInput[]).map(candidate => {
+    const item = liveMenu.find(entry => entry.id === candidate.id);
+    if (!item || !item.isAvailable || item.price === null) throw new Error("Live menu changed during order validation.");
     const quantity = Number(candidate.quantity);
-    return { name: item.name, category: item.category, quantity, unitPrice: item.price, lineTotal: item.price * quantity };
+    return { id: item.id, name: item.name, category: item.category, quantity, unitPrice: item.price, lineTotal: item.price * quantity };
   });
   const subtotal = lines.reduce((sum, line) => sum + line.lineTotal, 0);
-  const orderId = crypto.randomUUID();
+  const canonicalRequest = JSON.stringify({
+    customerId: identity.userId, customerAccountId: profile.id,
+    name: (body.name as string).trim(), phone: (body.phone as string).trim(),
+    address: (body.address as string).trim(), state: "Lagos", adultConfirmed: true,
+    items: lines.map(line => ({ id: line.id, quantity: line.quantity, unitPrice: line.unitPrice })),
+  });
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonicalRequest)));
+  const requestHash = Array.from(digest, byte => byte.toString(16).padStart(2, "0")).join("");
 
+  const existing = await env.DB.prepare(
+    "SELECT id, subtotal_ngn, status, clerk_user_id, request_hash FROM orders WHERE idempotency_key = ?",
+  ).bind(idempotencyKey).first<{ id: string; subtotal_ngn: number; status: string; clerk_user_id: string | null; request_hash: string | null }>();
+
+  const resolveExisting = (row: { id: string; subtotal_ngn: number; status: string; clerk_user_id: string | null; request_hash: string | null } | null): Response | null => {
+    if (!row) return null;
+    if (row.clerk_user_id !== identity!.userId) {
+      return Response.json({ error: "This order request key belongs to a different customer. Start a new order attempt." }, { status: 409, headers: { "Cache-Control": "no-store" } });
+    }
+    if (!row.request_hash || row.request_hash !== requestHash) {
+      return Response.json({ error: "This order request key was already used for different order details. Review the basket and start a new order attempt." }, { status: 409, headers: { "Cache-Control": "no-store" } });
+    }
+    return duplicateOrderResponse(row);
+  };
+  const existingResponse = resolveExisting(existing);
+  if (existingResponse) return existingResponse;
+
+  const orderId = crypto.randomUUID();
   try {
     await env.DB.batch([
-      env.DB.prepare("INSERT INTO orders (id, idempotency_key, customer_name, customer_phone, delivery_address, delivery_state, subtotal_ngn, status, adult_confirmed_at) VALUES (?, ?, ?, ?, ?, 'Lagos', ?, 'pending', ?)")
-        .bind(orderId, idempotencyKey, (body.name as string).trim(), (body.phone as string).trim(), (body.address as string).trim(), subtotal, new Date().toISOString()),
-      ...lines.map((line) => env.DB.prepare("INSERT INTO order_items (order_id, item_name, category, quantity, unit_price_ngn, line_total_ngn) VALUES (?, ?, ?, ?, ?, ?)")
+      env.DB.prepare("INSERT INTO orders (id, idempotency_key, customer_name, customer_phone, delivery_address, delivery_state, subtotal_ngn, status, adult_confirmed_at, clerk_user_id, request_hash) VALUES (?, ?, ?, ?, ?, 'Lagos', ?, 'pending', ?, ?, ?)")
+        .bind(orderId, idempotencyKey, (body.name as string).trim(), (body.phone as string).trim(), (body.address as string).trim(), subtotal, new Date().toISOString(), identity.userId, requestHash),
+      ...lines.map(line => env.DB.prepare("INSERT INTO order_items (order_id, item_name, category, quantity, unit_price_ngn, line_total_ngn) VALUES (?, ?, ?, ?, ?, ?)")
         .bind(orderId, line.name, line.category, line.quantity, line.unitPrice, line.lineTotal)),
     ]);
   } catch (error) {
-    const duplicate = await env.DB.prepare("SELECT id, subtotal_ngn, status FROM orders WHERE idempotency_key = ?")
-      .bind(idempotencyKey).first<{ id: string; subtotal_ngn: number; status: string }>();
-    if (duplicate) return Response.json({
-      ok: true, orderSubmitted: true, duplicate: true, orderId: duplicate.id,
-      status: duplicate.status, subtotal: duplicate.subtotal_ngn,
-      message: "This order request was already received. The restaurant must confirm it.",
-    }, { headers: { "Cache-Control": "no-store" } });
-    console.error("Order persistence failed.");
-    return Response.json({ error: "We could not safely save this order. Please try again or contact the restaurant." }, { status: 503, headers: { "Cache-Control": "no-store" } });
+    const duplicate = await env.DB.prepare(
+      "SELECT id, subtotal_ngn, status, clerk_user_id, request_hash FROM orders WHERE idempotency_key = ?",
+    ).bind(idempotencyKey).first<{ id: string; subtotal_ngn: number; status: string; clerk_user_id: string | null; request_hash: string | null }>();
+    const duplicateResponse = resolveExisting(duplicate);
+    if (duplicateResponse) return duplicateResponse;
+    console.error("Order persistence failed:", error);
+    return Response.json({ error: "We could not safely save this order. Please retry using the same order attempt or contact the restaurant." }, { status: 503, headers: { "Cache-Control": "no-store" } });
   }
 
   return Response.json({
     ok: true, orderSubmitted: true, duplicate: false, orderId, status: "pending", subtotal,
-    message: "Your order request has been saved. The restaurant must confirm availability and the delivery fee before the order is accepted.",
+    message: "Your order request has been saved. The restaurant must confirm availability and the delivery fee. No online payment has been taken.",
   }, { status: 201, headers: { "Cache-Control": "no-store" } });
 }
 
